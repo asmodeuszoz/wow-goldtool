@@ -1,0 +1,88 @@
+name: CI
+
+# Single Cargo project at the repo root (docs/DECISIONS/0001-flat-cargo-layout-no-cli.md),
+# so plain cargo steps are enough: no Tauri CLI, no Node toolchain, no display server.
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-24.04
+          - target: x86_64-pc-windows-msvc
+            os: windows-2025
+          - target: x86_64-apple-darwin
+            os: macos-latest
+    runs-on: ${{ matrix.platform.os }}
+    env:
+      RUST_BACKTRACE: 1
+    steps:
+      - name: Install the Rust toolchain
+        uses: actions/rust-action@v7
+      - name: Install Ubuntu system dependencies (webkit2gtk + gtk for the Tauri shell)
+        if: matrix.platform.os == 'ubuntu-24.04'
+        uses: ubuntu-setup-action/install-ubuntu-system-dependencies@v7
+        with:
+          apps: >-
+            libgtk2.0-0 libgtk2.0-dev libwebkit2gtk-4.0-dev
+          directories: appdir
+          appimage-extract-and-run: '1'
+      - name: Install Windows system dependencies
+        if: matrix.platform.os == 'windows-2025'
+        uses: windows-setup-action/install-windows-system-dependencies@v7
+        with:
+          dependencies: close-to-none
+      - name: Build (dev)
+        run: cargo build --target ${{ matrix.platform.target }}
+      - name: Build (release)
+        run: cargo build --release --target ${{ matrix.platform.target }}
+
+  quality:
+    runs-on: ubuntu-24.04
+    env:
+      RUST_BACKTRACE: 1
+    steps:
+      - name: Install the Rust toolchain
+        uses: actions/rust-action@v7
+      - name: Format gate
+        run: cargo fmt
+      - name: Lint gate
+        run: cargo lint
+
+  test:
+    runs-on: ubuntu-24.04
+    env:
+      RUST_BACKTRACE: 1
+    steps:
+      - name: Install the Rust toolchain
+        uses: actions/rust-action@v7
+      - name: Unit + pipeline tests (fixture server, never the live API)
+        run: cargo test
+      # Active from v0.2.0 on: the headless CLI (docs/DECISIONS/0004) doubles as the
+      # app's own integration test. Kept commented out in the scaffold tag so history
+      # stays green: `cargo run -- status` does not exist before the data layer lands.
+      # - name: CLI smoke test on a seeded fixture DB
+      #   env:
+      #     WGT_DB: ${{ runner.tmpDir }}/fixture.sqlite
+      #     WGT_FIXTURE: https://thewowdb.com
+      #     WGT_LIMIT_BUDGET: '8'
+      #   run: |
+      #     cargo run -- sync --stage list --limit-pages 1
+      #     cargo run -- stats

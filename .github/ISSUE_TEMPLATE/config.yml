@@ -1,0 +1,22 @@
+# Links that do not fit the two forms above.
+name: Support, questions and data questions
+about: Anything that is not a bug report or a feature request
+url: https://github.com/asmodeuszoz/wow-goldtool/discussions
+labels: question
+
+blank_issues_enabled: false
+
+contact_links:
+  - name: Read the development docs first
+    url: https://github.com/asmodeuszoz/wow-goldtool/blob/main/docs/DEVELOPMENT.md
+    about: >
+      Architecture, module map, house rules and the milestone roadmap. Most "why is this
+      built this way" questions are already answered here or in docs/DECISIONS/.
+  - name: Data source and attribution rules
+    url: https://thewowdb.com/developers
+    about: >
+      TheWoWDB is the data source. Rate model, caching rules and the visible-link
+      attribution requirement are summarised in docs/API.md.
+  - name: Development log
+    url: https://github.com/asmodeuszoz/wow-goldtool/blob/main/docs/DEVLOG.md
+    about: Dated notes on measurements, attempts and caveats.
