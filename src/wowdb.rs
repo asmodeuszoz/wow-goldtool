@@ -64,8 +64,34 @@ pub fn item_url(id: i64) -> String {
 }
 
 /// Cross-kind live search over items, spells, quests, npcs, zones and sounds.
+/// The query is percent-encoded on the way in: the live probe asked with
+/// `?q=Worn%20Shortsword` and got a 200 back (docs/API.md measures it), and a
+/// raw space is not a URL character. Upstream's own `more` URLs use `+` for
+/// spaces, but those arrive INSIDE the answer and stay verbatim (the door prints
+/// the answer as it came).
 pub fn search_url(query: String) -> String {
-    return format!("{}/api/v1/{}/search/?q={}", base_url(), API_VERSION, query);
+    return format!("{}/api/v1/{}/search/?q={}", base_url(), API_VERSION, encode_query(query));
+}
+
+/// Percent-encode one query value: letters, digits and the three harmless
+/// punctuation marks ride through; a space rides as `%20` like the measured
+/// probe; everything else rides as its UTF-8 bytes, two hex digits each.
+pub fn encode_query(text: String) -> String {
+    let mut out: String = "".to_string();
+    for one in text.chars() {
+        if (one >= 'a' && one <= 'z') || (one >= 'A' && one <= 'Z') || (one >= '0' && one <= '9') || one == '-' || one == '.' || one == '_' {
+            out = format!("{}{}", out, one);
+            continue;
+        }
+        if one == ' ' {
+            out = format!("{}{}", out, "%20");
+            continue;
+        }
+        for byte in one.to_string().as_bytes() {
+            out = format!("{}{}", out, format!("%{:02X}", byte));
+        }
+    }
+    return out;
 }
 
 /// Pacing state for one crawl run. Plain data so the sync loop can log it and the CLI

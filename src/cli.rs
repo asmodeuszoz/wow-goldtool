@@ -14,8 +14,8 @@ use crate::db::{count_items, db_path, detail_etag_of, history_of, icon_at_of, ic
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
 use crate::sync::{sync_icons, sync_detail, sync_list, CancelFlag, SyncReport};
-use crate::wowdb::{build_client, get_json, item_url, ApiResponse, HttpKind, RateBudget, classify, Client, ENV_FIXTURE_KEY};
-use crate::models::{ItemDetail};
+use crate::wowdb::{build_client, get_json, item_url, search_url, ApiResponse, HttpKind, RateBudget, classify, Client, ENV_FIXTURE_KEY};
+use crate::models::{ItemDetail, SearchResponse};
 
 use rusqlite::Connection;
 
@@ -27,7 +27,7 @@ use std::env::set_var;
 /// What the CLI can answer. Keeping the list here means an unknown verb becomes a
 /// usage error that names what the user actually typed.
 pub fn usage_text() -> String {
-    return "usage: status | sync --stage list|detail|icons [--budget N] [--ids A,B,C] [--watch] | search TEXT [--quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--limit N] | item ID [--cached] | watch add ID [note] | watch list | watch drop ID | status [--db PATH] [--fixture URL]".to_string();
+    return "usage: status | sync --stage list|detail|icons [--budget N] [--ids A,B,C] [--watch] | search TEXT [--quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | status [--db PATH] [--fixture URL]".to_string();
 }
 
 /// The verbs of one invocation plus its flags. Unknown flags are kept rather than
@@ -821,6 +821,66 @@ pub fn guard(body: AppResult<String>) -> i32 {
     }
 }
 
+/// live-search: ONE request to the grouped search door, for a human ask. The door
+/// prints what upstream answered (serde pas-through: `groups` stays a `Value`) plus
+/// `remaining` from the burst headers, and touches NO DB - this is a look, not a
+/// sync (ADR 0009 says why, and why a 429 here is the exit-3 door like `item`,
+/// not the crawl's retry-in-place: one ask, one request). The answer matches NAMES
+/// only (docs/API.md measures the trap: `?q=socket` answers empty groups) and each
+/// group says `has_more` plus its own paged `more` URL - v0.7.0 stops at one request.
+pub fn cmd_live_search(inv: &Invocation) -> AppResult<String> {
+    if inv.words.len() < 1 {
+        return Err(AppError::usage("live-search wants text, for example: live-search Worn Shortsword".to_string()));
+    }
+    let query: String = join_tail(inv.words.clone());
+    let client: Client = match build_client() {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    let response: ApiResponse = match get_json(client, search_url(query.clone()), "".to_string()) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    match classify(response.status) {
+        HttpKind::Success => {},
+        HttpKind::RateLimited => return Err(AppError::rate_limited("the API asked us to back off".to_string(), response.retry_after)),
+        HttpKind::Missing => return Err(AppError::not_found("the search door answered 404: it has no answer for that query shape".to_string())),
+        HttpKind::NotModified => return Err(AppError::http(response.status, response.body)),
+        HttpKind::Failed => return Err(AppError::http(response.status, response.body)),
+    }
+    let found: SearchResponse = match from_str(&response.body) {
+        Err(_) => return Err(AppError::decode(format!("the search answer for {} is not the JSON we expect", query))),
+        Ok(value) => value,
+    };
+    let answer: String = match to_string(&found) {
+        Err(_) => return Err(AppError::decode("cannot print the search answer".to_string())),
+        Ok(value) => value,
+    };
+    eprintln!("live search {} answered NAMES only: a tooltip word is not searched, and a group can answer has_more with its own paged more URL (one ask, one request: this build does not chase it)", query);
+    let mut parts: Vec<String> = [].to_vec();
+    parts.push(fragment("status".to_string(), format!("{}", response.status)));
+    parts.push(fragment("retry_after".to_string(), json_opt_seconds(response.retry_after)));
+    parts.push(fragment("remaining".to_string(), match response.remaining {
+        None => "null".to_string(),
+        Some(left) => format!("{}", left),
+    }));
+    parts.push(fragment("answer".to_string(), answer));
+    return Ok(object(parts));
+}
+
+/// The whole verb tail as ONE query: `live-search Worn Shortsword` asks the API for
+/// "Worn Shortsword", not for two flags. Flag-shaped words stay words here.
+pub fn join_tail(words: Vec<String>) -> String {
+    let mut out: String = "".to_string();
+    for one in words {
+        if out != "" {
+            out = format!("{} {}", out, one);
+        }
+        out = format!("{}{}", out, one);
+    }
+    return out;
+}
+
 /// Every verb through the same guard: JSON out, message and code to stderr.
 /// One Invocation to its verb's JSON string: the single place both the headless CLI
 /// and the GUI (commands.rs, ADR 0004) send verbs through. Prints nothing on stdout;
@@ -842,6 +902,7 @@ pub fn dispatch(inv: Invocation) -> AppResult<String> {
     if inv.verb == "search" { return cmd_search(&inv); }
     if inv.verb == "stats" { return cmd_stats(&inv); }
     if inv.verb == "item" { return cmd_item(&inv); }
+    if inv.verb == "live-search" { return cmd_live_search(&inv); }
     if inv.verb == "watch" { return cmd_watch(&inv); }
     if inv.verb == "help" {
         eprintln!("{}", usage_text());

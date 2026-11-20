@@ -108,6 +108,9 @@ pub struct ItemDetail {
     pub attribution: Option<Attribution>,
 }
 
+/// The search endpoint answers a grouped page; the door prints the answer, so the
+/// model is only the mirror of the wire. `groups` stays a `Value`: the door prints
+/// what upstream answered, and a new kind upstream cannot break a build.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct SearchResponse {
     pub q: Option<String>,
