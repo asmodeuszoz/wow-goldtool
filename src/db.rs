@@ -35,7 +35,7 @@ use std::time::UNIX_EPOCH;
 /// files chain through v2 to this shape - because the user's own catalogue sits on
 /// disk at v1 and refusing it would throw away 19 258 rows. A file NEWER than this
 /// build is still refused: we cannot know what it holds.
-pub const SCHEMA_VERSION: i64 = 3;
+pub const SCHEMA_VERSION: i64 = 4;
 
 /// Default DB file name, used when WGT_DB does not point somewhere else.
 pub const DB_FILE_NAME: &str = "wow-goldtool.sqlite";
@@ -58,7 +58,7 @@ pub const SCHEMA_SQL: &str = concat!(
     "quality TEXT, quality_rank INTEGER,",
     "item_level INTEGER, required_level INTEGER,",
     "item_type TEXT, item_subtype TEXT, slot TEXT,",
-    "item_set TEXT, unique_flag TEXT, flavor TEXT,",
+    "item_set TEXT, unique_flag TEXT, flavor TEXT, tooltip_html TEXT,",
     "icon_url TEXT,",
     "sockets TEXT, socket_bonus TEXT, classes TEXT, stats TEXT, effects TEXT,",
     "faction_prices TEXT,",
@@ -67,11 +67,12 @@ pub const SCHEMA_SQL: &str = concat!(
     "price_min INTEGER, price_market INTEGER, price_available INTEGER,",
     "price_realms INTEGER, price_region TEXT, price_scope TEXT,",
     "price_updated_at TEXT,",
-    "api_url TEXT, html_url TEXT, tooltip_url TEXT,",
+    "api_url TEXT, html_url TEXT, tooltip_url TEXT, tooltip_etag TEXT,",
     "list_etag TEXT, detail_etag TEXT,",
-    "list_synced_at INTEGER, detail_synced_at INTEGER,",
+    "list_synced_at INTEGER, detail_synced_at INTEGER, tooltip_at INTEGER,",
     "detail_missing_at INTEGER,",
     "icon_blob BLOB, icon_at INTEGER, icon_missing_at INTEGER,",
+    "manual_at INTEGER, manual_overrides TEXT, edited_at INTEGER, deleted_at INTEGER,",
     "raw_json TEXT",
     ");",
     "CREATE TABLE watch (id INTEGER PRIMARY KEY, added_at INTEGER, note TEXT);",
@@ -143,6 +144,31 @@ pub const SQL_MIGRATE_TO_V3: &str = concat!(
     "ALTER TABLE item ADD COLUMN icon_missing_at INTEGER;",
     "CREATE TABLE price_history (seq INTEGER PRIMARY KEY, item_id INTEGER, sampled_at INTEGER, price_min INTEGER, price_market INTEGER);",
     "CREATE INDEX price_history__item ON price_history (item_id);",
+);
+
+/// The v3 -> v4 steps (v0.8.0, ADR 0010): the tooltip door's own copy and stamps
+/// (its 404 was measured answering upstream's own JSON error - `No item … in
+/// forever.` - so it gets the same checked third state the detail and icon doors
+/// grew), and the MANUAL LAYER: manual_at marks rows the user created (ids from a
+/// reserved block - the measured max id on disk was 288 340, so 900 000 000+ is
+/// clear of every upstream id), manual_overrides is the per-field JSON the edit
+/// verbs write and every write path merges LAST (a user-said field beats the
+/// next crawl; the fields the crawl owns keep refreshing), edited_at stamps the
+/// last user edit, and deleted_at is the tombstone - a HARD delete would be
+/// resurrected by the next list pass (the list stage upserts every listed id), so
+/// the mark is the only shape that survives. All additive again: ALTER appends,
+/// the stamp moves in one call, rows and cursors stay intact. No new index: the
+/// pending rules read these stamps once per run, same rule as v0.5.3's pending
+/// filter (a guessed index is a plan, not a measurement).
+pub const SQL_MIGRATE_TO_V4: &str = concat!(
+    "ALTER TABLE item ADD COLUMN tooltip_html TEXT;",
+    "ALTER TABLE item ADD COLUMN tooltip_etag TEXT;",
+    "ALTER TABLE item ADD COLUMN tooltip_at INTEGER;",
+    "ALTER TABLE item ADD COLUMN tooltip_missing_at INTEGER;",
+    "ALTER TABLE item ADD COLUMN manual_at INTEGER;",
+    "ALTER TABLE item ADD COLUMN manual_overrides TEXT;",
+    "ALTER TABLE item ADD COLUMN edited_at INTEGER;",
+    "ALTER TABLE item ADD COLUMN deleted_at INTEGER;",
 );
 
 /// Marking an id as "the upstream has no forever record for it" (v0.5.3). The row
@@ -423,13 +449,14 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
             if version == SCHEMA_VERSION {
                 return Ok(());
             }
-            // v0.6.0 migrated BOTH older shapes, in a chain: the user's own catalogue
-            // sits at v1 on disk, so refusing v1 (or v2) would throw away a 19 258-row
-            // file on the excuse of a schema bump. v1 -> v2 is v0.5.3's ALTER, then
-            // v2 -> v3 adds the icon columns, the price-history table and its index -
-            // all additive, so existing rows and stamps stay intact and the cursor in
-            // sync_state keeps its meaning. Anything newer or foreign keeps the honest
-            // refusal below.
+            // v0.8.0 chains EVERY stale shape up to v4: the user's own file sat at v1
+            // for six milestones and migrated to v3 the moment a real run opened it
+            // (2026-11-20, measured: schema_version meta now says 3, rows 19 258
+            // intact), so refusing ANY older stamp would throw away a full catalogue
+            // on the excuse of a schema bump. v1 -> v2 is v0.5.3's ALTER, v2 -> v3 is
+            // the v0.6.0 batch, v3 -> v4 is this build's ALTERs - all additive, so
+            // existing rows and stamps stay intact and the cursor in sync_state keeps
+            // its meaning. Anything newer or foreign keeps the honest refusal below.
             match version {
                 1 => {
                     match bind_sql(conn, SQL_ADD_MISSING_COLUMN, [].to_vec(), 0) {
@@ -440,6 +467,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V4) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
                     match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
                         Err(problem) => return Err(problem),
                         Ok(_) => return Ok(()),
@@ -447,6 +478,20 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                 },
                 2 => {
                     match conn.execute_batch(SQL_MIGRATE_TO_V3) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V4) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
+                    match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
+                        Err(problem) => return Err(problem),
+                        Ok(_) => return Ok(()),
+                    }
+                },
+                3 => {
+                    match conn.execute_batch(SQL_MIGRATE_TO_V4) {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
