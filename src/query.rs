@@ -148,6 +148,7 @@ pub struct Plan {
 pub fn where_parts(filter: Filter) -> Plan {
     let mut clauses: Vec<String> = [].to_vec();
     let mut params: Vec<Value> = [].to_vec();
+    clauses.push(visible_clause());
     match filter.text {
         Some(text) => {
             clauses.push(text_clause());
@@ -210,6 +211,12 @@ pub fn search_plan(filter: Filter) -> Plan {
         None => {},
     }
     return Plan { sql: sql, params: params };
+}
+
+/// Rows the user deleted are invisible to EVERY local query (ADR 0010's tombstone):
+/// one clause, pushed first, so `search`, its `--limit` count and the card agree.
+pub fn visible_clause() -> String {
+    return "deleted_at IS NULL".to_string();
 }
 
 /// How many rows a filter matches: the same WHERE chain as `search_plan`, so the
