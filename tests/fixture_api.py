@@ -6,7 +6,10 @@ here as base64, so CI stays offline and never hotlinks), and rate limits the FIR
 request of each stage (429 + Retry-After, to exercise the pacing path). Speaks
 conditional GETs like the upstream docs promise: stable per-endpoint ETags and a real
 304 (no body) for a matching If-None-Match, so v0.3.0's reuse paths are exercised.
-One listed id has NO detail record (404), the shape v0.5.3's third state answers;
+One listed id has NO detail record (404), the shape v0.5.3's third state answers; one
+ANSWERED record has no tooltip answer at all (404 with upstream's own JSON body - docs/
+API.md measures that body live 2026-11-20), the shape v0.8.0's tooltip stage grew its
+own third state for;
 one record's detail answers WITH an icon_url whose icon FILE is gone (404 on /icon/),
 the shape v0.6.0's icon-stage third state answers (docs/API.md measured the asset
 host answering a 404 HTML page for a missing icon path; the crawler reads only the
@@ -95,6 +98,68 @@ DETAIL_BASE = {
 # https://render.worldofwarcraft.com/us/icons/56/inv_mace_03.jpg as image/jpeg
 # 1945 b and https://thewowdb.com/assets/icons/inv_axe_11.jpg as image/jpeg 1936
 # b); they were fetched once and embedded, so CI never asks a host for pixels.
+# The tooltip door (v0.8.0). The REAL body's key list is measured and printed in docs/
+# API.md (attribution,build,fields,html,icon_url,id,kind,links,name,quality,version); the
+# fixture replays that SHAPE with its own records, and its `html` is a small stand-in card
+# in upstream's own class names - NOT upstream prose, whose text we never copy. The crawler
+# reads only `html` (the description text the user asked the DB to hold). One answered id is
+# ABSENT here on purpose: the tooltip stage's third state then has a real twin (the 404 below
+# answers with upstream's own JSON error, the measured shape).
+TOOLTIP_PAGES = {
+    "25": {
+        "attribution": ATTRIBUTION,
+        "build": "fixture-build",
+        "fields": {},
+        "html": '<div class="twdb-card twdb-k-item"><div class="twdb-head"><img class="twdb-icon" src="https://render.worldofwarcraft.com/us/icons/56/inv_sword_04.jpg" alt="Fixture Detail 25" /></div><div class="twdb-body">Fixture Detail 25 Item Level 1 Main Hand One-Handed Sword 1 - 3 Damage Speed 1.9 Sell Price: 7c</div></div>',
+        "icon_url": "https://render.worldofwarcraft.com/us/icons/56/inv_sword_04.jpg",
+        "id": 25,
+        "kind": "item",
+        "links": {"api": "/api/v1/tooltip/forever/item/25", "html": "/forever/item/25"},
+        "name": "Fixture Detail 25",
+        "quality": "Common",
+        "version": "forever",
+    },
+    "40": {
+        "attribution": ATTRIBUTION,
+        "build": "fixture-build",
+        "fields": {},
+        "html": '<div class="twdb-card twdb-k-item"><div class="twdb-body">Fixture Detail 40 Item Level 1 Sell Price: 7c</div></div>',
+        "icon_url": "https://render.worldofwarcraft.com/us/icons/56/inv_sword_04.jpg",
+        "id": 40,
+        "kind": "item",
+        "links": {"api": "/api/v1/tooltip/forever/item/40", "html": "/forever/item/40"},
+        "name": "Fixture Detail 40",
+        "quality": "Common",
+        "version": "forever",
+    },
+    "60": {
+        "attribution": ATTRIBUTION,
+        "build": "fixture-build",
+        "fields": {},
+        "html": '<div class="twdb-card twdb-k-item"><div class="twdb-body">Fixture Detail 60 Item Level 1 Sell Price: 7c</div></div>',
+        "icon_url": "https://render.worldofwarcraft.com/us/icons/56/inv_sword_04.jpg",
+        "id": 60,
+        "kind": "item",
+        "links": {"api": "/api/v1/tooltip/forever/item/60", "html": "/forever/item/60"},
+        "name": "Fixture Detail 60",
+        "quality": "Common",
+        "version": "forever",
+    },
+    "127555": {
+        "attribution": ATTRIBUTION,
+        "build": "fixture-build",
+        "fields": {},
+        "html": '<div class="twdb-card twdb-k-item"><div class="twdb-body">Conjured Cocoa Choco-Frogo Conjured Item Sell Price: 7c</div></div>',
+        "icon_url": "https://render.worldofwarcraft.com/us/icons/56/inv_sword_04.jpg",
+        "id": 127555,
+        "kind": "item",
+        "links": {"api": "/api/v1/tooltip/forever/item/127555", "html": "/forever/item/127555"},
+        "name": "Conjured Cocoa Choco-Frogo",
+        "quality": "Common",
+        "version": "forever",
+    },
+}
+
 ICONS = {
     "inv_mace_03.jpg": base64.b64decode(
         "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"),
@@ -192,6 +257,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 groups[kind] = {"has_more": len(hits) > 2, "more": "/api/v1/forever/{}/?page=1&per_page=50&q={}".format(kind, q.replace(" ", "+")), "results": hits[:5]}
             body = {"q": q, "version": "forever", "attribution": ATTRIBUTION, "groups": groups}
             etag = 'W/"fixture-search-etag"'
+        elif path.startswith("/api/v1/tooltip/"):
+            # the tooltip door (v0.8.0): revalidated like the detail door (the probe read
+            # a real ETag W/"2b111cbcd3bbb4d7078f6d05" and cache-control max-age=300), so a
+            # targeted re-ask pays a 304 and the stage writes nothing - the same reuse
+            # discipline docs/API.md already promises.
+            stage = "tooltip"
+            etag = '"fixture-etag-tooltip-{}-{}"'.format(tail, RUN)
+            body = TOOLTIP_PAGES.get(tail)
         elif "item" in path and "page" in path:
             stage = "list"
             page = "2" if "page=2" in path else "1"
@@ -214,6 +287,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_header("X-RateLimit-Remaining", "0")
             self.end_headers()
             self.wfile.write(b'{"error":"slow down"}')
+            return
+
+        # the tooltip door's own "no tooltip here" answer: upstream's 404 body is JSON, not
+        # the generic empty page (measured shape, docs/API.md: `No item … in forever.`), so
+        # the fixture keeps that shape and the crawler marks the third state from the STATUS
+        # alone, exactly as it does on the live door.
+        if stage == "tooltip" and body is None:
+            self.send_response(404)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            gone = {"error": "not_found", "message": "No item {} in forever.".format(tail), "status": 404}
+            self.wfile.write(json.dumps(gone).encode())
             return
 
         # a removed record: upstream's own 404 body, no ETag offered for revalidation.
