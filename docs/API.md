@@ -33,6 +33,10 @@ GET https://thewowdb.com/api/v1/tooltip/<version>/<kind>/<id>
 * `q` is a case-insensitive name match, max 64 chars.
 * `/search/?q=` returns grouped hits (`item`, `spell`, `quest`, `npc`, `zone`, `sound`),
   each with its own `has_more` + `more` URL.
+* Measured 2026-11-20: `?q=socket` and `?q=Socketed` answer **empty result groups** — the
+  match is over NAMES only, so the live search can never find a record by tooltip text
+  ("socketed") even though such items exist in the catalogue. Local SQLite search has the
+  same limit (it indexes names), and no part of the app claims otherwise.
 * We use it for the "live search" panel; local search is done in SQLite instead (see
   `docs/DATABASE.md`), because the API cannot sort by price.
 
@@ -75,6 +79,55 @@ GET https://thewowdb.com/api/v1/tooltip/<version>/<kind>/<id>
     request and answers the exit-code contract's `4` (`not-found`);
   - a **list page** that answers `404` is still a failure: pages exist as long as the walk
     is told to walk, so that shape stays `HttpKind::Failed` and exits `3`.
+* Answer-rate measured 2026-11-20 against a completed 193-page walk: a 75-id spread asked
+  of the stored ids answered **23 records and 52 × 404**; a contiguous block answered
+  18 of 46. Most listed ids simply have no `forever` detail record — which is exactly why
+  the checked state costs one request per id per crawl (a full detail pass that re-asked
+  them every run could never finish), and why the ≈ 19.3 k-request figure below is an
+  upper bound: the honest queue is "listed and never looked at", not "listed".
+
+## Icon files (the asset hosts behind `icon_url`)
+
+Measured 2026-11-20 against the live catalogue — this is where the v0.6.0 icon copies
+come from, and these two shapes are the ONLY two seen on answered records:
+
+* Every answered `forever/item` record carries an ABSOLUTE `icon_url` on one of:
+  `https://render.worldofwarcraft.com/<region>/icons/56/<name>.jpg`
+  (`/us/`, `/forever-eu/`, `forever-us` variants) or `https://thewowdb.com/assets/icons/<name>.jpg`.
+  Measured bytes: `.../icons/56/inv_mace_03.jpg` → **200 `image/jpeg` 1945 b**;
+  `thewowdb.com/assets/icons/inv_axe_11.jpg` → **200 `image/jpeg` 1936 b** (56..64 px squares).
+* An answered record CAN carry an **empty** `icon_url` (`"icon_url": ""`) — measured
+  live 2026-11-20 on 4 of the 29 detailed rows of the scratch catalogue (Peace Tea,
+  Craftsman's Writ: Mechanical Repair Kit, Scroll of Imbue Iceknife, Lodestone). It is
+  not a broken URL and not a `404`: upstream answered "no icon here", so the icon stage
+  must NOT treat such records as pending work (`SQL_PENDING_ICON` requires a NON-EMPTY
+  url), and no third-state stamp is written for them either.
+* An absent icon FILE answers differently per host, both measured 2026-11-20:
+  `thewowdb.com/assets/icons/<bogus>.jpg` → **404 `text/html`** (the site's own 40 147-b
+  page, whose body is prose and never an icon), and
+  `render.worldofwarcraft.com/us/icons/56/<bogus>.jpg` → **403 `application/xml`** (243 b,
+  the CDN's S3-style `AccessDenied` answer). The crawler reads the STATUS for icon bytes and
+  discards the body; the icon stage's third state (`icon_missing_at`) is written for the
+  `404`, because that answer's own words say "not found here" — the `403` says `AccessDenied`,
+  which states no such thing about an icon, so the stage treats it as a stage failure
+  (exit `3`, resumable, nothing marked, the icon stays pending): a fact the upstream never
+  stated stays unstated (docs/DATABASE.md, ADR 0008). A bogus path on either host was only
+  EVER asked by these probes — every real `icon_url` measured so far answered `200`.
+* The bare root-relative form (`/icon/...` appended to a host root) answers **404**
+  (measured: `thewowdb.com/icon/<bogus>.png` → 404 `text/html`): NO live record uses that
+  shape. The fixture does — against the base the process already points at
+  (`WGT_FIXTURE`), which is the only server that can serve fixture bytes offline.
+  `wowdb.rs::icon_target` resolves exactly the two live shapes (absolute `http…` as
+  measured) plus that base-relative form for the fixture, and REFUSES to guess any other
+  (the stage then fetches nothing, marks nothing: a fact the upstream never stated stays
+  unstated).
+* The icon hosts are NOT the rate-limited API endpoints, but politeness is per host:
+  the stage shares the same 2 req/s schedule and honours `Retry-After` if answered
+  (ADR 0008). Full-copy cost: ≈ one request per answered record (≈ 2.7 h at 2/s —
+  staged, resumable, cancellable, like the detail stage).
+* No icon ETag is stored: v0.6.0 copies each icon exactly ONCE (the pending rule
+  excludes copied icons, see `docs/DATABASE.md`), so there is no revalidation path
+  whose promise we would need to keep.
 
 ## Rate limits
 

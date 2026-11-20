@@ -44,10 +44,14 @@ frontend), `icons/icon.png` (generated), `tools/gen_icon.py` (what generated it)
 progress truth and both doors read it, so mirroring it in `AppState` would be a second
 source of truth; cancel is a JS flag read at chunk granularity (ADR 0005).
 
-As of v0.5.0 every module above exists, and `cargo build` still ends in warnings only —
-the unused ones are the v0.6.0 plan: `search_url`, `SearchResponse`, `catalogue`,
-`open_db`, `ApiResponse.remaining`, and `pending_plan`'s private `PendingSql`. The
-`NotFound` error kind stopped being dead code the moment `item ID --cached` needed it.
+As of v0.6.0 every module above exists, and `cargo build` still ends in warnings only —
+the unused ones are exactly: `search_url`, `SearchResponse`, `catalogue`,
+`open_db`, `ApiResponse.remaining`, and `pending_plan`'s private `PendingSql` (plus
+the hardlink notice, which is the DB-path doc reading `st_mtime`/`st_nlink` at build
+time). v0.6.0 consumed the readers it grew: `history_of` + `PriceSample` + `SQL_HISTORY_OF`
+and the icon trio `icon_blob_of`/`icon_at_of`/`icon_missing_at_of` all have their consumer
+in the item card. The `NotFound` error kind stopped being dead code the moment
+`item ID --cached` needed it.
 
 Rules of thumb: `wowdb.rs` never touches the DB, `db*.rs` never touches the network,
 `sync.rs` is the only place where the two meet, `commands.rs` contains no logic.
@@ -81,7 +85,7 @@ git tag. The dated narrative lives in [docs/DEVLOG.md](./DEVLOG.md).
 - [x] `v0.5.1` (patch) — the crawl stops freezing the page: `cli_call` is an async command, and a status ticker keeps the note and the card alive while a chunk is in flight
 - [x] `v0.5.2` (patch) — pending = never fetched (fetched-but-unpriced stops being pending work), the GUI verb hop to a plain thread (a blocking-client build inside a tokio worker stalled the crawl at `build_client`), "Pull all info" chains both stages to their end
 - [x] `v0.5.3` (patch) — a record upstream dropped is a checked third state (`detail_missing_at`, `HttpKind::Missing`, `missing` in the sync report and in coverage), pending = never fetched **and** never checked-missing, schema `1 → 2` migrated in place with `ALTER TABLE` so an existing catalogue keeps its rows
-- [ ] `v0.6.0` — price history (a second DB table, since one price per item cannot show a trend), local icon copies
+- [x] `v0.6.0` — price history (a second table, `price_history`: one sample per **fresh** detail write, never a `304`, ADR 0007), local icon copies via a THIRD sync stage (`icon_blob` + `icon_at` + `icon_missing_at`, ADR 0008), the item card renders the `stats` pairs (the one unshaped field grounded live), the local icon as a `data:` URI and the price trend; schema `3`, migrating v1→v2→v3 in place
 
 ## Build & run
 
@@ -103,10 +107,12 @@ the IPC handler and parks the page behind the crawl, and fixed in v0.5.2 too: a 
 client build on the manager's tokio worker stalled the crawl at `build_client` before it
 issued a single request). The verb body therefore runs on a fresh `std` thread (`verb_on_plain_thread`
 in src/main.rs): the page keeps ticking while the crawl owns a runtime-free thread of its
-own. "Pull all info" chains both stages to their end in one flow, and the launch audit
+own. "Pull all info" chains all three stages to their end in one flow (v0.6.0), and the launch audit
 proves it against the fixture — the stage verbs interleave with the ticker's `status`
-polls, both stages' forced `429` retry in place, and the scratch DB ends at 0 pending
-with both `sync_state` rows `complete`. The GUI uses the same DB resolution as the CLI, so
+polls, all three stages' forced `429` retry in place, and the scratch DB ends at 0 pending
+in every queue with all three `sync_state` rows `complete` (v0.6.0 chained
+list → detail → icons; the icons stage copies the fixture's real JPEG bytes and checks the
+one gone icon file). The GUI uses the same DB resolution as the CLI, so
 `WGT_DB=/tmp/opencode/fixture.sqlite cargo run` audits the UI against the fixture DB instead
 of the real one.
 
@@ -123,8 +129,9 @@ cargo run -- search "Worn Shortsword"     # local DB query, prints JSON
 cargo run -- item 25                      # live lookup; 304 + stored raw_json when
                                           # the record is already in the DB
 cargo run -- item 25 --cached             # the same card with no request at all
+cargo run -- sync --stage icons --ids 25,40   # exactly these icons (also --watch)
 cargo run -- watch add 25 40              # the list the UI turns into sync targets
-cargo run -- stats                        # DB coverage + price analytics
+cargo run -- stats                        # DB coverage + the ledger count
 ```
 
 Environment switches used by tests and CI:
@@ -141,13 +148,20 @@ Environment switches used by tests and CI:
   (`tests/fixture_api.py`, committed at v0.2.0): two list pages, a detail record for any
   item id, one listed id (`127555`) that has **no** detail record — it answers `404` with
   the upstream's own error body, the shape v0.5.3's third state exists for — and one forced
-  `429` + `Retry-After` per stage; the crawler never sees the upstream API in CI. From
-  v0.5.0 the sequence is eleven steps and also covers a watch list, a targeted detail
-  fetch, the same ids fetched again (which must answer `304` and write nothing) and the
-  DB-only card read. Since v0.5.3 the local mirror adds two steps on the same DB: `item
-  127555` must answer **exit 4** (`not-found`) and re-stamp the mark, and the crawl that
-  follows must answer `requests 0, complete true` — the removed record is not asked again.
-  The committed CI sequence passes every step with the `404` in it.
+  `429` + `Retry-After` per stage; the crawler never sees the upstream API in CI. From v0.6.0
+  it also answers the ICON FILE shape: `/icon/<name>.jpg` answers `200 image/jpeg` with REAL
+  bytes (the grounded `inv_mace_03.jpg` 1945 b and `inv_axe_11.jpg` 1936 b, fetched once from
+  the asset host and embedded as base64 so the suite never asks a host for pixels), record
+  `60` answers an `icon_url` whose FILE is `404` (the icon stage's third state, one check),
+  and detail prices carry a per-process `RUN` offset — one fixture process is one observation
+  window, so a second process' fresh write grows the `price_history` ledger by exactly one
+  sample while a re-ask inside one process still writes none (ADR 0007's rule, measured).
+  From v0.5.0 the sequence is twelve steps with the icon stage in it and also covers a watch
+  list, a targeted detail fetch, the same ids fetched again (which must answer `304` and write
+  nothing) and the DB-only card read. Since v0.5.3 the local mirror adds the gone-id steps on
+  the same DB: `item 127555` must answer **exit 4** (`not-found`) and re-stamp the mark, and
+  the crawl that follows must answer `requests 0, complete true` — the removed record is not
+  asked again. The committed CI sequence passes every step with the `404`s in it.
 - `tests/api.rs` / `tests/pipeline.rs` (unit tests next to the code they test) are the
   plan, not code: v0.2.0 has no `#[test]` functions yet, so `cargo test` only proves
   everything compiles.

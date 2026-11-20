@@ -5,11 +5,12 @@ Forever** from the free [TheWoWDB](https://thewowdb.com/developers) JSON API and
 it in a local **SQLite** database, so browsing, filtering, searching and price-checking
 items works offline.
 
-Status: **v0.5.3 — a record the upstream dropped is a state** (a `404` on a listed
-id is marked `detail_missing_at`, counted, and never re-asked inside a crawl — pending
-means *never fetched and never checked-missing*, so the one-click pull from v0.5.2 can
-actually finish the 19 k-row catalogue). Before it: the one-click pull itself (v0.5.2),
-the crawl stopped freezing the page (v0.5.1), and the GUI itself (v0.4.0).
+Status: **v0.6.0 — price history + local icon copies** (a second table keeps one price
+per **fresh** detail write — `304` revalidations write nothing — so the item card draws a
+real trend; every answered record's own icon file is copied into the DB once as a `BLOB`
+and the card shows it as a `data:` URI, nothing hotlinked; schema `3`, migrating both
+stale shapes in place). Before it: the checked-gone state (v0.5.3), the one-click pull
+itself (v0.5.2), the crawl no longer freezing the page (v0.5.1), and the GUI itself (v0.4.0).
 See the milestone list below and the dated narrative in [docs/DEVLOG.md](./docs/DEVLOG.md).
 
 ```
@@ -38,7 +39,7 @@ highest damage per second, most expensive vendor sell…).
 | `v0.5.1` | patch: a crawl no longer freezes the page (async `cli_call`), mid-chunk status ticker | done |
 | `v0.5.2` | patch: pending = never fetched (the two-state rule), the GUI verb hop off tokio (a blocking-client build inside a tokio worker stalled the crawl at `build_client`), "Pull all info" runs both stages to their end | done |
 | `v0.5.3` | patch: a record upstream dropped is a checked third state (`detail_missing_at`, `HttpKind::Missing`, `missing` in the report and in coverage), pending = never fetched and never checked-missing, schema `1 → 2` migrated in place (`ALTER TABLE`) so an existing catalogue keeps its rows | done |
-| `v0.6.0` | price history (a second table: one price per item cannot show a trend), local icon copies, the item card rendering `stats` (the only unshaped field grounded live so far) | planned |
+| `v0.6.0` | price history (a second table: one price per item cannot show a trend), local icon copies, the item card rendering `stats` (the only unshaped field grounded live so far) | done |
 
 ## Design notes
 
@@ -54,16 +55,21 @@ highest damage per second, most expensive vendor sell…).
   click and a `cargo run --` line cannot drift apart — see
   [ADR 0005](./docs/DECISIONS/0005-gui-ipc-commands.md), which also records that app commands
   are not ACL-checked by construction while no app ACL manifest ships.
-* **Two-stage sync.** The API lists ~19 k items cheaply (name/quality/level) but prices,
-  stats and icons need one request per item. Stage 1 is fast, stage 2 is staged, resumable
-  and cancellable — see [ADR 0002](./docs/DECISIONS/0002-two-stage-sync.md). From v0.5.0
+* **Two crawl stages plus an icon stage.** The API lists ~19 k items cheaply (name/quality/level)
+  but prices and stats need one request per item, and each answered record's own icon FILE
+  needs one more. Stage 1 is fast, stage 2 is staged, resumable and cancellable — see
+  [ADR 0002](./docs/DECISIONS/0002-two-stage-sync.md) — and v0.6.0 adds a third, `sync --stage
+  icons`, with the same budget, cancel and resume plumbing (
+  [ADR 0008](./docs/DECISIONS/0008-icon-storage-third-stage.md)). From v0.5.0
   stage 2 also takes **targets**: `--ids 25,40` and `--watch` fetch exactly what the user
   asked for, and the UI drives them in slices of 20 so Cancel stays meaningful between
   slices. Re-asking for an id that already has a record revalidates (`304`, nothing written).
 * **The card answers offline.** `item ID --cached` reads the stored `raw_json` and sends
   no request; the card prints when that record was fetched, so the user can tell today's
-  prices from last month's. Item icons are deliberately *not* hotlinked: `icon_url` is a
-  remote path, and the app's point is answering without the network.
+  prices from last month's, and draws the price **trend** from the `price_history` ledger.
+  Item icons are deliberately *not* hotlinked: v0.6.0 copies each icon's bytes into the
+  DB as a `BLOB` and the card shows that local copy as a `data:` URI — `icon_url` alone
+  is a remote path, and the app's point is answering without the network.
 * **Rate limits are respected by construction** (burst budget + 2 req/s pacing + `429`
   backoff + `ETag` reuse). See [docs/API.md](./docs/API.md).
 

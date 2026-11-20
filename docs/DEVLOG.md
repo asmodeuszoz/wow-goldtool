@@ -5,6 +5,151 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-20 · v0.6.0 — price history, local icons and the card that shows both
+
+### What forced the milestone
+
+Two questions the schema on disk cannot answer, both asked by the app's own purpose:
+
+* **A trend.** The `item` row keeps ONE price per item (`price_min` …), overwritten by the
+  next write. "What does this cost?" answers; "is it getting cheaper?" has no answer in the
+  file, and nothing upstream does either: a `forever/item` payload carries the CURRENT
+  auction-house state, and a record that did not move answers `304` with no body at all —
+  a revalidation says "nothing moved", not "here is a price". Any growth of the ledger had
+  to come from **our** fresh observations, which makes the sampling rule a cost question
+  about the one request per record the detail stage already pays.
+* **Icons offline.** v0.5.x's card deliberately never hotlinked `icon_url` (the README and
+  the card notes say why). So the bytes have to come from the DB, and where they live and
+  how they arrive is a decision, not a detail.
+
+### The grounding, measured 2026-11-20
+
+The live catalogue answers exactly two `icon_url` shapes on answered records, and both
+serve JPEG bytes; the same records also answer an EMPTY `icon_url` sometimes:
+
+```
+https://render.worldofwarcraft.com/<region>/icons/56/<name>.jpg   (/us/, /forever-eu/, /forever-us/)
+https://thewowdb.com/assets/icons/<name>.jpg
+.../us/icons/56/inv_mace_03.jpg      -> 200 image/jpeg 1945 b
+.../forever-eu/icons/56/133749.jpg  -> 200 image/jpeg 2265 b
+thewowdb.com/assets/icons/inv_axe_11.jpg -> 200 image/jpeg 1936 b
+"icon_url": ""                       -> 4 of the 29 detailed rows of the scratch catalogue
+                                        (Peace Tea, Craftsman's Writ, Scroll of Imbue
+                                         Iceknife, Lodestone)
+```
+
+An ABSENT icon path answers differently per host — measured, and it decided the third
+state's rule: `thewowdb.com/assets/icons/<bogus>.jpg` → **404 `text/html`** (the site's own
+"Page Not Found" body: an answer about the file), while
+`render.worldofwarcraft.com/us/icons/56/<bogus>.jpg` → **403 `application/xml`**
+(243 b of S3-style `AccessDenied`: an answer about a CDN, not about an icon). `icon_missing_at`
+is written for the `404` and the `403` stays a stage failure (exit `3`, resumable, nothing
+marked, icon pending) — a fact the upstream never stated stays unstated. The card's `stats`
+pairs ride the same discipline: across the scratch catalogue's 29 detailed rows, `stats`
+carried values on 2 (`Cold Basilisk Eye`: `[{"name":"Frost Resistance","value":9}]`,
+`Tough Scorpid Bracers`), and `sockets`/`socket_bonus`/`classes`/`effects` were empty on
+**all** 29 — so `stats` renders as pairs and the others get a raw row only when they carry
+something. No shape was invented anywhere.
+
+### The two decisions
+
+[ADR 0007](./DECISIONS/0007-price-sampling.md) put the ledger in a second table and sampled
+**once per fresh detail write**, prices present: a `304`, a list write, a check-mark, a
+re-insert write nothing, so the mirror's `written 0, unchanged 2` steps must leave the count
+untouched and a second crawl session must grow it exactly by its fresh writes. Five
+alternatives rejected there: sampling `304`s (the ledger becomes a function of click count),
+a dedicated sampling pass (doubles the request cost and spends the budget on records the
+write visit could not refresh), a "numbers moved" rule (hides repeated observations and lies
+about flat markets), a timer binary (ADR 0004: the headless CLI is the integration path; no
+second binary has ever shipped), and stuffing samples into the `item` row (the point of
+`docs/DATABASE.md` is that the UI reads SQLite). The FK probe measured the guard's shape:
+SQLite 3.54.1 **accepts and does not enforce** an FK clause on `INSERT` — an
+`INSERT INTO price_history` with `item_id = 999` and no such item row succeeded — so no
+clause ships, and the guard is the Rust order inside `upsert_detail`.
+
+[ADR 0008](./DECISIONS/0008-icon-storage-third-stage.md) made the icon a **third crawl
+stage** (`sync --stage icons`) with the detail stage's whole plumbing — own pending queue,
+budget, cancel, resume, third state — copying each answered record's own icon file into an
+`icon_blob BLOB` exactly once. The load-bearing rejection: fetching icons INLINE inside the
+detail stage would double a chunk's requests AND leave every record fetched before this
+build permanently icon-less, because those details now answer `304` and a `304` re-fetches
+nothing. A file sidecar next to the DB got the same treatment: the DB is the one artifact
+the user manages (the README names its path), and a second place for bytes is a second
+place for "gone upstream" to hide. No icon ETag is stored anywhere, because the pending
+rule excludes copied icons and the copy path is asked once.
+
+### Schema 3, and the migration that chains v1→v2→v3
+
+`SCHEMA_VERSION 2 → 3`: three `ALTER`s append `icon_blob`/`icon_at`/`icon_missing_at`, a
+`CREATE` adds `price_history` plus its index, and the stamp moves in one call. The file on
+the user's disk says `schema_version = 1`, so `check_schema` now **chains**: v1 first gets
+v0.5.3's `detail_missing_at`, then both v1 and v2 get the v0.6.0 batch. Refusing either
+would have thrown away a 19 258-row catalogue on the excuse of a schema bump; a file
+**newer** than this build is still refused (the audit's schema-9 file answers exit `4` with
+`database on disk uses schema 9, this build wants 3`). A migrated file's column ORDER
+differs from a fresh file's (`ALTER` appends), and every reader in the code names columns
+explicitly, so nothing reads positions.
+
+### What the audits caught in the code
+
+Two fixes landed because the audits read what the code actually did, not what the notes
+claimed:
+
+* `SCHEMA_SQL`'s v3 rewrite had dropped `CREATE INDEX item__name_lc` — a migrated file
+  keeps its copy (the user's file has `item__detail item__name_lc item__price item__rank`
+  and the migration re-issues only `price_history__item`), but a FRESH v3 file would have
+  had none, and local search drives `name_lc LIKE` on every query the UI issues. Restored
+  in the fresh `CREATE` list, deliberately NOT re-issued by the migration (a migrated file
+  already has that index, and a duplicate `CREATE INDEX` is a hard parse error).
+* `raw_json_of` inferred a plain `String` from the row cell, so a NULL `raw_json` answered
+  as rusqlite's type error instead of "no stored copy". The v0.6.0 mirror was the first run
+  to exercise `item <checked-gone id> --cached`, and it printed `Invalid column type Null
+  at index: 0` — the same exit `4` as not-found by the contract's own sharing, but the wrong
+  answer. Bound `Option<String>` like every stamp reader in the file, so the honest door
+  prints `item 127555 has no stored copy: fetch it with sync --stage detail --ids 127555`.
+* The icon queue's pending rule gained the NON-EMPTY url terms from the start: under a
+  NULL-only rule the four measured empty-`icon_url` records would have kept pending forever
+  (the stage fetches nothing for them, marks nothing), which is v0.5.2's price trap again.
+
+### The fixture grew the same grounding
+
+`tests/fixture_api.py` now embeds the two REAL JPEGs the grounding above measured (the
+`inv_mace_03.jpg` and `inv_axe_11.jpg` bytes, fetched once and committed base64'd — CI
+never asks a host for pixels), answers `/icon/<name>.jpg` on its own server, and makes one
+record's `icon_url` name a FILE it answers `404` — the icon stage's third state inside CI.
+Detail prices carry a per-process `RUN` offset (the ETag salt moves with it): one fixture
+process is one observation window, so a fresh write in a SECOND process grows the ledger by
+exactly one sample while a re-ask inside one process still writes none — ADR 0007's rule
+becomes a measurable CI claim instead of a promise.
+
+### CI grew the third stage
+
+The committed smoke sequence gains the icons step (twelve steps now) before the card and
+stats reads, and the header comment says what each new step proves.
+
+### The numbers, not adjectives (every audit re-run against the shipped tree)
+
+| audit | expectation | observed |
+| ----- | ----------- | -------- |
+| CI mirror (fixture process A, fresh DB, budget 8, twelve steps) | copy lands, gone file checked once, ledger counts fresh writes | icons `requests 5, items 4, written 3, missing 1, rate_limited 1, complete true`, message `icon crawl copied 3 icons; 1 answered 404 for the icon file and are checked as no-icon-upstream`; samples seq 1..4; the three reuse steps each `written 0, unchanged 2` and the count stayed 4 |
+| fixture process B (new observation window) | one fresh write, one new sample | `detail ids 25`: `requests 2, written 1, rate_limited 1` → ledger 4 → **5**; the card answers `history` with the old 20271 and the new 15311; a targeted `--ids 25` icon visit re-copied (a human ask, two requests, pending queue unaffected) |
+| icons run on a drained queue | asks nothing | `requests 0, complete true`, `icons stage: 0 icons copied (0 requests)` |
+| DB witnesses after the twelve | three states visible in rows | 5 items, 4 detailed, 1 checked-gone; `icon_at` on ids 25/40/12809 with `1945 b` blobs (magic `0xff 0xd8 0xff … 0xff 0xd9`, the grounded JPEG's own ends), `icon_missing_at` on id 60; both queues pending **0**; `sync_state` three rows `complete` |
+| exit-code contract (18 doors) | the new doors land on the codes | `usage 2 · 2 · 2` (`sync --stage detailx` quotes `detailx`; `item` without id; unknown verb), `3` on a dead host for detail/list/icons (the icons line names `http://127.0.0.1:9923/icon/inv_mace_03.jpg`, which also proves `icon_target`'s base-relative resolution), `4` twice (`no item 127555 upstream`, and the cached door's honest text), `0` for status/search/card/idle stages; a bare `sync` runs the list stage (v0.2.0 default, unchanged by this release) |
+| migration, user's own v1 file (copied; hashed read-only before/after) | the chain lands, the file on disk untouched | v1 → `schema_version 3`, `19 258` rows, `7` detailed, `price_history` 0, `sync_state` list row `stopped … page 170` intact, index set gains only `price_history__item`; second `status` re-reads 3 without re-migrating; hash `7442814b…` and mtime `2026-11-19 21:42:54` identical before/after |
+| migration of a v2 scratch catalogue | same legs, one step | 19 257 rows, 29 detailed, 57 checked-gone, `price_history` 0, `sync_state` intact |
+| refusal door kept closed | a newer file still refuses | schema-9 scratch file → exit `4`, `database on disk uses schema 9, this build wants 3` |
+| FK probe (SQLite 3.54.1) | the guard is Rust's order, not a clause | `item_id INTEGER REFERENCES item` accepted, `INSERT … item_id = 999` with no such row **succeeded** |
+| GUI launch audit, shipped binary (probe removed) | nothing crawls by itself | exactly four verbs `status/watch/stats/status`, zero fixture hits, fresh DB gains schema 3 and nothing else |
+| GUI pull-all launch audit (boot probe, fresh fixture + DB) | one click chains three stages | three `sync` verbs with ticker `status` polls interleaved; fixture log 14 requests, **3 × 429** (one per stage) and **2 × 404** (the removed record + the gone icon file); DB 3 icon copies, 1 checked no-icon, ledger 4, pending 0 both queues, `sync_state` three rows `complete`; probe removed and the tree rebuilt before the docs commit |
+| `cargo build` at the tag | warnings are the plan, not surprises | exactly the six dead-code warnings (`search_url`, `SearchResponse`, `catalogue`, `open_db`, `ApiResponse.remaining`, `PendingSql`'s privacy) plus the incremental-cache hardlink notice on this filesystem |
+
+The user's DB (`HOME/.local/share/wow-goldtool/wow-goldtool.sqlite`, 19 258 rows) was
+never written by any of this: every run above pointed at a scratch file through `WGT_DB`,
+and the file itself was read hashed/`sqlite3 -readonly` only.
+
+---
+
 ## 2026-11-20 · v0.5.3 — patch: a record the upstream dropped is a state, and the crawl survives it
 
 ### The measurement, not a hypothesis
@@ -113,6 +258,8 @@ and the live id space has shifted since the user's crawl — `40` is `Recruit's 
 `Mossborer` in the DB), while `stats` is grounded as
 `[{"name":"Intellect","value":4},{"name":"Spirit","value":3}]`. The item card will render the
 grounded shape and print the raw payload for the rest, rather than invent a shape.
+
+---
 
 ## 2026-11-20 · v0.5.2 — patch: pending's real rule, the client-build stall, the one-click catalogue
 

@@ -6,6 +6,60 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.6.0 — price history + local icons: the offline catalogue starts paying · 2026-11-20 · tag `v0.6.0`
+
+Added
+
+- A second table, `price_history`, and one price sample per **fresh** detail write
+  ([ADR 0007](./DECISIONS/0007-price-sampling.md)): `upsert_detail` appends a row
+  after a fresh (200) write — and only when the payload carried prices, so a record
+  not on the AH never becomes a blank chart point — while a `304` revalidation, a
+  list write, a check-mark or a re-insert write **nothing**. The ledger is what the
+  card draws (one bar per stored sample, newest-N window) and what `stats`, `status`
+  and the sync panel print, so the sampling rule is auditable, not decorative.
+  SQLite's FK clause turned out not to be the guard: measured 2026-11-20, an `INSERT`
+  referencing a missing `item` id succeeds, so the order inside `upsert_detail` is
+  the guard and `seq` is auto-assigned so an append can never collide with an older
+  observation.
+- The icon stage `sync --stage icons` ([ADR 0008](./DECISIONS/0008-icon-storage-third-stage.md)):
+  every answered record's OWN icon file is fetched once and copied into the DB as a
+  `BLOB` — three states like the detail record's: copied + `icon_at`, checked-as-gone
+  + `icon_missing_at` (one `404` on the icon FILE of an existing record, never asked
+  again), and waiting. The pending rule requires a NON-EMPTY `icon_url`: live, 4 of
+  30 detailed records answer `"icon_url": ""` (Peace Tea, Craftsman's Writ, Scroll
+  of Imbue Iceknife, Lodestone), and under a NULL-only rule those would keep pending
+  forever. The item card shows the local icon as a `data:` URI — nothing is hotlinked,
+  which is the offline point — and CI's fixture now answers `/icon/<name>.jpg` with
+  REAL `image/jpeg` bytes (1945 b and 1936 b, fetched once from the grounded asset
+  host and embedded so the suite stays offline) plus one record whose icon FILE is
+  gone upstream, the third state the stage must check once.
+- Schema 3: three `ALTER`s append the icon columns, a `CREATE` adds `price_history`
+  and its index, and the chain migrates **both** stale shapes in place — a file
+  saying `schema_version = 1` (the user's own 19 258-row catalogue) gets v0.5.3's
+  `detail_missing_at` first, then the v0.6.0 batch; a v2 file gets just the batch.
+  A file **newer** than this build is still refused.
+
+Changed
+
+- `SCHEMA_VERSION` `2 → 3`; both fresh-DB stamps write the build's own version, so
+  a fresh v3 file never refuses itself.
+- `sync_state` gained the third stage (`kind = "icons"`); `status` prints three
+  crawl rows, the icon pair (`copied`, `checked`) and the ledger count, and the
+  sync panel's grid + "Pull all info" follow the chain list → detail → icons.
+- The item card renders `stats` as name/value pairs (the one previously-unshaped
+  field the live API has ever filled — measured) and gives the never-measured
+  fields (`sockets`, `socket_bonus`, `classes`, `effects`) an honest raw row only
+  when they carry something; the icon row and the trend bars join.
+
+Fixed
+
+- The icon queue's empty-url exclusion above (a NULL-only rule would never drain
+  on the measured empty answers); and `ORDER BY` stays plain `id` here, because
+  unlike the detail queue every icon candidate already carries a detail stamp, so
+  a re-ask-first term would be a no-op — the docs now say what the code does.
+
+[ADR 0007](./DECISIONS/0007-price-sampling.md) · [ADR 0008](./DECISIONS/0008-icon-storage-third-stage.md) · [docs/DEVLOG.md](./DEVLOG.md)
+
 ## v0.5.3 — patch: a record the upstream dropped is a state · 2026-11-20 · tag `v0.5.3`
 
 Fixed
