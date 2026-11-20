@@ -126,8 +126,8 @@ served = {"count": 0}
 
 # The search door is NEVER gated: the door answers a 429 with exit 3 (like the
 # `item` door), so gating it here would turn the committed CI step red - the door
-# retries not in place because one human ask is one request (ADR 0009).
-SEARCH_GATED = False
+# retries not in place because one human ask is one request (ADR 0009). The prose
+# says it all: the gate below just never names the `search` stage.
 
 
 class Handler(http.server.BaseHTTPRequestHandler):
