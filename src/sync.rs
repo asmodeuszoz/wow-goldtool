@@ -24,13 +24,13 @@ use crate::errors::AppResult;
 
 use serde::Serialize;
 
-use crate::wowdb::{ApiResponse, BinaryResponse, Client, HttpKind, RateBudget, classify, get_bytes, get_json, icon_target, item_url, page_url, FALLBACK_RETRY_MS};
+use crate::wowdb::{ApiResponse, BinaryResponse, Client, HttpKind, RateBudget, classify, get_bytes, get_json, icon_target, item_url, page_url, tooltip_url, FALLBACK_RETRY_MS};
 
-use crate::models::{ItemDetail, ListPage};
+use crate::models::{ItemDetail, ListPage, Tooltip};
 
-use crate::db::{copy_icon, detail_etag_of, icon_url_of, mark_icon_missing_at, mark_missing_at, meta_get, meta_set, sync_state_get, sync_state_set, unix_now, upsert_detail, upsert_summary, SyncState};
+use crate::db::{copy_icon, detail_etag_of, icon_url_of, mark_icon_missing_at, mark_missing_at, mark_tooltip_missing_at, meta_get, meta_set, sync_state_get, sync_state_set, tooltip_etag_of, unix_now, upsert_detail, upsert_summary, write_tooltip, SyncState};
 
-use crate::stats::{icon_pending_ids, pending_ids, coverage, Coverage};
+use crate::stats::{icon_pending_ids, pending_ids, tooltip_pending_ids, coverage, Coverage};
 
 use rusqlite::Connection;
 
@@ -511,6 +511,150 @@ pub fn icon_wanted_of(conn: &Connection, wanted: Vec<i64>, id_limit: Option<i64>
     return Ok(out);
 }
 
+/// Where the tooltip stage points its queue (stats.rs::SQL_PENDING_TOOLTIP) or
+/// exactly the ids a caller targeted. Shares wanted_of's slice mechanics.
+pub fn tooltip_wanted_of(conn: &Connection, wanted: Vec<i64>, id_limit: Option<i64>) -> AppResult<Vec<i64>> {
+    if wanted.is_empty() {
+        return tooltip_pending_ids(conn, id_limit);
+    }
+    let mut out: Vec<i64> = [].to_vec();
+    let cap: i64 = match id_limit {
+        None => wanted.len() as i64,
+        Some(number) => number,
+    };
+    for one in wanted {
+        if out.len() as i64 >= cap {
+            break;
+        }
+        out.push(one);
+    }
+    return Ok(out);
+}
+
+/// Stage 4 of a pull (v0.8.0, ADR 0010): fetch the TOOLTIP COPY of records whose
+/// detail answered, once each - the pending rule (copied? checked gone? never looked
+/// at?) is the twin of the detail and icon rules, so a full crawl costs ONE request
+/// per tooltip, ever, and the whole catalogue costs about 19 258 requests at the
+/// measured 2 per second (≈ 2.7 h, same order as the detail and icon stages).
+/// Why a fourth stage at all: the user asked for DESCRIPTIONS, and the forever/item
+/// body carries none (measured key list, docs/API.md) - the text lives behind this
+/// door, whose body answers `html` with the card's own markup. The write applies the
+/// manual layer (ADR 0010's override rule), so a user-stated tooltip_html survives
+/// this stage's copy, and ADR 0007's price sample stays on the DETAIL write only: a
+/// tooltip re-ask is not a second observation of the auction house in this build.
+/// 429 retries in place (the crawl stays a success), a 404 upstream's own JSON marks
+/// the third state and keeps crawling, anything else aborts. `--ids`/`--watch`
+/// targeting is honored so a user can copy just the tooltips of their watch list.
+pub fn sync_tooltips(client: Client, conn: &Connection, mut budget: RateBudget, id_limit: Option<i64>, cancel: &CancelFlag, wanted: Vec<i64>) -> AppResult<SyncReport> {
+    let started: i64 = unix_now();
+    let mut report: SyncReport = SyncReport::make("tooltip".to_string());
+    let ids: Vec<i64> = match tooltip_wanted_of(conn, wanted.clone(), id_limit) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    let total: i64 = ids.len() as i64;
+    for id in ids.clone() {
+        if cancel.cancelled {
+            let left: i64 = if wanted.is_empty() {
+                match tooltip_pending_ids(conn, None) {
+                    Err(problem) => return Err(problem),
+                    Ok(value) => value.len() as i64,
+                }
+            } else {
+                ids.len() as i64 - report.items
+            };
+            report.message = format!("{}{}",
+                format!("tooltip crawl cancelled by user request: {} copies fetched, {} left pending", report.written, left),
+                tooltip_missing_note(report.missing));
+            return finish(conn, report, started, 0, total, "cancelled".to_string());
+        }
+        let mut attempts: i32 = 0;
+        while attempts < 4 {
+            budget.wait_and_count();
+            report.requests = report.requests + 1;
+            let url: String = tooltip_url(id);
+            let send_etag: String = match tooltip_etag_of(conn, id) {
+                Err(problem) => return Err(problem),
+                Ok(None) => "".to_string(),
+                Ok(Some(found)) => found,
+            };
+            let response: ApiResponse = match get_json(client.clone(), url.clone(), send_etag) {
+                Err(problem) => return Err(problem),
+                Ok(value) => value,
+            };
+            match classify(response.status) {
+                HttpKind::RateLimited => {
+                    report.rate_limited = report.rate_limited + 1;
+                    honour_retry_after(&mut budget, response.retry_after);
+                    attempts = attempts + 1;
+                    continue;
+                },
+                HttpKind::Missing => {
+                    // upstream answered its own 404 JSON for this tooltip (docs/API.md
+                    // measures the body): the third state of THIS stage. Mark and move
+                    // on - the record itself exists (its detail answered).
+                    report.missing = report.missing + 1;
+                    match mark_tooltip_missing_at(conn, id, unix_now()) {
+                        Err(problem) => return Err(problem),
+                        Ok(_) => {},
+                    }
+                    break;
+                },
+                HttpKind::Failed => {
+                    return Err(AppError::network(format!("tooltip of item {} answered {}", id, response.status)));
+                },
+                HttpKind::NotModified => report.unchanged = report.unchanged + 1,
+                HttpKind::Success => {},
+            }
+            if response.unchanged {
+                report.items = report.items + 1;
+                break;
+            }
+            let parsed: Tooltip = match from_str(&response.body) {
+                Ok(value) => value,
+                Err(problem) => return Err(AppError::decode(format!("tooltip of item {} is not the JSON we expect: {}", id, problem))),
+            };
+            match write_tooltip(conn, id, parsed.html.clone(), response.etag.clone(), unix_now()) {
+                Err(problem) => return Err(problem),
+                Ok(written) => report.written = report.written + written as i64,
+            }
+            report.items = report.items + 1;
+            break;
+        }
+    }
+    let remaining: i64 = if wanted.is_empty() {
+        match tooltip_pending_ids(conn, None) {
+            Err(problem) => return Err(problem),
+            Ok(value) => value.len() as i64,
+        }
+    } else {
+        ids.len() as i64 - report.items
+    };
+    report.complete = remaining == 0;
+    if report.complete {
+        report.message = if wanted.is_empty() {
+            format!("{}{}",
+                format!("tooltip crawl copied {} copies", report.written),
+                tooltip_missing_note(report.missing))
+        } else {
+            format!("{}{}",
+                format!("tooltip crawl visited every targeted record: {} handled", report.items),
+                tooltip_missing_note(report.missing))
+        };
+        return finish(conn, report, started, 0, total, "complete".to_string());
+    }
+    report.message = if wanted.is_empty() {
+        format!("{}{}",
+            format!("tooltip crawl paused: {} of {} copies fetched, {} left pending", report.written, total, remaining),
+            tooltip_missing_note(report.missing))
+    } else {
+        format!("{}{}",
+            format!("tooltip crawl stopped inside the target list: {} of {} handled, {} left in the list", report.items, total, remaining),
+            tooltip_missing_note(report.missing))
+    };
+    return finish(conn, report, started, 0, total, "stopped".to_string())
+}
+
 /// Stage 3 of a pull (v0.6.0, ADR 0008): copy the icon FILES of records that answered,
 /// once each - the pending rule (copied? checked? never looked at?) is the icon twin of
 /// the detail rule, so a full crawl costs ONE request per icon, ever. Bytes ride the
@@ -644,4 +788,13 @@ pub fn sync_icons(client: Client, conn: &Connection, mut budget: RateBudget, id_
 /// Catalogue coverage, used by `status` and the UI footer.
 pub fn catalogue(conn: &Connection) -> AppResult<Coverage> {
     return coverage(conn);
+}
+
+/// "N answered 404 for the tooltip and are checked as no-tooltip-upstream", the
+/// icon/detail note's twin (a zero count adds nothing, so the message stays clean).
+pub fn tooltip_missing_note(missing: i64) -> String {
+    if missing == 0 {
+        return "".to_string()
+    }
+    return format!("; {} answered 404 for the tooltip and are checked as no-tooltip-upstream", missing)
 }

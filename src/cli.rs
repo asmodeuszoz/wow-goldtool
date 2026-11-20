@@ -13,7 +13,7 @@ use crate::db::{add_item_manual, clear_deleted_at, count_items, db_path, deleted
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
-use crate::sync::{sync_icons, sync_detail, sync_list, CancelFlag, SyncReport};
+use crate::sync::{sync_icons, sync_detail, sync_list, sync_tooltips, CancelFlag, SyncReport};
 use crate::wowdb::{build_client, get_json, item_url, search_url, ApiResponse, HttpKind, RateBudget, classify, Client, ENV_FIXTURE_KEY};
 use crate::models::{ItemDetail, SearchResponse};
 
@@ -27,7 +27,7 @@ use std::env::set_var;
 /// What the CLI can answer. Keeping the list here means an unknown verb becomes a
 /// usage error that names what the user actually typed.
 pub fn usage_text() -> String {
-    return "usage: status | sync --stage list|detail|icons [--budget N] [--ids A,B,C] [--watch] | search TEXT [--quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | status [--db PATH] [--fixture URL]".to_string();
+    return "usage: status | sync --stage list|detail|icons|tooltip [--budget N] [--ids A,B,C] [--watch] | search TEXT [--quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | status [--db PATH] [--fixture URL]".to_string();
 }
 
 /// The verbs of one invocation plus its flags. Unknown flags are kept rather than
@@ -528,6 +528,11 @@ pub fn cmd_status(inv: &Invocation) -> AppResult<String> {
     parts.push(fragment("list".to_string(), json_state(list_state)));
     parts.push(fragment("detail".to_string(), json_state(detail_state)));
     parts.push(fragment("icons".to_string(), json_state(icons_state)));
+    let tooltip_state: SyncState = match sync_state_get(&conn, "tooltip".to_string()) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    parts.push(fragment("tooltip".to_string(), json_state(tooltip_state)));
     return Ok(object(parts));
 }
 
@@ -537,7 +542,9 @@ pub fn cmd_sync(inv: &Invocation) -> AppResult<String> {
     if inv.stage != "list" {
         if inv.stage != "detail" {
             if inv.stage != "icons" {
-                return Err(AppError::usage(format!("sync wants --stage list, detail or icons, got {}", inv.stage)));
+                if inv.stage != "tooltip" {
+                    return Err(AppError::usage(format!("sync wants --stage list, detail, icons or tooltip, got {}", inv.stage)));
+                }
             }
         }
     }
@@ -558,6 +565,28 @@ pub fn cmd_sync(inv: &Invocation) -> AppResult<String> {
             Ok(value) => value,
         };
         eprintln!("list stage: {} pages, {} records seen, {} written", report.pages, report.items, report.written);
+        return Ok(json_report(report));
+    }
+    if inv.stage == "tooltip" {
+        eprintln!("copying the tooltip copy: one request per record whose detail answered, about two per second (about 19 258 requests over the catalogue, ≈ 2.7 h at the measured pace), through the door the description text lives behind - the forever/item body carries none (docs/API.md)");
+        let wanted: Vec<i64> = match detail_targets(&conn, inv) {
+            Err(problem) => return Err(problem),
+            Ok(value) => value,
+        };
+        if wanted.is_empty() {
+            eprintln!("tooltip stage queue: every answered record whose tooltip was never fetched nor checked");
+        } else {
+            eprintln!("tooltip stage targets: {} records ({} asked by --ids, watch list asked by --watch)", wanted.len(), inv.id_list.len());
+        }
+        let report: SyncReport = match sync_tooltips(client.clone(), &conn, budget, inv.budget, &cancel, wanted) {
+            Err(problem) => return Err(problem),
+            Ok(value) => value,
+        };
+        if report.missing == 0 {
+            eprintln!("tooltip stage: {} copies fetched ({} requests)", report.items, report.requests);
+        } else {
+            eprintln!("tooltip stage: {} copies fetched, {} checked as no-tooltip-upstream", report.items, report.missing);
+        }
         return Ok(json_report(report));
     }
     if inv.stage == "icons" {
