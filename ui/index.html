@@ -43,6 +43,7 @@
         </select>
         <label class="field"><input class="switch" id="search-priced" type="checkbox" /> priced only</label>
         <button class="act" id="btn-search" type="button">Search</button>
+        <button class="act" id="btn-watch-hits" type="button">Watch these hits</button>
       </div>
       <table class="hits" id="hits">
         <thead>
@@ -55,12 +56,40 @@
 
     <section class="card" id="sync-card">
       <h2>Sync</h2>
-      <div class="note" id="sync-note">idle — last crawl is remembered in the DB, so a stopped run resumes</div>
+      <div class="note" id="sync-note">idle — the last crawl is remembered in the DB, so a stopped run resumes</div>
       <div class="sync-actions">
         <button class="act" id="btn-list" type="button">Sync list</button>
-        <button class="act" id="btn-detail" type="button">Sync details</button>
+        <button class="act" id="btn-detail" type="button">Sync pending details</button>
+        <button class="act" id="btn-detail-watch" type="button">Details: watch list</button>
+        <button class="act" id="btn-detail-hits" type="button">Details: shown hits</button>
         <button class="act" id="btn-cancel" type="button">Cancel</button>
       </div>
+    </section>
+
+    <section class="card" id="item-card">
+      <h2>Item card</h2>
+      <div class="fields" id="card-fields">
+        <input class="field" id="card-id" type="text" placeholder="item id" />
+        <button class="act" id="btn-card-db" type="button">Read the DB</button>
+        <button class="act" id="btn-card-live" type="button">Re-check online</button>
+      </div>
+      <div class="cardbox" id="card-box"></div>
+      <div class="note" id="card-note">the card reads the DB: it answers offline, and "Re-check online" is the only button that touches the API</div>
+    </section>
+
+    <section class="card wide" id="stats-card">
+      <h2>Price analytics</h2>
+      <button class="act" id="btn-stats" type="button">Read the DB</button>
+      <div class="bars" id="stats-bars"></div>
+      <table class="mini" id="stats-cheap">
+        <thead><tr><th>cheapest to hunt</th><th class="col-price">min price</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <table class="mini" id="stats-rich">
+        <thead><tr><th>priciest found</th><th class="col-price">min price</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="note" id="stats-note">every number here is a query over the local DB — one read, no requests</div>
     </section>
   </main>
 

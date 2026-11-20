@@ -10,6 +10,8 @@
 
 var cancel_requested = false;
 var sync_busy = false;
+var last_hits = [];
+var watched = [];
 
 // Escape once, everywhere: names from the API go into text nodes, not markup.
 function esc(text) {
@@ -117,6 +119,8 @@ async function runSearch() {
   argv.push("--limit", "40");
   try {
     var found = await cli_ok(argv);
+    last_hits = found.hits;
+    await refreshWatched();
     var rows = "";
     for (var i = 0; i < found.hits.length; i = i + 1) {
       rows = rows + hit_row(found.hits[i]);
@@ -141,9 +145,12 @@ function hit_row(hit) {
   var price = num(hit.price_min);
   var price_cell = '<span class="muted">no price</span>';
   if (price !== null) { price_cell = esc(price); }
+  var watch_label = "watch";
+  if (watched.indexOf(hit.id) >= 0) { watch_label = "unwatch"; }
+  var toggle = '<button class="rowact" data-id="' + esc(String(hit.id)) + '">' + watch_label + "</button>";
   return "<tr>"
     + '<td class="col-id">' + esc(String(hit.id)) + "</td>"
-    + '<td class="namecell">' + esc(hit.name) + " " + link + "</td>"
+    + '<td class="namecell">' + esc(hit.name) + " " + link + " " + toggle + "</td>"
     + '<td class="qualitycell"><span class="chip c-' + esc(quality) + '">' + esc(quality) + "</span></td>"
     + '<td class="pricecell">' + price_cell + "</td>"
     + "</tr>";
@@ -199,19 +206,257 @@ function requestCancel() {
   }
 }
 
-// ---- wiring ----------------------------------------------------------------
-function bind(button, handler) {
-  button.addEventListener("click", handler);
+// ---- watch list ------------------------------------------------------------
+// The toggle inside a hit row is the whole point of the watch list: mark what is
+// worth hunting, then let the sync stage fetch exactly those details.
+async function refreshWatched() {
+  try {
+    watched = await cli_ok(["watch", "list"]);
+  } catch (problem) {
+    watched = [];
+  }
 }
 
-async function boot() {
+async function toggle_watch(button) {
+  var id = Number(button.dataset.id);
+  var already = watched.indexOf(id) >= 0;
+  var verb = "add";
+  if (already) { verb = "drop"; }
+  try {
+    await cli_ok(["watch", verb, String(id)]);
+    if (already) {
+      watched.splice(watched.indexOf(id), 1);
+    } else {
+      watched.push(id);
+    }
+    button.textContent = already ? "watch" : "unwatch";
+  } catch (problem) {
+    set_note(document.getElementById("search-note"), problem.message, true);
+  }
+}
+
+async function watchHits() {
+  if (last_hits.length === 0) {
+    set_note(document.getElementById("search-note"), "search first: there are no hits to watch", true);
+    return;
+  }
+  var argv = ["watch", "add"];
+  for (var i = 0; i < last_hits.length; i = i + 1) {
+    argv.push(String(last_hits[i].id));
+  }
+  try {
+    await cli_ok(argv);
+    await refreshWatched();
+    set_note(document.getElementById("search-note"), "watching " + last_hits.length + " of the shown hits — the Details: watch list button fetches their records", false);
+  } catch (problem) {
+    set_note(document.getElementById("search-note"), problem.message, true);
+  }
+}
+
+// ---- targeted detail sync --------------------------------------------------
+// Explicit ids are chunked by the UI, not by the engine: each call carries its own
+// slice, so Cancel between slices cannot re-visit the ids the last slice already
+// fetched, and one slice stays far below the 120-request burst.
+async function runTargeted(ids, label) {
+  if (sync_busy) {
+    set_note(document.getElementById("sync-note"), "a crawl is already running — cancel it first", true);
+    return;
+  }
+  if (ids.length === 0) {
+    set_note(document.getElementById("sync-note"), "no targets: " + label, true);
+    return;
+  }
+  sync_busy = true;
+  cancel_requested = false;
+  var slice = 20;
+  var done = 0;
+  var written = 0;
+  var reused = 0;
+  try {
+    while (done < ids.length) {
+      var chunk = ids.slice(done, done + slice);
+      set_note(document.getElementById("sync-note"),
+        "targeted details (" + label + "): " + done + " of " + ids.length + " visited, chunks of " + slice, false);
+      document.getElementById("btn-cancel").classList.add("running");
+      var report = await cli_ok(["sync", "--stage", "detail", "--ids", chunk.join(",")]);
+      written = written + report.written;
+      reused = reused + report.unchanged;
+      done = done + chunk.length;
+      if (report.requests === 0) {
+        set_note(document.getElementById("sync-note"), "the API made no request this chunk — stopping so we do not hammer it", true);
+        break;
+      }
+      if (cancel_requested) {
+        set_note(document.getElementById("sync-note"),
+          "cancelled: " + done + " of " + ids.length + " targets visited — the rest stay untouched", false);
+        break;
+      }
+    }
+    if (done >= ids.length) {
+      set_note(document.getElementById("sync-note"),
+        label + " done: " + done + " targets visited, " + written + " fetched, " + reused + " reused by ETag", false);
+    }
+  } catch (problem) {
+    set_note(document.getElementById("sync-note"), problem.message, true);
+  }
+  document.getElementById("btn-cancel").classList.remove("running");
+  sync_busy = false;
   await refreshStatus();
 }
 
+async function runWatchDetails() {
+  var ids = await cli_ok(["watch", "list"]);
+  await runTargeted(ids, "watch list");
+}
+
+async function runHitsDetails() {
+  var ids = [];
+  for (var i = 0; i < last_hits.length; i = i + 1) {
+    ids.push(last_hits[i].id);
+  }
+  await runTargeted(ids, "shown hits");
+}
+
+// ---- item card -------------------------------------------------------------
+async function runCard(live) {
+  var raw = document.getElementById("card-id").value.trim();
+  if (raw === "") {
+    set_note(document.getElementById("card-note"), "type an item id first", true);
+    return;
+  }
+  var argv = ["item", raw];
+  if (!live) { argv.push("--cached"); }
+  try {
+    var found = await cli_ok(argv);
+    render_card(found);
+    var fetched = found.detail_synced_at;
+    var line = "";
+    if (found.cached) {
+      line = "read from the DB only, no request sent; that record was fetched " + when(fetched);
+    } else {
+      line = "answered HTTP " + found.status + ", reused " + (found.reused ? "from the stored copy" : "a fresh copy") + " — " + when(fetched);
+    }
+    set_note(document.getElementById("card-note"), line, false);
+  } catch (problem) {
+    if (problem.kind === "not-found") {
+      set_note(document.getElementById("card-note"),
+        problem.message + " — 'Re-check online' fetches and stores it", false);
+    } else {
+      set_note(document.getElementById("card-note"), problem.message, true);
+    }
+  }
+}
+
+function when(stamp) {
+  if (stamp === null || stamp === undefined) { return "never"; }
+  return new Date(Number(stamp) * 1000).toLocaleString();
+}
+
+function render_card(found) {
+  var item = found.item;
+  var rows = [];
+  rows.push(["id", String(item.id)]);
+  rows.push(["name", item.name]);
+  rows.push(["quality", item.quality]);
+  rows.push(["item level", item.item_level]);
+  rows.push(["requires level", item.required_level]);
+  rows.push(["type", item.item_type]);
+  rows.push(["slot", item.slot]);
+  rows.push(["min price", item.price ? item.price.min : null]);
+  rows.push(["market price", item.price ? item.price.market : null]);
+  rows.push(["available", item.price ? item.price.available : null]);
+  rows.push(["vendor sell", item.vendor_sell]);
+  if (item.weapon) {
+    rows.push(["damage", item.weapon.damage_min + "-" + item.weapon.damage_max]);
+    rows.push(["dps / speed", item.weapon.dps + " / " + item.weapon.speed]);
+  }
+  if (item.flavor) { rows.push(["flavour", item.flavor]); }
+  var html = "";
+  for (var i = 0; i < rows.length; i = i + 1) {
+    var value = rows[i][1];
+    if (value === null || value === undefined) { value = ""; }
+    html = html + '<div class="cardrow"><span>' + esc(rows[i][0]) + "</span><b>" + esc(String(value)) + "</b></div>";
+  }
+  document.getElementById("card-box").innerHTML = html;
+}
+
+// ---- price analytics -------------------------------------------------------
+async function runStats() {
+  try {
+    var found = await cli_ok(["stats", "--limit", "6"]);
+    var byq = found.by_quality;
+    var biggest = 1;
+    for (var i = 0; i < byq.length; i = i + 1) {
+      if (byq[i].items > biggest) { biggest = byq[i].items; }
+    }
+    var bars = "";
+    for (var j = 0; j < byq.length; j = j + 1) {
+      var row = byq[j];
+      var label = row.quality || "unknown";
+      var pct = Math.round(100 * row.items / biggest);
+      var avg = num(row.avg_price === null ? null : Math.round(row.avg_price));
+      bars = bars + '<div class="barrow"><span class="chip c-' + esc(label) + '">' + esc(label) + "</span>"
+        + '<div class="bar c-' + esc(label) + '" style="width:' + pct + '%"></div>'
+        + "<b>" + num(row.items) + " items · " + num(row.priced) + " priced · avg " + (avg === null ? "no price" : avg) + "</b></div>";
+    }
+    document.getElementById("stats-bars").innerHTML = bars;
+    document.querySelector("#stats-cheap tbody").innerHTML = extreme_rows(found.cheapest);
+    document.querySelector("#stats-rich tbody").innerHTML = extreme_rows(found.priciest);
+    var cov = found.coverage;
+    set_note(document.getElementById("stats-note"),
+      "one read answered " + num(cov.items) + " items, " + num(cov.priced) + " priced, " + num(cov.detailed) + " with details; the price spread is "
+      + (num(cov.min_price) === null ? "unknown" : num(cov.min_price) + " .. " + num(cov.max_price)), false);
+    document.getElementById("btn-stats").classList.remove("running");
+  } catch (problem) {
+    set_note(document.getElementById("stats-note"), problem.message, true);
+  }
+}
+
+function extreme_rows(rows) {
+  var html = "";
+  for (var i = 0; i < rows.length; i = i + 1) {
+    var one = rows[i];
+    var quality = one.quality || "unknown";
+    var price = num(one.price_min);
+    if (price === null) { price = "no price"; }
+    html = html + '<tr><td class="namecell">' + esc(one.name) + '<span class="chip c-' + esc(quality) + '">' + esc(quality) + "</span></td>"
+      + '<td class="pricecell">' + esc(String(price)) + "</td></tr>";
+  }
+  return html;
+}
+
+// ---- wiring ----------------------------------------------------------------
 document.getElementById("btn-refresh").addEventListener("click", function () { refreshStatus(); });
 document.getElementById("btn-search").addEventListener("click", function () { runSearch(); });
+document.getElementById("btn-watch-hits").addEventListener("click", function () { watchHits(); });
 document.getElementById("btn-list").addEventListener("click", function () { runSync("list"); });
 document.getElementById("btn-detail").addEventListener("click", function () { runSync("detail"); });
+document.getElementById("btn-detail-watch").addEventListener("click", function () { runWatchDetails(); });
+document.getElementById("btn-detail-hits").addEventListener("click", function () { runHitsDetails(); });
 document.getElementById("btn-cancel").addEventListener("click", requestCancel);
+document.getElementById("btn-card-db").addEventListener("click", function () { runCard(false); });
+document.getElementById("btn-card-live").addEventListener("click", function () { runCard(true); });
+document.getElementById("btn-stats").addEventListener("click", function () { runStats(); });
+
+// One delegated handler for the whole hits table: the toggle button carries the
+// item id it belongs to, so rows do not need per-row listeners.
+document.getElementById("hits").addEventListener("click", function (event) {
+  var node = event.target;
+  if (node.dataset.id !== undefined) { toggle_watch(node); }
+});
+
+// The cards are never empty: at startup the app reads its own DB (status, the watch
+// list, the analytics) so the first paint already shows what exists. Those are verb
+// calls, which is what makes boot() the witness of the launch audit: the Rust side
+// logs every verb that reaches it.
+async function boot() {
+  await refreshStatus();
+  await refreshWatched();
+  await runStats();
+  // A second status read after the analytics: it keeps the status card honest, and in
+  // the launch audit it is the witness that runStats' rendering code ran to the end -
+  // a JS throw after the awaited verb would leave only one `status` log line.
+  await refreshStatus();
+}
 
 boot();
