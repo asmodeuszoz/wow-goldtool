@@ -84,6 +84,11 @@ jobs:
       # list, an id list, and the second pass over the same ids answered by 304s) and the
       # DB-only card read (`--cached`), which is what the item card shows before any
       # request goes out.
+      # From v0.6.0 on the sequence also runs the THIRD stage, icons: the fixture answers
+      # /icon/<name>.jpg with real image/jpeg bytes (embedded, so CI never asks a host for
+      # pixels) and one record's icon FILE is gone (404, the stage's third state) - the
+      # card read after it shows the local copy and the trend, and stats prints the ledger
+      # count, which is what proves the one-sample-per-fresh-write rule end to end.
       - name: CLI smoke test on a seeded fixture DB
         env:
           WGT_DB: ${{ runner.tmpDir }}/fixture.sqlite
@@ -100,5 +105,6 @@ jobs:
           cargo run -- sync --stage detail --ids 25,40 --fixture http://127.0.0.1:8765
           cargo run -- sync --stage detail --ids 25,40 --fixture http://127.0.0.1:8765
           cargo run -- sync --stage detail --watch --fixture http://127.0.0.1:8765
+          cargo run -- sync --stage icons --fixture http://127.0.0.1:8765
           cargo run -- item 25 --cached
           cargo run -- stats
