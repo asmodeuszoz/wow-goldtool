@@ -4,6 +4,7 @@ Answers the list stage (two pages) and detail records for any item id, and rate 
 the FIRST request of each stage (429 + Retry-After, to exercise the pacing path). Speaks
 conditional GETs like the upstream docs promise: stable per-endpoint ETags and a real
 304 (no body) for a matching If-None-Match, so v0.3.0's reuse paths are exercised.
+One listed id has NO detail record (404), the shape v0.5.3's third state answers.
 Nothing here touches the upstream API.
 """
 
@@ -75,6 +76,12 @@ DETAIL_BASE = {
     "attribution": ATTRIBUTION,
 }
 
+# A listed id the upstream has no detail record for - the live catalogue answers
+# exactly this body for a removed record (docs/API.md), and the ids the list walk
+# still lists those records for are many, so the crawler must mark the id
+# checked-missing and keep crawling rather than abort (v0.5.3).
+MISSING_DETAIL = {127555}
+
 # One 429 per stage (the crawler retries in place and continues).
 limited = set()
 served = {"count": 0}
@@ -114,6 +121,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.send_header("X-RateLimit-Remaining", "0")
             self.end_headers()
             self.wfile.write(b'{"error":"slow down"}')
+            return
+
+        # a removed record: upstream's own 404 body, no ETag offered for revalidation.
+        if stage == "detail" and int(tail) in MISSING_DETAIL:
+            self.send_response(404)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            gone = {"error": "not_found", "message": "No item {} in forever.".format(tail), "status": 404}
+            self.wfile.write(json.dumps(gone).encode())
             return
 
         sent_before = self.headers.get("If-None-Match")
