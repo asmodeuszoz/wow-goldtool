@@ -72,6 +72,27 @@ cargo registry cache (`file:line`), not from prose docs.
   a chunk is in flight and prints elapsed seconds, because
   `sync_state` moves only at chunk ends (`finish()` in src/sync.rs).
 
+**Amended in v0.5.2 (the async command needs a thread hop for the verb body)**
+
+* The async wrapper of v0.5.1 is necessary but not sufficient. reqwest's blocking client
+  builds a **private tokio runtime on an internal thread** and parks the calling thread
+  waiting for that runtime's startup handshake (`blocking/client.rs:1424` spawns
+  `reqwest-internal-sync-runtime`, `:1428` builds `new_current_thread()`, `:1476` waits on
+  the startup `oneshot`, whose body `thread::park()s` the caller at `blocking/wait.rs:58`).
+  The async manager hands the verb body to a tokio worker, so the client cannot be built
+  there: the audit saw the verb reach the DB-open point and stall at `build_client()` with an
+  empty fixture access log, while `status` polls kept completing around it (the DB was never
+  the lock).
+* Chosen shape: `cli_call` stays `async` (the page still answers immediately), and
+  `verb_on_plain_thread` (src/main.rs, crate root so both doors reach it) runs the verb body
+  on a fresh `std` thread — the same runtime-free home the headless CLI runs its verbs in.
+  `join` costs one tokio worker, which the webview never borrows. A verb that panics on that
+  thread is converted to an `AppError`, so the envelope keeps its single shape.
+* Rejected in v0.5.2: switching the client to async reqwest (an engine change this patch
+  deliberately avoids — ADR 0004's one-code-path rule keeps CLI and GUI on the same client),
+  and moving progress reporting into `emit`/`event.listen` (the ACL reason recorded above
+  still applies).
+
 ## Consequences
 
 **Gained**

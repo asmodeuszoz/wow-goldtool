@@ -6,6 +6,41 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.5.2 — patch: one click finishes the catalogue · 2026-11-20 · tag `v0.5.2`
+
+Fixed
+
+- Pending is now "never fetched", not "no price" (`SQL_PENDING` in `src/stats.rs`).
+  The old `OR price_min IS NULL` clause kept a fetched item that is simply **not
+  on the auction house** pending forever: the detail stage walked it on every run,
+  so the stage never terminated on the real catalogue and no "pull everything"
+  flow could honestly promise nothing left to pull. `docs/DATABASE.md` keeps those
+  two states apart on purpose; the pending rule now uses the same distinction.
+- A sync verb launched from the GUI never reached the API at all: the marker
+  audit stopped after the DB-open point with an empty fixture access log, while
+  status polls kept completing around it. reqwest's blocking client builds a
+  **private tokio runtime on an internal thread** and parks the calling thread
+  waiting for that runtime's startup handshake; the verb body sat on a worker of
+  tauri's tokio-backed async manager, so the handshake never landed and the verb
+  stalled at `build_client` with zero requests issued. `cli_call` keeps the async
+  wrapper from v0.5.1 (the page still answers immediately) and the verb body now
+  hops to a fresh `std` thread — the runtime-free home the headless CLI has always
+  used in the CI mirrors.
+
+Added
+
+- "Pull all info" replaces the "Sync pending details" button: one flow runs the
+  list walk to its end, then the pending-detail queue to its end, so a single
+  click retires all pending work. `runSync` reports an outcome
+  (`complete`/`cancelled`/`stalled`/`failed`/`already-running`) so a cancelled
+  chain stops at the stage in flight instead of jumping ahead — the next click
+  resumes the list from `sync_state` and the pending queue recomputes what details
+  remain. A stage that is complete with zero requests is reported as complete,
+  not as "made no progress". The completion note is explicit about what "nothing
+  left to pull" honestly means: every listed item has a detail record, a NULL
+  price on a fetched item means not on the AH, and prices stay live, so later
+  syncs only revalidate (every page answers `304` from the stored ETags).
+
 ## v0.5.1 — patch: the crawl no longer freezes the webview · 2026-11-19 · tag `v0.5.1`
 
 Fixed

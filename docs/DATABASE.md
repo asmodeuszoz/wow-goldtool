@@ -133,8 +133,13 @@ SELECT COUNT(1),
 ```
 
 ```sql
--- the ids the detail stage still has to fetch, oldest id first
-SELECT id FROM item WHERE price_min IS NULL OR detail_synced_at IS NULL ORDER BY id ASC LIMIT ?;
+-- the ids the detail stage still has to fetch: pending means **never fetched**.
+-- A fetched record with a NULL price is a different state this file keeps apart on
+-- purpose — the item exists, it is simply not on the AH — and under the old `price_min
+-- IS NULL OR` clause such items stayed pending forever, so the detail stage never
+-- terminated and a one-click "pull everything" could never honestly report nothing
+-- pending (v0.5.2).
+SELECT id FROM item WHERE detail_synced_at IS NULL ORDER BY id ASC LIMIT ?;
 ```
 
 ```sql

@@ -79,6 +79,7 @@ git tag. The dated narrative lives in [docs/DEVLOG.md](./DEVLOG.md).
 - [x] `v0.4.0` — Tauri shell + webview UI: one `cli_call(argv)` command, status/search/sync cards, chunked sync with cancel, `build.rs` + `tauri-build`, generated icon
 - [x] `v0.5.0` — detail-sync targets (`--ids`, `--watch` driven from the UI), item card that reads the DB first, price-analytics card, watch toggles in hit rows
 - [x] `v0.5.1` (patch) — the crawl stops freezing the page: `cli_call` is an async command, and a status ticker keeps the note and the card alive while a chunk is in flight
+- [x] `v0.5.2` (patch) — pending = never fetched (fetched-but-unpriced stops being pending work), the GUI verb hop to a plain thread (a blocking-client build inside a tokio worker stalled the crawl at `build_client`), "Pull all info" chains both stages to their end
 - [ ] `v0.6.0` — price history (a second DB table, since one price per item cannot show a trend), local icon copies
 
 ## Build & run
@@ -97,7 +98,14 @@ console is not forwarded on Linux — those lines are how the launch audit is re
 polls `status` once a second, so in the audit the crawl's `gui: ipc verb sync` line
 *alternates* with one-per-second status polls — that interleaving is the witness that
 the webview runs during the chunk (fixed in v0.5.1: a bare-`fn` command runs inside
-the IPC handler and parks the page behind the crawl). The GUI uses the same DB resolution as the CLI, so
+the IPC handler and parks the page behind the crawl, and fixed in v0.5.2 too: a blocking-
+client build on the manager's tokio worker stalled the crawl at `build_client` before it
+issued a single request). The verb body therefore runs on a fresh `std` thread (`verb_on_plain_thread`
+in src/main.rs): the page keeps ticking while the crawl owns a runtime-free thread of its
+own. "Pull all info" chains both stages to their end in one flow, and the launch audit
+proves it against the fixture — the stage verbs interleave with the ticker's `status`
+polls, both stages' forced `429` retry in place, and the scratch DB ends at 0 pending
+with both `sync_state` rows `complete`. The GUI uses the same DB resolution as the CLI, so
 `WGT_DB=/tmp/opencode/fixture.sqlite cargo run` audits the UI against the fixture DB instead
 of the real one.
 

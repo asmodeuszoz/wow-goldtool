@@ -5,6 +5,102 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-20 · v0.5.2 — patch: pending's real rule, the client-build stall, the one-click catalogue
+
+### The ask
+
+"instead of the 'sync pending details' make it into a pull all info… basically
+run the 'Re-check online' for every item that doesn't have all its information
+in the DB yet… one big run and then never have to touch it again." A button that
+retires pending work is only honest if pending means *work that exists*.
+
+### Pending: the rule had to carry the truth
+
+`SQL_PENDING` asked `price_min IS NULL OR detail_synced_at IS NULL`. The first
+clause was never a pending rule: `docs/DATABASE.md` distinguishes fetched-with-
+NULL-price (the item exists, it is **not on the AH**) from never-fetched on
+purpose, and `price_min` is read field-by-field out of an optional object, so a
+fetched record can legitimately carry a NULL price. Keeping such an item pending
+means the detail stage walks it again forever — the stage never terminates on the
+real catalogue, and no pull-all flow can promise "nothing pending". The user's DB
+(read-only query: 19258 items, 7 with details, 0 fetched-and-unpriced at this
+hour) cannot expose the trap yet, because only 7 records have ever been fetched:
+the clause is latent, and it becomes loud the moment a real catalogue item answers
+without AH data. It is fixed **before** the flow that depends on it ships, not
+after that flow has lied. `detail_synced_at` already encodes "has a detail record",
+so pending is now that one predicate.
+
+### The GUI never reached the API
+
+Driving a full `runPullAll()` from the boot probe made the next failure loud: the
+stage verb entered Rust and then nothing happened, and the fixture access log stayed
+empty for the whole session. Markers at each verb step pinned the stop point: the
+verb logged the DB-open marker and never reached the request site — it stalled inside
+`build_client()`. The DB was never the lock: status polls completed normally between
+those marker lines, and the page stayed interactive throughout.
+
+Mechanism read from the crates: reqwest's blocking `Client::new` does not build a value
+on the spot. `ClientHandle::new` (`blocking/client.rs:1424` spawns a thread named
+`reqwest-internal-sync-runtime` that builds its **own** single-threaded tokio runtime
+(`runtime::Builder::new_current_thread()` at `:1428`) and `rt.block_on`s the request loop
+(`:1468`); the thread that asked for the client then parks while waiting for that
+thread's startup handshake (`wait::timeout(spawn_rx, None)` at `:1476`), and that wait
+polls the future and `thread::park()s` the caller (`blocking/wait.rs:58`). Headless that
+is exactly the CLI's shape, and every CI mirror has always worked; in the GUI the verb
+body sits on a tokio worker of tauri's async manager (v0.5.1's `async fn cli_call`), and
+parking there while the client's private runtime has to start is the nested-runtime case:
+measured as the stall at `build_client`, zero requests issued.
+
+Fix: the command stays `async` — v0.5.1's wrapper decision is untouched, the IPC handler
+still answers immediately and the page keeps ticking — and the verb body hops to a fresh
+`std` thread, the runtime-free home the headless CLI proved good. `join` occupies one
+tokio worker, which the webview never borrows. A verb that panics on that thread becomes
+an `AppError` instead of leaking `Result`'s `String` payload, so the envelope stays the
+one shape the UI knows. The helper sits at the crate root because that is where both doors
+reach it without an import cycle.
+
+### The flow itself
+
+`btn-detail` becomes `btn-pull` ("Pull all info") and `runPullAll()` chains the two
+stages to their ends: the list walk resumes from `sync_state` and runs to completion,
+then the pending queue is drained to completion. Orchestration only — ADR 0005's one-
+command door, the chunk budgets, the cancel flag and the DB's progress truth are
+untouched. For the chain to know a stage finished, `runSync` returns an outcome
+(`complete`/`cancelled`/`stalled`/`failed`/`already-running`): Cancel stops the stage in
+flight and the flow stops with it rather than jumping ahead, because the next click
+resumes the list from the stored cursor and the pending queue recomputes which details
+remain. The same change re-orders the chunk's two checks (`complete` before `requests
+=== 0`): a stage with nothing left to fetch answers `complete: true, requests: 0`, which
+is a legal completion, not a stalled crawl — the old order called it "made no progress".
+
+The completion note refuses to overpromise. "Nothing left to pull" means every listed
+item has a detail record; a NULL price on a fetched item is *not on the AH*, not missing
+work; and prices are live data, so later syncs still make sense — they revalidate cheaply
+(a finished walk restarts at page 1 and every page answers `304` from the stored ETags).
+
+### Audit
+
+| Run | Expectation | Observed |
+| --- | ----------- | -------- |
+| pull-all launch probe (shipped code + boot probe, fresh fixture server + fresh DB) | both stages crawl, page alive throughout | `sync` verb → two ticker `status` polls → second `sync` verb → three more polls |
+| fixture access log for that run | one forced `429` per stage, retried in place, then payloads | page 1 `429` then `200`, page 2 `200`, item 25 `429` then `200`, items 40/60/12809/127555 `200` |
+| scratch DB after the pull | everything fetched, nothing pending | 5 items, 5 detailed, **0 pending**, both `sync_state` rows `complete` |
+| boot audit on the shipped binary (probe removed) | nothing crawls by itself | exactly four verbs `status/watch/stats/status`, zero fixture hits |
+| CI mirror | eleven steps | 11/11 `exit=0`, and both stages report `rate_limited: 1` with the wait inside the run (`seconds: 1`) |
+| exit-code audit | unchanged | `2 · 2 · 3 · 4 · 4 · 0` |
+| stop → resume → resync | the cursor contract stays | `--budget 1` stops (`complete: false`), the next run reads `resumed_from: 2` without refetching page 1, and a finished walk restarts at page 1 with both pages `304` (`unchanged: 2`, `written: 0`) |
+| clean build | warnings only | the dead-code set already planned for v0.6.0 (`PendingSql` privacy, `SearchResponse`, `search_url`, `remaining`, `open_db`, `catalogue`) plus the filesystem's hardlink notice |
+
+### Deliberately not done in this tag
+
+No engine change for pull-all: it is UI orchestration over the existing stages, so ADR
+0005 and the CI mirrors stay untouched. No new progress channel — the rejected `emit`/
+`event.listen` note in ADR 0005 still applies, and the ticker remains the mid-chunk
+feedback. No price history, no icon copies, no item-card rendering of `sockets`/`stats`/
+`classes` (that stays v0.6.0).
+
+---
+
 ## 2026-11-19 · v0.5.1 — patch: the crawl no longer owns the page
 
 ### The report
@@ -60,6 +156,13 @@ prints elapsed seconds, not a mid-chunk cursor that would be a lie.
 | tokio slow-task warnings | none | stderr still only `gui:` lines |
 | exit-code audit | unchanged | `2 · 2 · 3 · 4 · 4 · 0` |
 | CI mirror | unchanged | 11/11 `exit=0` |
+
+**Amendment (v0.5.2)**: the probe row above attributes the visible stretch to a
+`Retry-After` wait inside the chunk. The v0.5.2 audit shows that probe's crawl never
+issued a request from the GUI at all — it stalled at `build_client`, so no wait was ever
+reached from the webview. The liveness witness itself stands (the `status` polls
+interleave while the verb runs, and that is what the fix is about), and the wrapper
+decision it recorded is unchanged; only the cause of the stretch was attributed wrong.
 
 Rejected for mid-crawl feedback: a JS progress channel (`emit`/`event.listen`)
 — those are plugin commands and ACL-gated; the exemption recorded in ADR 0005

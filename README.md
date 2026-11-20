@@ -5,10 +5,10 @@ Forever** from the free [TheWoWDB](https://thewowdb.com/developers) JSON API and
 it in a local **SQLite** database, so browsing, filtering, searching and price-checking
 items works offline.
 
-Status: **v0.5.1 — the app stays alive while it crawls** (async IPC command:
-hover, clicks and the status card all work mid-chunk; the sync note counts the
-chunk's seconds). Before the patch: watch lists, targeted detail sync, an offline
-item card, price analytics. The GUI shell landed at v0.4.0.
+Status: **v0.5.2 — one click finishes the catalogue** ("Pull all info" runs the
+list walk and the pending-detail queue to their ends; pending means *never
+fetched*, so a finished pull has nothing left). Before it: the crawl stopped
+freezing the page (v0.5.1), and before that the GUI itself (v0.4.0).
 See the milestone list below and the dated narrative in [docs/DEVLOG.md](./docs/DEVLOG.md).
 
 ```
@@ -35,6 +35,7 @@ highest damage per second, most expensive vendor sell…).
 | `v0.4.0` | Tauri shell + webview UI: status card, local search (text, quality, sort, `priced only`), chunked sync with cancel; `build.rs` + `tauri-build`, generated icon | done |
 | `v0.5.0` | detail-sync targets (`--ids`, `--watch`) driven from the UI, item card that reads the DB first, price-analytics card, watch toggles | done |
 | `v0.5.1` | patch: a crawl no longer freezes the page (async `cli_call`), mid-chunk status ticker | done |
+| `v0.5.2` | patch: pending = never fetched (the two-state rule), the GUI verb hop off tokio (a blocking-client build inside a tokio worker stalled the crawl at `build_client`), "Pull all info" runs both stages to their end | done |
 | `v0.6.0` | price history (a second table: one price per item cannot show a trend), local icon copies | planned |
 
 ## Design notes
