@@ -71,6 +71,7 @@ async function refreshStatus() {
     grid.push(["items stored", num(status.items)]);
     grid.push(["with prices", num(status.coverage.priced) + " of " + num(status.coverage.items)]);
     grid.push(["details fetched", num(status.coverage.detailed) + " of " + num(status.coverage.items)]);
+    grid.push(["checked as gone upstream", num(status.coverage.missing) + " answered 404, not re-fetched"]);
     if (num(status.coverage.min_price) !== null) {
       grid.push(["price range", num(status.coverage.min_price) + " .. " + num(status.coverage.max_price)]);
     }
@@ -251,7 +252,7 @@ function requestCancel() {
 // only revalidate (AH prices are live data, so re-checks still make sense).
 async function runPullAll() {
   set_note(document.getElementById("sync-note"),
-    "pull-all: list stage to the end (~193 pages, minutes at 2/s), then details for everything never fetched (~19k records, hours at 2/s) — Cancel stops at the next chunk boundary", false);
+    "pull-all: list stage to the end (~193 pages, minutes at 2/s), then details for everything never fetched (~19k records, hours at 2/s) — Cancel stops at the next chunk boundary; a record the upstream has dropped is checked once and counted as gone, never asked again", false);
   var list_out = await runSync("list");
   if (list_out === "cancelled") {
     set_note(document.getElementById("sync-note"),
@@ -271,7 +272,9 @@ async function pull_all_summary() {
   try {
     var st = await cli_ok(["status"]);
     set_note(document.getElementById("sync-note"),
-      "nothing left to pull: " + num(st.items) + " items stored, " + num(st.coverage.detailed) + " with details (" + num(st.coverage.priced) + " of them priced — the rest are simply not on the AH); future syncs only revalidate stored ETags, and prices stay live", false);
+      "nothing left to pull: " + num(st.items) + " items stored, " + num(st.coverage.detailed) + " with details (" + num(st.coverage.priced) + " of them priced — the rest are simply not on the AH)"
+      + (num(st.coverage.missing) > 0 ? ", and " + num(st.coverage.missing) + " the walk listed are checked as gone upstream" : "")
+      + "; future syncs only revalidate stored ETags, and prices stay live", false);
   } catch (problem) {
     show_error(problem);
   }
