@@ -1131,7 +1131,7 @@ pub fn set_item_field(conn: &Connection, id: i64, field: String, value: String, 
             Err(_) => return Err(AppError::usage("the override text could not be written".to_string())),
             Ok(text) => text,
         },
-        _ => value,
+        _ => value.clone(),
     };
     let edit_value: serde_json::Value = match from_str(&json_text) {
         Err(_) => return Err(AppError::usage("an editable INTEGER field wants a plain number".to_string())),
@@ -1142,11 +1142,29 @@ pub fn set_item_field(conn: &Connection, id: i64, field: String, value: String, 
         Err(problem) => return Err(AppError::db(format!("manual overrides unwritable: {}", problem))),
         Ok(text) => text,
     };
-    let sql: String = format!("UPDATE item SET {} = ?, edited_at = ?, manual_overrides = ? WHERE id = ?", field);
+    // the derived search columns ride the SAME write as the field they come from,
+    // so renaming a row here is findable by `search` on the same breath (a stale
+    // name_lc would hide the user's own correction until some crawl touched it).
+    let mut clauses: Vec<String> = [].to_vec();
     let mut head: Vec<Value> = [].to_vec();
+    clauses.push(format!("{} = ?", field));
     head.push(column_value);
+    match field.as_str() {
+        "name" => {
+            clauses.push("name_lc = ?".to_string());
+            head.push(Value::Text(value.to_lowercase()));
+        },
+        "quality" => {
+            clauses.push("quality_rank = ?".to_string());
+            head.push(int_value(rank_of(Some(value.clone()))));
+        },
+        _ => {},
+    }
+    clauses.push("edited_at = ?".to_string());
     head.push(Value::Integer(at));
+    clauses.push("manual_overrides = ?".to_string());
     head.push(Value::Text(stored));
+    let sql: String = format!("UPDATE item SET {} WHERE id = ?", clauses.join(", "));
     head.push(Value::Integer(id));
     let want: usize = head.len();
     return bind_sql(conn, sql.as_str(), head, want);
@@ -1441,7 +1459,7 @@ pub fn build_insert(cols: Vec<String>) -> String {
         marks = marks + "?";
         index = index + 1;
     }
-    return format!("INSERT item ({}) VALUES ({})", names, marks)
+    return format!("INSERT INTO item ({}) VALUES ({})", names, marks)
 }
 
 /// Stage 1 write: one row of a list page. Only summary columns are touched, so the
