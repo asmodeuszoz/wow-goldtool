@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>WoW Goldtool</title>
+  <link rel="stylesheet" href="app.css" />
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand">WoW <span class="brand-gold">Goldtool</span></div>
+    <div class="tagline">Offline item catalogue, synced from TheWoWDB</div>
+  </header>
+
+  <main>
+    <section class="card" id="status-card">
+      <h2>Catalogue status</h2>
+      <div class="grid" id="status-grid"></div>
+      <div class="note" id="status-note"></div>
+      <button class="act" id="btn-refresh" type="button">Re-read</button>
+    </section>
+
+    <section class="card wide" id="search-card">
+      <h2>Search the local DB</h2>
+      <div class="fields" id="search-fields">
+        <input class="field" id="search-text" type="text" placeholder="name contains" />
+        <select class="field" id="search-quality">
+          <option value="">any quality</option>
+          <option value="Common">Common</option>
+          <option value="Uncommon">Uncommon</option>
+          <option value="Rare">Rare</option>
+          <option value="Epic">Epic</option>
+          <option value="Legendary">Legendary</option>
+          <option value="Artifact">Artifact</option>
+          <option value="Heirloom">Heirloom</option>
+        </select>
+        <select class="field" id="search-sort">
+          <option value="price">cheapest first</option>
+          <option value="name">by name</option>
+          <option value="quality">by quality</option>
+          <option value="level">by item level</option>
+          <option value="id">by item id</option>
+        </select>
+        <label class="field"><input class="switch" id="search-priced" type="checkbox" /> priced only</label>
+        <button class="act" id="btn-search" type="button">Search</button>
+      </div>
+      <table class="hits" id="hits">
+        <thead>
+          <tr><th class="col-id">id</th><th class="col-name">name</th><th class="col-quality">quality</th><th class="col-price">min price</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="note" id="search-note"></div>
+    </section>
+
+    <section class="card" id="sync-card">
+      <h2>Sync</h2>
+      <div class="note" id="sync-note">idle — last crawl is remembered in the DB, so a stopped run resumes</div>
+      <div class="sync-actions">
+        <button class="act" id="btn-list" type="button">Sync list</button>
+        <button class="act" id="btn-detail" type="button">Sync details</button>
+        <button class="act" id="btn-cancel" type="button">Cancel</button>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p class="attribution">
+      Data and icons served by
+      <a class="source" href="https://thewowdb.com/">TheWoWDB</a>
+      (their <a class="source" href="https://thewowdb.com/developers">developer terms</a>
+      ask for this link, and it stays in every screen).
+      World of Warcraft and all item names belong to Blizzard Entertainment.
+      This project is a community tool, not affiliated with either.
+    </p>
+  </footer>
+</body>
+</html>

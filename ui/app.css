@@ -1,0 +1,176 @@
+/* WoW Goldtool — dark, modern, card-based. No webfonts, no remote assets:
+ * the whole point of the app is answering offline. */
+
+:root {
+  --bg: #0f141c;
+  --panel: #161e29;
+  --panel-2: #1c2634;
+  --edge: #2a3950;
+  --text: #e8edf4;
+  --muted: #93a1b3;
+  --gold: #f0b427;
+  --gold-soft: rgba(240, 180, 39, 0.16);
+  --danger: #e5534b;
+  --radius: 14px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  color: var(--text);
+  background: var(--bg);
+  font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans", sans-serif;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+header.top {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px 26px 12px;
+  border-bottom: 1px solid var(--edge);
+}
+.brand { font-size: 21px; font-weight: 650; letter-spacing: 0.4px; }
+.brand-gold { color: var(--gold); }
+.tagline { color: var(--muted); font-size: 13px; }
+
+main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-content: start;
+  gap: 16px;
+  padding: 16px 22px;
+}
+@media (min-width: 980px) {
+  main {
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    grid-template-areas:
+      "search status"
+      "search sync";
+  }
+  #search-card { grid-area: search; }
+  #status-card { grid-area: status; }
+  #sync-card { grid-area: sync; }
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
+}
+h2 { font-size: 15px; letter-spacing: 0.3px; color: var(--text); margin: 2px 0 10px; }
+
+.note, #search-note, #status-note {
+  color: var(--muted);
+  font-size: 12.5px;
+  margin: 8px 0 0;
+}
+.note b { color: var(--gold); }
+.note.bad { color: var(--danger); font-size: 13px; }
+
+/* status grid: label/value pairs */
+.grid {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 4px 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  background: var(--panel-2);
+}
+.grid span { font-size: 13px; }
+.grid b { color: var(--gold); font-variant-numeric: tabular-nums; }
+
+/* search fields */
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 4px 0 10px;
+}
+.field {
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 13px;
+}
+.field.label { color: var(--muted); }
+
+button.act {
+  cursor: pointer;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--edge);
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 13px;
+}
+button.act:disabled { color: var(--muted); }
+button.act:hover { border-color: var(--gold); }
+button.act.running { color: var(--gold); font-weight: 650; }
+
+/* results */
+table.hits {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin: 0;
+}
+th.col-id, th.col-name, th.col-quality, th.col-price {
+  color: var(--text);
+  border-bottom: 1px solid var(--edge);
+  padding: 6px 9px;
+  background: var(--panel-2);
+  font-weight: 600;
+}
+td {
+  border-bottom: 1px solid var(--edge);
+  padding: 6px 9px;
+  vertical-align: middle;
+}
+td.namecell { color: var(--text); }
+td.namecell a { color: var(--gold); text-decoration: none; font-size: 11px; margin: 0 0 0 6px; }
+#hits tr td { color: var(--muted); }
+#hits tr:hover td { background: var(--panel-2); }
+
+.chip {
+  display: inline-block;
+  color: var(--text);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 12px;
+}
+.chip.c-Common { background: rgba(157, 158, 162, 0.22); color: #c3c5ca; }
+.chip.c-Uncommon { background: rgba(47, 229, 94, 0.18); color: #7ee29b; }
+.chip.c-Rare { background: rgba(35, 143, 255, 0.2); color: #8ec2ff; }
+.chip.c-Epic { background: rgba(195, 88, 255, 0.22); color: #d6b1ff; }
+.chip.c-Legendary { background: rgba(246, 124, 30, 0.22); color: #ffb477; }
+.chip.c-Artifact { background: rgba(229, 195, 78, 0.22); color: #f3dd9a; }
+.chip.c-Heirloom { background: rgba(78, 237, 197, 0.22); color: #9ee8d8; }
+
+.pricecell { font-variant-numeric: tabular-nums; }
+.pricecell.muted { color: var(--muted); }
+
+/* sync */
+.sync-actions { display: flex; gap: 10px; margin: 12px 0 0; }
+#btn-cancel { min-width: 86px; }
+
+footer {
+  padding: 12px 22px;
+  border-top: 1px solid var(--edge);
+  color: var(--muted);
+  font-size: 12px;
+}
+.attribution { max-width: 92ch; }
+.source { color: #74add7; text-decoration: none; }
+.source:hover { color: var(--gold); }

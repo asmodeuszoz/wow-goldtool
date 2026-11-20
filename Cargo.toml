@@ -4,11 +4,19 @@
 
 [package]
 name = "wow-goldtool"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 description = "Browse and price-check the WoW Forever item catalogue offline (TheWoWDB -> SQLite)"
 license = "MIT"
 keywords = ["wow", "item-browser", "sqlite", "tauri"]
+
+[build-dependencies]
+# tauri-build is the compile-time half of the app: its build() writes the global-API
+# script list, the ACL/capabilities files and the asset cache into $OUT_DIR, which is
+# what makes window.__TAURI__ exist at runtime. It is a build dependency, not a link
+# time one, and it is NOT the Tauri CLI: ADR 0001 still means no CLI, no Node, no
+# src-tauri/ (ADR 0001 covers the layout; this is cargo's own build script).
+tauri-build = { version = "2.7.6", features = [] }
 
 [dependencies]
 # Pinned to a minor line (see docs/DECISIONS/0001): pinning keeps a future release from

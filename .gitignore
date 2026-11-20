@@ -8,6 +8,10 @@ src-tauri/gen/
 src-tauri/_tauri/
 src-tauri/_assets.gen.rs
 
+# Written by tauri-build at compile time. The flat layout (ADR 0001) has no src-tauri/ to
+# hide such artifacts in, so they sit next to Cargo.toml: /gen/schemas/*.json.
+/gen/
+
 # SQLite database lives in the app data dir at runtime, never in the repo.
 *.sqlite
 *.sqlite-wal

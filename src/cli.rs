@@ -352,7 +352,7 @@ pub fn cmd_sync(inv: &Invocation) -> AppResult<String> {
         Ok(value) => value,
     };
     let budget: RateBudget = RateBudget::new();
-    let mut cancel: CancelFlag = CancelFlag::make();
+    let cancel: CancelFlag = CancelFlag::make();
     if inv.stage == "list" {
         eprintln!("crawling the item list: about 193 pages, one request per page");
         let report: SyncReport = match sync_list(client.clone(), &conn, budget, inv.budget, &cancel) {
@@ -579,42 +579,38 @@ pub fn guard(body: AppResult<String>) -> i32 {
 }
 
 /// Every verb through the same guard: JSON out, message and code to stderr.
-pub fn run(args: Vec<String>) -> i32 {
-    let inv: Invocation = parse_invocation(args);
+/// One Invocation to its verb's JSON string: the single place both the headless CLI
+/// and the GUI (commands.rs, ADR 0004) send verbs through. Prints nothing on stdout;
+/// help still explains itself on stderr. The fixture switch is applied here, because
+/// both doors may carry --fixture and both must see the same base URL.
+pub fn dispatch(inv: Invocation) -> AppResult<String> {
+    if inv.bad != "" {
+        return Err(AppError::usage(inv.bad));
+    }
     match inv.fixture.clone() {
         Some(url) => unsafe { set_var(ENV_FIXTURE_KEY, url); },
         None => {},
     }
-    if inv.bad != "" {
-        eprintln!("{}", inv.bad);
-        eprintln!("{}", usage_text());
-        return 2;
-    }
     if inv.verb == "" {
-        eprintln!("{}", usage_text());
-        return 2;
+        return Err(AppError::usage(usage_text()));
     }
-    if inv.verb == "status" {
-        return guard(cmd_status(&inv));
-    }
-    if inv.verb == "sync" {
-        return guard(cmd_sync(&inv));
-    }
-    if inv.verb == "search" {
-        return guard(cmd_search(&inv));
-    }
-    if inv.verb == "stats" {
-        return guard(cmd_stats(&inv));
-    }
-    if inv.verb == "item" {
-        return guard(cmd_item(&inv));
-    }
-    if inv.verb == "watch" {
-        return guard(cmd_watch(&inv));
-    }
+    if inv.verb == "status" { return cmd_status(&inv); }
+    if inv.verb == "sync" { return cmd_sync(&inv); }
+    if inv.verb == "search" { return cmd_search(&inv); }
+    if inv.verb == "stats" { return cmd_stats(&inv); }
+    if inv.verb == "item" { return cmd_item(&inv); }
+    if inv.verb == "watch" { return cmd_watch(&inv); }
     if inv.verb == "help" {
         eprintln!("{}", usage_text());
-        return 0;
+        return Ok("{}".to_string());
     }
-    return guard(Err(AppError::usage(format!("unknown verb {} (run help to see the verbs)", inv.verb))));
+    return Err(AppError::usage(format!("unknown verb {} (run help to see the verbs)", inv.verb)));
+}
+
+/// Every verb through one guard: JSON on stdout, the message and the reason on
+/// stderr, the kind of failure as the exit code (docs/DECISIONS/0004). The GUI
+/// reaches the same verbs through dispatch, wrapped by commands.rs.
+pub fn run(args: Vec<String>) -> i32 {
+    let inv: Invocation = parse_invocation(args);
+    return guard(dispatch(inv));
 }

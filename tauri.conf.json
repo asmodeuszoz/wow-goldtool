@@ -1,0 +1,23 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "WoW Goldtool",
+  "identifier": "dev.local.wow-goldtool",
+  "build": {
+    "frontendDist": "ui"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "WoW Goldtool",
+        "url": "index.html",
+        "width": 1180,
+        "height": 880
+      }
+    ]
+  },
+  "bundle": {
+    "active": false,
+    "icon": ["icons/icon.png"]
+  }
+}

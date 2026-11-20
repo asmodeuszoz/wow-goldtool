@@ -10,6 +10,8 @@ mod query;
 mod stats;
 mod sync;
 mod cli;
+mod commands;
+mod gui;
 
 use std::process::exit;
 use std::env::args;
@@ -30,10 +32,9 @@ pub fn words_of_argv() -> Vec<String> {
 pub fn main() {
     let words: Vec<String> = words_of_argv();
     if words.is_empty() {
-        // The Tauri shell lands here in v0.4.0; until then this explains itself
-        // instead of pretending the GUI works.
-        println!("wow-goldtool: no verb given. Run cargo run -- status to inspect the data layer, or see docs/DEVELOPMENT.md.");
-        return;
+        // v0.4.0: the GUI shell. The window comes from tauri.conf.json (app.windows)
+        // and run_gui blocks until the window closes (docs/DECISIONS/0001).
+        exit(gui::run_gui());
     }
     // exit() rather than a numeric main: this std models the exit status as its
     // own type, and asking for a plain i32 here is rejected.
