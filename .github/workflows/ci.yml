@@ -106,6 +106,17 @@ jobs:
           cargo run -- sync --stage detail --ids 25,40 --fixture http://127.0.0.1:8765
           cargo run -- sync --stage detail --watch --fixture http://127.0.0.1:8765
           cargo run -- sync --stage icons --fixture http://127.0.0.1:8765
+          # the fourth door of a pull (v0.8.0, ADR 0010): one tooltip copy per
+          # record the detail stage answered, budgeted then drained - and the manual
+          # layer's doors, which touch NO network at all (a bad ask answers 2, a
+          # missing row answers 4), so a green mirror is also proof that a crawl and
+          # a user's own edits cannot fight each other
+          cargo run -- sync --stage tooltip --fixture http://127.0.0.1:8765 --budget 8
+          cargo run -- sync --stage tooltip --fixture http://127.0.0.1:8765
+          cargo run -- set-item 25 vendor_sell=606
+          cargo run -- add-item "name=CI Test Mug" quality=Rare
+          cargo run -- delete-item 60
+          cargo run -- undelete-item 60
           # the live-search door: one ask, one request, against the fixture's
           # grouped answer - ungated because the door answers a 429 with exit 3
           cargo run -- live-search sword --fixture http://127.0.0.1:8765
