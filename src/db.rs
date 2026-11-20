@@ -527,7 +527,7 @@ pub fn raw_json_of(conn: &Connection, id: i64) -> AppResult<Option<String>> {
         Ok(None) => return Ok(None),
         Ok(Some(row)) => return match row.get(0) {
             Err(problem) => Err(AppError::db(format!("{}", problem))),
-            Ok(value) => Ok(Some(value)),
+            Ok(value) => Ok(value),
         },
     }
 }
