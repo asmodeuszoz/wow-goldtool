@@ -148,6 +148,13 @@ pending queue, sending the stored `detail_etag` so a second pass costs requests 
 (`written 0, unchanged 2`). `detail_synced_at` is what the card prints as "fetched …", which
 is how a user tells today's prices from last month's without leaving the app.
 
+The live-search door (v0.7.0) does not appear in this file's tables, and that is a decision,
+not an omission: `live-search TEXT` never opens a DB — no row, no `meta` key, no `sync_state`
+row, no sample, no mark (ADR 0009). An ask is one request whose answer is printed as it came,
+upstream's own; the file's promise stays "everything the app answers offline lives here", and
+the two doors — the local one reading these tables and the live one reading upstream — never
+share a name or a payload.
+
 Indexed for the queries the UI actually issues (SQLite's own index syntax, `ON` not `IN`
 — the fresh `CREATE`s above; the v0.6.0 migration re-issues only `price_history__item`
 because a migrated file already has the rest):

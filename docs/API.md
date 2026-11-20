@@ -32,7 +32,23 @@ GET https://thewowdb.com/api/v1/tooltip/<version>/<kind>/<id>
 
 * `q` is a case-insensitive name match, max 64 chars.
 * `/search/?q=` returns grouped hits (`item`, `spell`, `quest`, `npc`, `zone`, `sound`),
-  each with its own `has_more` + `more` URL.
+  each with its own `has_more` + `more` URL. Measured 2026-11-20 (ADR 0009's transcript):
+  the answer's top keys are `attribution`, `groups`, `q`, `version` (`"forever"`), `groups`
+  holds EXACTLY the six kinds, each answers `{has_more, more, results}`, and a hit is NOT a
+  full record — the one item hit measured for `q=Worn%20Shortsword` (1288 b) carries `id`,
+  `item_level`, `kind`, `links{api,html,tooltip}`, `name`, `quality`, `required_level`,
+  `version`. Inside the ANSWER's own `more` URLs a space rides as `+` (upstream's shape):
+  `…/api/v1/forever/item/?page=1&per_page=50&q=Worn+Shortsword`. `?q=Ring` (7271 b) answers
+  `has_more true` with five results each on item/quest/spell and 4/2/0 on npc/zone/sound.
+* The door asks with the query percent-encoded (`%20` for a space — the shape the measured
+  ask used and the fixture's GET log later confirmed), and the answer echoes `q` DECODED.
+* The burst headers ride every answer: `x-ratelimit-limit: 120`, `x-ratelimit-remaining: 119`
+  on a measured live ask, CORS-exposed per
+  `access-control-expose-headers: ETag, Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining, X-WGF-Build`.
+  The answer also carries an `ETag` (measured `W/"76db61a78b8398bc089262d2"`), but v0.7.0's
+  door stores nothing and revalidates nothing: one human ask is one request (ADR 0009), so
+  a `429` here answers with `Retry-After` and takes the door to exit `3`, it is not retried
+  in place like a crawl stage would.
 * Measured 2026-11-20: `?q=socket` and `?q=Socketed` answer **empty result groups** — the
   match is over NAMES only, so the live search can never find a record by tooltip text
   ("socketed") even though such items exist in the catalogue. Local SQLite search has the

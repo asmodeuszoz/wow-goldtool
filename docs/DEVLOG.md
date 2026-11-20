@@ -5,6 +5,115 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-20 · v0.7.0 — the live-search door: one human ask, one request
+
+### What forced the milestone
+
+v0.6.0 shipped three names compiled but never used — `search_url`, `SearchResponse`,
+`ApiResponse.remaining`: the client already built the URL, the mirror already shaped the
+grouped answer (`groups` as a `Value`), the response struct already carried the burst
+counter — and none had a consumer, because the door docs/API.md had promised ("we use it
+for the live search panel") was never opened. Six milestones of dead code are a promise the
+next release makes to itself; opening the door is this milestone. WHAT it does is decided
+only by measurement — inventing a shape for a door nobody had opened is not our call to make.
+
+### The grounding, measured 2026-11-20 (live, one request each)
+
+Three live probes (UA `wow-goldtool …; data source: thewowdb.com`), verbatim answers:
+
+```
+GET /api/v1/forever/search/?q=Worn%20Shortsword -> 200 application/json 1288 b
+    etag W/"76db61a78b8398bc089262d2"
+    x-ratelimit-limit: 120  x-ratelimit-remaining: 119
+    access-control-expose-headers: ETag, Retry-After, X-RateLimit-Limit, X-RateLimit-Remaining, X-WGF-Build
+    top keys: attribution, groups, q, version ("forever"); q echoes DECODED "Worn Shortsword"
+    groups exactly item/npc/quest/sound/spell/zone, each { has_more, more, results }
+    the one item hit's keys: id, item_level, kind, links{api,html,tooltip}, name,
+    quality, required_level, version
+    every group's `more` is upstream's own paged list endpoint, e.g.
+    https://thewowdb.com/api/v1/forever/item/?page=1&per_page=50&q=Worn+Shortsword
+    — a space rides as `+` INSIDE the answer's own URLs, not %20
+
+GET /api/v1/forever/search/?q=Ring              -> 200 application/json 7271 b
+    item/quest/spell: has_more TRUE, five results each
+    npc 4 / zone 2 / sound 0: has_more false
+
+GET /api/v1/forever/search/?q=socket            -> 200, every group EMPTY
+    (the names-only trap: socketed items exist in the catalogue, the door matches NAMES,
+     so the word answers nothing — docs/API.md measures it)
+```
+
+`SearchResponse` already matched this shape EXACTLY — the mirror needed nothing. Three
+measured facts decide the door: an empty answer is a SUCCESS (the names-only trap is a
+word upstream never said, not a failure); every group's `has_more` + `more` means chasing
+it would ask the paged per-group endpoint, one request per group per page — a human ask
+becomes a crawl; and the answer is upstream's own JSON printed as it came (serde pas-through),
+so the `+` rides verbatim while OUR request URL uses `%20` because the measured ask asked
+with `%20` and answered 200 (a raw space is not a URL character).
+
+### The decision
+
+[ADR 0009](./DECISIONS/0009-live-search-door.md) keeps the door an ASK, not a sync: ONE
+request like `item`, exit codes riding ADR 0004's contract (`2` no text, `3` network or
+`429`-with-`Retry-After`, `0` even for all-empty groups, `4` only if the door itself answers
+`404` for the shape), NO DB write and NO DB read. The load-bearing rejection is the write-from-
+an-ask one: ADR 0007 made every fresh write an OBSERVATION in `price_history`, and an answer
+that is not a record's own detail body would put ledger rows that never came from a detail
+write. Chasing `more` was rejected on the measured `?q=Ring` answer (three-plus extra requests
+and more per page: that is a crawl, not an ask; a later patch could take `--page` honestly);
+retry-in-place was rejected because that dance belongs to a stage that owns a queue and a
+budget, so the door mirrors the `item` door — and the fixture's `search` stage is UNGATED for
+exactly this reason: the committed CI step must stay green.
+
+### What the door grew
+
+* `src/cli.rs`: verb `live-search` (usage line 30 between `item ID [--cached]` and the watch
+  verbs, dispatch one line); the WHOLE verb tail joined with spaces is the query (`join_tail`,
+  so `live-search Worn Shortsword` asks one name, not two words); one `get_json` with an empty
+  stored ETag — the door revalidates nothing; payload `{status, retry_after, remaining, answer}`
+  with `answer` the serde pas-through.
+* `src/wowdb.rs`: `encode_query` — letters/digits/`-._` ride through, a space is `%20`,
+  everything else its UTF-8 bytes as `%XX`: the shape the measured ask proves.
+* `tests/fixture_api.py`: the grouped answer from the measured transcript — six groups each
+  `{has_more, more, results}` by fixture-name substring matching (names only: `socket` answers
+  empty), `+` inside its own `more` URLs, `version "forever"`, `etag W/"fixture-search-etag"` —
+  AND the `429` gate no longer names the `search` stage.
+* `ui/index.html` + `ui/app.js`: a live-search card, one field, one `Ask once` button, a
+  `group · id · name` mini table, a `view upstream` link per hit at each hit's own `links.html`,
+  and a note printing `remaining` (honestly `null` when the host sends no burst header — the
+  fixture does not on this stage), the names-only fact, and whether any group said `has_more`.
+  The wiring grew twice and got deduped: a second `btn-live` listener would have made one
+  click two asks, and one request per click is the whole promise of the panel.
+* CI grew the smoke sequence to fifteen steps: the door's one-word ask, the two-word ask
+  (riding `%20`, the fixture's own GET log is the witness), and the names-only trap
+  (`tooltip` answers all-empty groups — the step passes at exit `0`).
+* The chain order deserves honesty: `chore(ci)` landed the door's steps BEFORE the fixture
+  grounds them — between those two commits the v0.2.0 gate answered the door's first request
+  `429` (the gate named every stage) and the stub shape was the v0.2.0 placeholder, so that
+  intermediate sequence was red. Every commit in this series only guarantees a build, never
+  a green CI run mid-series; the mirror replay below runs the committed fifteen steps against
+  the committed fixture, both landed.
+* `Cargo.toml` and the `User-Agent` banner moved 0.6.0 → 0.7.0 (the UA names both the version
+  and the source, per the developer terms).
+
+### The numbers, not adjectives (every audit re-run against the shipped tree)
+
+| audit | expectation | observed |
+| ----- | ----------- | -------- |
+| CI mirror (fixture process A, fresh DB, budget 8: the committed fifteen steps + the v0.5.3 gone-id door + a drained icon queue) | green with the door inside; the door touched no DB state | fifteen steps exit `0`; the icon stage's numbers unchanged `requests 5, items 4, written 3, missing 1, rate_limited 1, complete true`; `stats` after CI `items 5, named 5, detailed 4, missing 1, icons 3, icon_missing 1, history 4` — the door wrote no sample; extra `item 127555` answers exit `4` and re-stamps once, the crawl after it `requests 0, complete true`; drained icons `requests 0`; fixture A log **28 GETs, 3 of them the door** (`sword`, `Worn%20Shortsword` — the two-word ask rides `%20` on the wire, the answer echoes `q` decoded — and `tooltip` with its all-empty 200), `3 × 429`, `4 × 404`; second process (fresh window): `detail --ids 25` `requests 2, written 1, rate_limited 1` grows the ledger 4 → **5** (`seq 5, item 25`), its log 3 GETs `1 × 429` |
+| exit-code audit (twenty-seven doors) | the eighteen of v0.6.0 stay identical, the new verb adds its doors | old eighteen `0,0,0,0,4,4,0,2,0,2,2,3,3,3,0,0,0,0`, byte-for-byte v0.6.0's audit; new: `live-search` alone → **2** (`live-search wants text, for example: live-search Worn Shortsword`), dead-host ask → **3** `error sending request for url (http://127.0.0.1:9974/api/v1/forever/search/?q=ring)` — the URL in the message proves the verb's own URL building, two-word on a dead host → **3** with the percent-shape `…q=Worn%20Shortsword` in the message; all-empty groups → **0**, two grounded fixture asks → **0** `0` (the answer's `more` rides the `+` form `…q=Worn+Shortsword`), the no-DB door `live-search sword --db …/exit70-nodb-dir/none.sqlite` → **0** with the answer while `exit70-nodb-dir` is NEVER created — opening that path would have answered `4`; and the retry branch: a SCRATCH copy gates `search` once (the committed fixture untouched, `git status` clean after) → **3** `rate limited by the API: the API asked us to back off`, the scratch log one `429` — witnessed WITHOUT touching the committed one; the fresh-window write door → `0` grew the ledger |
+| this build's own live asks | upstream's answer as it came, exit 0 | `live-search "Worn Shortsword"`: `status 200, remaining 119`, item group **1 hit** `has_more false`; `live-search Ring`: **5 hits** `has_more true` with `more` = `https://thewowdb.com/api/v1/forever/item/?page=1&per_page=50&q=Ring` — the `+` rides verbatim; `live-search zzzqqqnothere` → **exit 0**, all six groups `results: []` |
+| GUI launch audit (the shipped page) | boot stays four verbs, nothing crawls | exactly `status, watch, stats, status` and NO `live-search` line — the panel moves only on its own button; scratch DB `0` items, `0` samples, empty `sync_state`, schema `3` |
+| GUI live probe (temporary, rebuilt into the page, reverted right after) | the panel's ask reaches the SAME ipc guard | a 5th line `gui: ipc verb live-search (1 words)` + one fixture GET `/search/?q=sword … 200`; probe then reverted with `git checkout -- ui/app.js` (`grep probe` answers `0`), rebuilt clean, and the four-verb boot above re-audited against the reverted tree |
+| `cargo build` at the tag | warnings are the plan, not surprises | exactly THREE dead-code warnings — `catalogue`, `open_db`, `pending_plan`'s private `PendingSql` — plus the hardlink notice: the set SHRANK from v0.6.0's six, the door consumed the three names it was owed |
+| the user's own DB | never written by any of this | audited read-only before and after every run: hash `7442814b…c3d3b8`, mtime `2026-11-19 21:42:54`, `19 258` rows — identical throughout |
+
+The user's DB (`HOME/.local/share/wow-goldtool/wow-goldtool.sqlite`) was never written by
+any of this: every run above pointed at a scratch file through `WGT_DB`, and the file
+itself was only ever read hashed / `sqlite3 -readonly`.
+
+---
+
 ## 2026-11-20 · v0.6.0 — price history, local icons and the card that shows both
 
 ### What forced the milestone

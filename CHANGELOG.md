@@ -6,6 +6,41 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.7.0 — the live-search door: one human ask, one request, a look not a sync · 2026-11-20 · tag `v0.7.0`
+
+Added
+
+- CLI verb `live-search TEXT` ([ADR 0009](./DECISIONS/0009-live-search-door.md)): the WHOLE
+  verb tail joined with spaces is the query (`live-search Worn Shortsword` asks one name),
+  ONE request to the grouped `/search/` door, payload `{status, retry_after, remaining, answer}`
+  with `answer` a serde pas-through of `SearchResponse` (`groups` stays a `Value`, upstream's
+  `+` inside its own `more` URLs rides verbatim). Names-only means an all-empty answer is a
+  success (exit `0`), and the door writes NOTHING: no row, no `meta` key, no sample, no mark.
+- A live-search panel in the UI: one field, one `Ask once` button, one request per click, a
+  `group · id · name` table with a `view upstream` link per hit (attribution reaches the
+  ANSWER, not only the footer), and a note printing `remaining` (honestly `null` when the
+  host sends no burst header), the names-only fact, and whether any group said `has_more`.
+- The fixture grew the grouped `/search/` answer from the measured transcript (six groups each
+  `{has_more, more, results}`, names-only substring matching, the `+` form inside its own
+  `more` URLs), and its `429` gate now never names the `search` stage — the door answers a
+  `429` with exit `3` (like the `item` door) rather than retrying in place, so a gated search
+  stage would turn the committed CI step red.
+- CI grew the smoke sequence to fifteen steps: three live-search asks — one word, the two-word
+  ask riding as `%20` on the wire (the fixture's GET log is the witness), and the names-only
+  trap whose all-empty answer still passes at exit `0`.
+
+Changed
+
+- The build's dead-code set shrank as promised: `search_url`, `SearchResponse` and
+  `ApiResponse.remaining` — compiled-but-unused through v0.6.0 — got their consumer, and `cargo
+  build` now warns exactly `catalogue`, `open_db` and `pending_plan`'s private `PendingSql`
+  (plus the incremental-cache hardlink notice on this filesystem).
+- The version banner rides `0.7.0` (`Cargo.toml` and the `User-Agent` line naming the source),
+  and the usage line says both search doors now: `search TEXT […]` (local, filtered) beside
+  `live-search TEXT` (upstream's own answer).
+- Nothing schema-wise: schema stays `3`. The door touches no DB — audited with an impossible
+  `--db` path answering exit `0` with the answer while its directory is never created.
+
 ## v0.6.0 — price history + local icons: the offline catalogue starts paying · 2026-11-20 · tag `v0.6.0`
 
 Added
