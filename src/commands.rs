@@ -28,8 +28,18 @@ pub fn kind_name(problem: AppError) -> String {
 /// The GUI's one command: argv in (exactly the words `cargo run --` would take),
 /// envelope JSON out: {"ok": true, "result": <verb json>} or
 /// {"ok": false, "error": {"kind", "exit", "message", "retry_after"}}.
+/// `async` on purpose (v0.5.1): the macro's blocking wrapper runs the verb
+/// INSIDE the webview's IPC handler - its last acts are `kind.block(result,
+/// resolver)` and `return true` (tauri-macros/src/command/wrapper.rs:425/:428)
+/// - so a bare fn charges one crawl chunk (2/s pacing, plus any Retry-After
+/// wait on a 429) to the whole page: hover stops hit-testing, clicks queue
+/// behind the verb for as long as the crawl runs. An `async fn` routes to
+/// `respond_async_serialized` instead (wrapper.rs:~372): tauri hands the verb
+/// to its tokio-backed async manager and the handler returns true right away,
+/// so the crawl runs while the page stays interactive. Same argv, same
+/// cli::dispatch: only the wrapper kind flips (sync -> async).
 #[tauri::command]
-pub fn cli_call(argv: Vec<String>) -> String {
+pub async fn cli_call(argv: Vec<String>) -> String {
     let inv: Invocation = parse_invocation(argv);
     eprintln!("gui: ipc verb {} ({} words)", inv.verb, inv.words.len());
     let result: AppResult<String> = dispatch(inv);
