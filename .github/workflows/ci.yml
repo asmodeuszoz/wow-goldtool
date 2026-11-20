@@ -109,6 +109,9 @@ jobs:
           # the live-search door: one ask, one request, against the fixture's
           # grouped answer - ungated because the door answers a 429 with exit 3
           cargo run -- live-search sword --fixture http://127.0.0.1:8765
+          # and the same door with a two-word ask: the door percent-encodes the
+          # space, the answer echoes it decoded (measured shape, docs/API.md)
+          cargo run -- live-search "Worn Shortsword" --fixture http://127.0.0.1:8765
           # names-only trap: a tooltip-ish word answers EMPTY groups - still success
           cargo run -- live-search tooltip --fixture http://127.0.0.1:8765
           cargo run -- item 25 --cached
