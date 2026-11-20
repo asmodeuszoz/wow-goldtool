@@ -2,16 +2,18 @@
 
 Single file, disposable. Deleting it only throws away cache: the next sync rebuilds it.
 
-## Where the file lives (`db.rs::db_path()`)
+## Where the file lives (`db.rs` resolves it)
 
-1. `WGT_DB` env var, if set (tests + CI point this at a fixture),
-2. otherwise the Tauri **appDataDir** (`wow-goldtool.sqlite` inside it),
-3. otherwise, in CLI mode where no Tauri dirs exist, `./wow-goldtool.sqlite` beside the
-   executable.
+1. the CLI's `--db PATH` flag, which beats the env var for one run,
+2. `WGT_DB` env var, if set (tests and CI point this at a fixture),
+3. the Tauri **appDataDir** once the GUI is wired (`wow-goldtool.sqlite` inside it),
+4. otherwise `HOME/.local/share/wow-goldtool/wow-goldtool.sqlite`, created on demand.
 
-The DB opens with `SQLite_::set_database`, then `set_vlog(4, STDERR)` only in debug builds,
-and every entry point calls `ensure_schema()` — the schema is idempotent, so a fresh
-process (CLI or GUI) can always attach.
+Opening the file is one code path for every entry point: `Connection::open` (rusqlite,
+bundled SQLite — no system library needed), then either `check_schema` refuses a foreign
+or stale-schema file, or `execute_batch(SCHEMA_SQL)` writes it and stamps
+`schema_version` into `meta`. The schema is idempotent, so a fresh process (CLI or GUI)
+can always attach; `open_db` and `open_db_at` are the two doors into that helper.
 
 ## Schema (`schema_version = 1`)
 
@@ -30,7 +32,7 @@ CREATE TABLE item (
   item_subtype TEXT,                -- One-Handed Sword, Cloth, ...
   slot TEXT,                        -- Main Hand, Head, ...
   item_set TEXT,
-  unique TEXT,
+  unique_flag TEXT,                 -- the API field is `unique`; SQLite reserves that word
   flavor TEXT,
   icon_url TEXT,
   sockets TEXT,                     -- JSON array
@@ -41,7 +43,7 @@ CREATE TABLE item (
   faction_prices TEXT,              -- JSON array, per region/faction price buckets
   dmg_min INTEGER, dmg_max INTEGER, dps REAL, speed REAL,   -- weapon block
   vendor_sell INTEGER,              -- copper
-  price_min INTEGER,                -- copper, cheapest AH buy        <- "gold" column
+  price_min INTEGER,                -- copper, cheapest AH buy        <- the "gold" column
   price_market INTEGER,             -- copper, AH market value
   price_available INTEGER,          -- offers on the AH
   price_realms INTEGER,             -- realms watched for the price
@@ -62,54 +64,64 @@ CREATE TABLE sync_state (
 );
 ```
 
-Stage-1 (`?page=`) fills the summary columns and `list_etag`; stage-2 (`/item/<id>`) fills
-the price/stat columns, `icon_url`, `raw_json`, `detail_etag`. NULL price columns mean
-"not fetched yet", which is distinct from "fetched and not on the AH" — the difference is
-visible in the UI and in `cargo run -- stats`.
+Stage-1 (the `?page=` list crawl) fills the summary columns and `list_etag`; stage-2 (`/item/<id>`)
+fills the price/stat columns, `icon_url`, `raw_json`, `detail_etag`. A NULL price column means
+"not fetched yet", which is distinct from "fetched and not on the AH" — the difference is visible
+in the UI and in `cargo run -- stats`.
 
-Indexed for the queries the UI actually issues:
+Indexed for the queries the UI actually issues (SQLite's own index syntax, `ON` not `IN`):
 
 ```sql
-CREATE INDEX item__name_lc,  idx item__quality_rank, idx item__item_level,
-CREATE INDEX item__price_min, idx item__detail_synced_at;
+CREATE INDEX item__name_lc ON item (name_lc);
+CREATE INDEX item__rank ON item (quality_rank, item_level);
+CREATE INDEX item__price ON item (price_min);
+CREATE INDEX item__detail ON item (detail_synced_at);
 ```
 
 ## Query recipes
 
-Local search = substring on `name_lc`, ordered by a **named sort**, with typed filters.
-`db_query.rs` builds these from a `Query` struct so the UI and the CLI share one path:
+`query.rs` builds these from a `Filter` struct so the UI and the CLI share one path. Values
+are always bound parameters, never pasted into the SQL text:
 
 ```sql
 -- search + quality/type filter + cheapest first, virtualised page 3
-SELECT id, name, quality_rank, item_level, item_type, slot, price_min, vendor_sell, icon_url
+SELECT id, name, quality, quality_rank, price_min, price_market, price_available, html_url, icon_url
   FROM item
- WHERE name_lc   LIKE '%shortsword%' ESCAPE '\'
-   AND quality_rank = 1
-   AND item_type = 'Weapon'
+ WHERE name_lc LIKE ? ESCAPE '#'
+   AND quality = ?
+   AND item_type = ?
    AND price_min IS NOT NULL
- ORDER BY price_min ASC, name ASC
- LIMIT 40 OFFSET 80;
+ ORDER BY (price_min IS NULL) ASC, price_min ASC, name ASC
+ LIMIT ? OFFSET ?;
 ```
 
 ```sql
--- facet counts for the filter chips (single pass, GROUP BY each facet)
-SELECT quality, COUNT(1) FROM item WHERE name_lc LIKE '%herb%' ESCAPE '\' ;
-SELECT item_type, COUNT(1) FROM item WHERE ... ;
+-- the count behind the same filter, so "showing 40 of 1250" cannot drift
+SELECT COUNT(1) FROM item WHERE name_lc LIKE ? ESCAPE '#' AND ...;
 ```
 
 ```sql
--- coverage + price analytics (drives `cargo run -- stats` and the sync panel)
+-- coverage + price analytics (drives `cargo run -- stats` and the sync panel).
+-- the SUM() columns are CAST: rusqlite reads rows by declared column type, and a bare
+-- expression column has none, so an unCAST aggregate is a type error, not a NULL.
 SELECT COUNT(1),
-       SUM(price_min IS NOT NULL),
-       AVG(price_min),
-       MIN(price_min), MAX(price_min) FROM item;
+       CAST(SUM(name IS NOT NULL) AS INTEGER),
+       CAST(SUM(price_min IS NOT NULL) AS INTEGER),
+       CAST(SUM(detail_synced_at IS NOT NULL) AS INTEGER),
+       MIN(price_min), MAX(price_min), AVG(price_min) FROM item;
+```
+
+```sql
+-- the ids the detail stage still has to fetch, oldest id first
+SELECT id FROM item WHERE price_min IS NULL OR detail_synced_at IS NULL ORDER BY id ASC LIMIT ?;
 ```
 
 ```sql
 -- items in the watchlist whose detail record is missing or older than 6 h
 SELECT id FROM watch
-  WHERE detail_synced_at IS NULL OR detail_synced_at < :six_hours_ago;
+   WHERE detail_synced_at IS NULL OR detail_synced_at < ?;
 ```
 
-Rules: values are bound as parameters (never interpolated), user text is escaped for
-`LIKE` (`%`, `_`, `\`), and every query carries an `ESCAPE '\'`.
+Rules: filter values are bound as parameters (never interpolated), user text is escaped for
+`LIKE` (`#`, `%`, `_`) and every `LIKE` carries `ESCAPE '#'`, and NULL prices sort last rather
+than being treated as cheap — a gold tool must not claim an unpriced item is free.

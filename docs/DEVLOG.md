@@ -5,6 +5,66 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-19 · v0.2.0 — data layer, sync engine, contract checks
+
+### One buildable unit, eight modules
+
+The data layer and the sync engine landed together because they are one compile unit:
+`main.rs` declares every module, so a half-written tree does not build. Splitting further
+would have broken the "every commit must build" rule, so the code ships as one
+`feat(core)` commit and the docs/CI split into separate commits after it.
+
+### rustc as the arbiter, twice
+
+The session had a display quirk: tool output and echoed payloads mangled `::` into `.`
+and angle-bracket generics into parentheses. Never patched Rust from displayed text;
+byte counters in python verified file contents and rustc decided what was right. A
+multi-file "apply rustc suggestions" script also overwrote files **inside `~/.cargo`**
+(`rusqlite`'s and `serde_json`'s extracted sources); the fix restricted the applier to the
+diagnostic's primary file, and the corrupted crates were restored byte-identical from the
+registry cache tarballs.
+
+### Two bugs the compiler cannot see
+
+- **SQL arity drift**: the detail upsert declared 38 columns but its VALUES run had 40
+  markers — rusqlite fails at *runtime*, rustc stays silent. A checker script cross-verified
+  column names, VALUES markers, SET assignments and the `*_VALUE_COUNT` consts; 40 fixed to
+  38.
+- **WHERE-chain builder**: it emitted `a AND b AND ` with no keyword — SQLite answered
+  `near 'LIKE': syntax error`. Now the builder owns its keyword: `format!("WHERE {} ",
+  joined)`.
+
+Verified along the way: bundled rusqlite 0.43 really does accept the
+`CREATE INDEX name ON table (cols)` spelling that docs/DATABASE.md documents — the open
+question from v0.1.0 is closed.
+
+### The fixture caught a lie in the report
+
+`sync --stage detail` against the fixture reported `done: 4 / total: 5` next to
+`"complete": true`: a 429 hit the `continue` of the per-item loop, which dropped that item
+from the run, and `complete` was hardcoded. Fixture forced this by answering the **first
+request of each stage** with 429 + Retry-After. Fixed the semantics: retry the same item
+in place (up to 3 retries after each Retry-After), leave it pending if that still fails,
+and derive `complete` from the remaining pending count — otherwise report `partial`.
+Re-run: `requests: 6, written: 5, rate_limited: 1, complete: true`, exit 0.
+
+### Exit-code audit (ADR 0004)
+
+| Scenario                     | Observed | Expected |
+| ---------------------------- | -------- | -------- |
+| unknown verb / unknown flag  | 2 / 2    | 2        |
+| unreachable base URL         | 3        | 3        |
+| corrupt DB via `--db`        | 4        | 4        |
+| unwritable DB path           | 4        | 4        |
+| healthy `status`             | 0        | 0        |
+
+### House rule amended mid-flight: the version bump
+
+"Version bumps happen in `Cargo.toml` **and** `tauri.conf.json` together" cannot run yet:
+`tauri.conf.json` joins the tree at v0.4.0 (it is what `generate_context!` reads). The
+rule now means "every version field that exists today"; `Cargo.toml` bumps to 0.2.0, and
+the conf-file half of the bump arrives with the GUI shell.
+
 ## 2026-11-19 · v0.1.0 — scaffold, measurements, decisions
 
 ### Setting the stage

@@ -37,6 +37,11 @@ stats.rs       price analytics (coverage, per-quality averages, extremes)
 commands.rs    Tauri command surface: thin serialisation over the modules above
 ```
 
+As of v0.2.0 the tree holds `main.rs`, `cli.rs`, `wowdb.rs`, `models.rs`, `db.rs`,
+`query.rs`, `sync.rs`, `stats.rs`, `errors.rs`; `gui.rs`, `state.rs`, `commands.rs`
+and `ui/` are the v0.4.0 plan above and not in the tree yet (their absence is why
+`cargo build` still ends in dead-code warnings only).
+
 Rules of thumb: `wowdb.rs` never touches the DB, `db*.rs` never touches the network,
 `sync.rs` is the only place where the two meet, `commands.rs` contains no logic.
 
@@ -62,8 +67,8 @@ Each milestone is one squashed logical change, one conventional commit series an
 git tag. The dated narrative lives in [docs/DEVLOG.md](./DEVLOG.md).
 
 - [x] `v0.1.0` — repository scaffold, docs, licence, CI templates
-- [ ] `v0.2.0` — data layer: API client, JSON models, SQLite schema, CLI `sync`/`stats`
-- [ ] `v0.3.0` — sync engine hardening: rate-limit pacing, ETag reuse, resume/cancel
+- [x] `v0.2.0` — data layer **plus a working sync engine**: API client, JSON models, SQLite schema, headless CLI verbs, paced list/detail crawl, exit-code contract
+- [ ] `v0.3.0` — sync hardening: ETag revalidation reuse across runs, resume + cancel flag
 - [ ] `v0.4.0` — Tauri shell + webview UI (search, filters, sorting, item cards)
 - [ ] `v0.5.0` — detail-sync targets (watchlist/ids), price analytics, UI polish
 
@@ -82,7 +87,7 @@ integration test):
 ```bash
 cargo run -- status                       # where the DB lives, coverage, catalogue build
 cargo run -- sync --stage list            # crawl the whole item list into SQLite
-cargo run -- sync --stage detail --limit 500
+cargo run -- sync --stage detail --budget 500
 cargo run -- search "Worn Shortsword"     # local DB query, prints JSON
 cargo run -- item 25                      # live lookup of one item id
 cargo run -- stats                        # DB coverage + price analytics
@@ -98,11 +103,13 @@ Environment switches used by tests and CI:
 
 ## Testing
 
-- Unit tests sit next to the code they test (`wowdb.rs` parses recorded API payloads).
-- `tests/api.rs` runs the crawler against a **fixture server** so the suite is
-  reproducible, fast and never rate-limited by the upstream host.
-- `tests/pipeline.rs` seeds a small SQLite DB from fixtures, then asserts search, facets
-  and stats behaviour.
+- The real integration path is the headless CLI run against a **fixture server**
+  (`tests/fixture_api.py`, committed at v0.2.0): two list pages, a detail record for any
+  item id, and one forced `429` + `Retry-After` per stage — the crawler never sees the
+  upstream API in CI.
+- `tests/api.rs` / `tests/pipeline.rs` (unit tests next to the code they test) are the
+  plan, not code: v0.2.0 has no `#[test]` functions yet, so `cargo test` only proves
+  everything compiles.
 - CI (`.github/workflows/ci.yml`) runs `cargo build`, `cargo test`, `cargo run -- stats`
   on a seeded fixture DB and `cargo fmt`/`cargo lint` gates.
 

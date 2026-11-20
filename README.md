@@ -5,11 +5,13 @@ Forever** from the free [TheWoWDB](https://thewowdb.com/developers) JSON API and
 it in a local **SQLite** database, so browsing, filtering, searching and price-checking
 items works offline.
 
-Status: **scaffold / roadmap**. See the milestone list below and the dated narrative in
+Status: **v0.2.0 — headless data layer + sync engine work**; the GUI shell lands at
+v0.4.0. See the milestone list below and the dated narrative in
 [docs/DEVLOG.md](./docs/DEVLOG.md).
 
 ```
 cargo build          # works from RustRover straight away, no Tauri CLI needed
+cargo run -- status  # headless: DB location, coverage, sync state — no display needed
 ```
 
 ## Why this app exists
@@ -25,8 +27,8 @@ highest damage per second, most expensive vendor sell…).
 | Milestone | What lands | State |
 | --------- | ---------- | ----- |
 | `v0.1.0` | repository scaffold, docs, licence, CI templates | done |
-| `v0.2.0` | data layer: TheWoWDB client, JSON models, SQLite schema, headless CLI (`sync`, `stats`, `search`, `item`) | planned |
-| `v0.3.0` | sync engine hardening: rate-limit pacing, ETag reuse, resume + cancel | planned |
+| `v0.2.0` | data layer + working sync: TheWoWDB client, JSON models, SQLite schema, headless CLI (`sync`, `stats`, `search`, `item`, `watch`, `status`), paced two-stage crawl, exit-code contract | done |
+| `v0.3.0` | sync hardening: ETag revalidation reuse across runs, resume + cancel flag | planned |
 | `v0.4.0` | Tauri shell + webview UI: search, filters, sorting, item cards | planned |
 | `v0.5.0` | detail-sync targets (watchlist / ids), price analytics, UI polish | planned |
 
