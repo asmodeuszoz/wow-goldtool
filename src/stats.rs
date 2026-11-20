@@ -24,6 +24,11 @@ pub struct Coverage {
     pub missing: i64,
     pub icons: i64,
     pub icon_missing: i64,
+    pub tooltips: i64,
+    pub tooltip_missing: i64,
+    pub edited: i64,
+    pub manual: i64,
+    pub deleted: i64,
     pub history: i64,
     pub min_price: Option<i64>,
     pub max_price: Option<i64>,
@@ -59,6 +64,11 @@ pub const SQL_COVERAGE: &str = concat!(
     "CAST(IFNULL(SUM(detail_missing_at IS NOT NULL), 0) AS INTEGER), ",
     "CAST(IFNULL(SUM(icon_at IS NOT NULL), 0) AS INTEGER), ",
     "CAST(IFNULL(SUM(icon_missing_at IS NOT NULL), 0) AS INTEGER), ",
+    "CAST(IFNULL(SUM(tooltip_at IS NOT NULL), 0) AS INTEGER), ",
+    "CAST(IFNULL(SUM(tooltip_missing_at IS NOT NULL), 0) AS INTEGER), ",
+    "CAST(IFNULL(SUM(edited_at IS NOT NULL), 0) AS INTEGER), ",
+    "CAST(IFNULL(SUM(manual_at IS NOT NULL), 0) AS INTEGER), ",
+    "CAST(IFNULL(SUM(deleted_at IS NOT NULL), 0) AS INTEGER), ",
     "MIN(price_min), MAX(price_min), AVG(price_min) ",
     "FROM item",
 );
@@ -91,8 +101,10 @@ pub const SQL_RICH: &str = concat!(
 /// Three states per id (docs/DATABASE.md): fetched (detail_synced_at set), checked
 /// and gone upstream (detail_missing_at set after a 404), or never looked at.
 /// Only the last one is pending, so a removed record costs one request per crawl
-/// instead of one per run, and "nothing pending" stays literally true. v0.8.0's two extra terms keep the
-/// user out of the crawl's way: a tombstoned row is deleted ON PURPOSE (a queue
+/// instead of one per run, and "nothing pending" stays literally true. v0.8.0 adds
+/// two terms that keep the USER out of the crawl's way: a tombstoned row is deleted
+/// ON PURPOSE (a queue that re-fetched it would answer 404 and stamp the third state
+/// on a row the user buried), and a `manual_at` row is one the user MADE - upstream
 /// that re-fetched it would answer 404 and stamp the third state on a row the user
 /// buried), and a `manual_at` row is one the user MADE - upstream has no such id
 /// (measured max upstream id on their file: 288 340, manual block starts at 900 000
@@ -140,11 +152,16 @@ pub fn pending_plan(sql: String, limit: Option<i64>) -> PendingSql {
     return PendingSql { sql: format!("{}{}", sql, more), params: params };
 }
 
-/// Coverage of the whole catalogue (v0.6.0): the item aggregate answers in ONE read
-/// - SUM() columns carry CASTs because rusqlite reads rows by DECLARED column type and
-/// a bare aggregate expression has none (docs/DATABASE.md) - and the price-history
+/// Coverage of the whole catalogue (grown at v0.8.0): the item aggregate answers in
+/// ONE read - SUM() columns carry CASTs because rusqlite reads rows by DECLARED column
+/// type and a bare aggregate expression has none (docs/DATABASE.md) - and the price-history
 /// count is a SECOND read off the second table: different rows, same Coverage answer,
-/// so the CLI, the UI and the audits cannot drift apart.
+/// so the CLI, the UI and the audits cannot drift apart. v0.8.0's five new counts carry
+/// the manual layer (edited = rows the user stated something about, manual = rows the
+/// user MADE, deleted = the tombstones the queries hide) plus the tooltip door's two
+/// states, so a completeness answer shows what a pull-all reached AND what a user did
+/// on top of it; the price columns moved from read slots 7-9 to 12-14, which is exactly
+/// the drift the expected-count guard catches.
 pub fn coverage(conn: &Connection) -> AppResult<Coverage> {
     let found: Coverage = match conn.query_row(SQL_COVERAGE, [], |row| {
         Ok(Coverage {
@@ -155,10 +172,15 @@ pub fn coverage(conn: &Connection) -> AppResult<Coverage> {
             missing: row.get(4)?,
             icons: row.get(5)?,
             icon_missing: row.get(6)?,
+            tooltips: row.get(7)?,
+            tooltip_missing: row.get(8)?,
+            edited: row.get(9)?,
+            manual: row.get(10)?,
+            deleted: row.get(11)?,
             history: 0,
-            min_price: row.get(7)?,
-            max_price: row.get(8)?,
-            avg_price: row.get(9)?,
+            min_price: row.get(12)?,
+            max_price: row.get(13)?,
+            avg_price: row.get(14)?,
         })
     }) {
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
