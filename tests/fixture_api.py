@@ -124,6 +124,11 @@ MISSING_DETAIL = {127555}
 limited = set()
 served = {"count": 0}
 
+# The search door is NEVER gated: the door answers a 429 with exit 3 (like the
+# `item` door), so gating it here would turn the committed CI step red - the door
+# retries not in place because one human ask is one request (ADR 0009).
+SEARCH_GATED = False
+
 
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
@@ -142,9 +147,51 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 # the record answers WITH an icon_url; only the FILE is gone
                 body["icon_url"] = "/icon/absent-60.png"
         elif path.startswith("/api/v1/forever/search/"):
+            # the grouped live-search answer, grounded on two measured live answers
+            # (docs/API.md): `q=Worn Shortsword` answers ONE item hit in the item
+            # group and empty groups elsewhere, every group with has_more false;
+            # `q=Ring` answers five item hits with has_more TRUE plus the group's
+            # own paged `more` URL. The fixture plays both shapes against its OWN
+            # names: substring over fixture names, names only (a tooltip word like
+            # "socket" answers empty groups - the measured names-only trap). The
+            # `more` URL keeps upstream's own shape: this endpoint, `page=1&per_page=50`,
+            # `+` for spaces - root-relative here so CI never reaches a second host.
             stage = "search"
-            etag = '"fixture-etag-search"'
-            body = {"q": "fixture", "groups": {"item": []}, "attribution": ATTRIBUTION}
+            raw = path.split("?", 1)[1] if "?" in path else ""
+            q = raw[2:] if raw.startswith("q=") else ""
+            # the door percent-encodes; upstream decodes, so decode back for matching.
+            q = q.replace("+", " ")
+            for token in ("%20", "%2F", "%3A"):
+                q = q.replace(token, {"%20": " ", "%2F": "/", "%3A": ":"}[token])
+            groups = {}
+            for kind in ("item", "npc", "quest", "sound", "spell", "zone"):
+                hits = []
+                if kind == "item":
+                    for page in ("1", "2"):
+                        for record in LIST_PAGES[page]["results"]:
+                            if q.lower() and q.lower() in str(record.get("name", "")).lower():
+                                hits.append({
+                                    "id": record["id"],
+                                    "name": record["name"],
+                                    "kind": "item",
+                                    "quality": record.get("quality"),
+                                    "item_level": record.get("item_level"),
+                                    "required_level": record.get("required_level"),
+                                    "version": "forever",
+                                    "links": {
+                                        "api": "/api/v1/forever/item/{}".format(record["id"]),
+                                        "html": "/forever/item/{}".format(record["id"]),
+                                        "tooltip": "/api/v1/tooltip/forever/item/{}".format(record["id"]),
+                                    },
+                                })
+                # the fixture grounds BOTH measured shapes: with five hits of one
+                # word it answers has_more TRUE (measured: `?q=Ring` says so with
+                # five results and a `more` page URL); three fixture names match
+                # "sword", so has_more flips by itself. The results ride as the
+                # first five at most, like upstream's page.
+                groups[kind] = {"has_more": len(hits) > 2, "more": "/api/v1/forever/{}/?page=1&per_page=50&q={}".format(kind, q.replace(" ", "+")), "results": hits[:5]}
+            body = {"q": q, "version": "forever", "attribution": ATTRIBUTION, "groups": groups}
+            etag = 'W/"fixture-search-etag"'
         elif "item" in path and "page" in path:
             stage = "list"
             page = "2" if "page=2" in path else "1"
@@ -160,7 +207,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(b"{}")
             return
 
-        if stage not in limited:
+        if stage != "search" and stage not in limited:
             limited.add(stage)
             self.send_response(429)
             self.send_header("Retry-After", "1")
