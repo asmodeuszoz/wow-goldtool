@@ -80,6 +80,10 @@ jobs:
       # speaks conditional GETs and forces one 429 per stage) so the suite never hammers
       # the upstream API. From v0.3.0 on the sequence also proves stop -> resume, a full
       # re-sync answered by 304s, and a live lookup served from the DB.
+      # From v0.5.0 on the same sequence also proves the targeted detail stage (a watch
+      # list, an id list, and the second pass over the same ids answered by 304s) and the
+      # DB-only card read (`--cached`), which is what the item card shows before any
+      # request goes out.
       - name: CLI smoke test on a seeded fixture DB
         env:
           WGT_DB: ${{ runner.tmpDir }}/fixture.sqlite
@@ -92,4 +96,9 @@ jobs:
           cargo run -- sync --stage list --fixture http://127.0.0.1:8765
           cargo run -- sync --stage detail --fixture http://127.0.0.1:8765
           cargo run -- item 25 --fixture http://127.0.0.1:8765
+          cargo run -- watch add 25 40
+          cargo run -- sync --stage detail --ids 25,40 --fixture http://127.0.0.1:8765
+          cargo run -- sync --stage detail --ids 25,40 --fixture http://127.0.0.1:8765
+          cargo run -- sync --stage detail --watch --fixture http://127.0.0.1:8765
+          cargo run -- item 25 --cached
           cargo run -- stats
