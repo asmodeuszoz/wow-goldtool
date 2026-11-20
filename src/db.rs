@@ -72,7 +72,7 @@ pub const SCHEMA_SQL: &str = concat!(
     "api_url TEXT, html_url TEXT, tooltip_url TEXT, tooltip_etag TEXT,",
     "list_etag TEXT, detail_etag TEXT,",
     "list_synced_at INTEGER, detail_synced_at INTEGER, tooltip_at INTEGER,",
-    "detail_missing_at INTEGER,",
+    "detail_missing_at INTEGER, tooltip_missing_at INTEGER,",
     "icon_blob BLOB, icon_at INTEGER, icon_missing_at INTEGER,",
     "manual_at INTEGER, manual_overrides TEXT, edited_at INTEGER, deleted_at INTEGER,",
     "raw_json TEXT",
