@@ -30,11 +30,12 @@ use std::fs::create_dir_all;
 use std::fs::exists;
 use std::time::UNIX_EPOCH;
 
-/// The schema this build understands. v0.5.3 added one column; the bump is paired
-/// with an in-place migration for the one older shape (ALTER TABLE adds the column)
-/// because "rebuild the file" would mean asking a user to throw away 19 k records.
-/// A file NEWER than this build is still refused: we cannot know what it holds.
-pub const SCHEMA_VERSION: i64 = 2;
+/// The schema this build understands. v0.6.0 adds three columns, one table and one
+/// index; the bump is paired with an in-place migration for BOTH older shapes - v1
+/// files chain through v2 to this shape - because the user's own catalogue sits on
+/// disk at v1 and refusing it would throw away 19 258 rows. A file NEWER than this
+/// build is still refused: we cannot know what it holds.
+pub const SCHEMA_VERSION: i64 = 3;
 
 /// Default DB file name, used when WGT_DB does not point somewhere else.
 pub const DB_FILE_NAME: &str = "wow-goldtool.sqlite";
@@ -70,6 +71,7 @@ pub const SCHEMA_SQL: &str = concat!(
     "list_etag TEXT, detail_etag TEXT,",
     "list_synced_at INTEGER, detail_synced_at INTEGER,",
     "detail_missing_at INTEGER,",
+    "icon_blob BLOB, icon_at INTEGER, icon_missing_at INTEGER,",
     "raw_json TEXT",
     ");",
     "CREATE TABLE watch (id INTEGER PRIMARY KEY, added_at INTEGER, note TEXT);",
@@ -78,10 +80,11 @@ pub const SCHEMA_SQL: &str = concat!(
     "page INTEGER, done INTEGER, total INTEGER,",
     "message TEXT, updated_at INTEGER, error TEXT",
     ");",
-    "CREATE INDEX item__name_lc ON item (name_lc);",
+    "CREATE TABLE price_history (seq INTEGER PRIMARY KEY, item_id INTEGER, sampled_at INTEGER, price_min INTEGER, price_market INTEGER);",
+    "CREATE INDEX price_history__item ON price_history (item_id);",
+    "CREATE INDEX item__detail ON item (detail_synced_at);",
     "CREATE INDEX item__rank ON item (quality_rank, item_level);",
     "CREATE INDEX item__price ON item (price_min);",
-    "CREATE INDEX item__detail ON item (detail_synced_at);",
 );
 
 /// How many VALUES markers the stage-1 upsert has (its SET list is the same minus the
@@ -123,6 +126,23 @@ pub const SQL_COUNT_ROWS: &str = "SELECT COUNT(1) FROM item";
 /// The one additive step from the v1 shape (v0.5.0 and earlier): the checked-missing
 /// column. Applied in place so an existing catalogue keeps its rows.
 pub const SQL_ADD_MISSING_COLUMN: &str = "ALTER TABLE item ADD COLUMN detail_missing_at INTEGER";
+
+/// The v2 -> v3 steps (v0.6.0): the icon columns ride an existing row like the missing
+/// stamp did, and the price-history table plus its index simply appear - a v2 file has
+/// none, and ALTER/CREATE are the whole delta. Column ORDER differs from a file built
+/// fresh by SCHEMA_SQL (ALTER appends), which is why every reader names columns
+/// explicitly and none relies on positions. SQLite accepts the FK annotation nowhere
+/// near here on its own: SQLite would not enforce a FOREIGN KEY clause anyway (probe:
+/// an INSERT referencing a missing item succeeded), so the guard for price_history ->
+/// item lives in Rust: samples are only ever written after the item upsert made the
+/// row. See docs/DATABASE.md and [ADR 0007](../docs/DECISIONS/0007-price-history-sampling.md).
+pub const SQL_MIGRATE_TO_V3: &str = concat!(
+    "ALTER TABLE item ADD COLUMN icon_blob BLOB;",
+    "ALTER TABLE item ADD COLUMN icon_at INTEGER;",
+    "ALTER TABLE item ADD COLUMN icon_missing_at INTEGER;",
+    "CREATE TABLE price_history (seq INTEGER PRIMARY KEY, item_id INTEGER, sampled_at INTEGER, price_min INTEGER, price_market INTEGER);",
+    "CREATE INDEX price_history__item ON price_history (item_id);",
+);
 
 /// Marking an id as "the upstream has no forever record for it" (v0.5.3). The row
 /// must already exist (the list walk created it): an INSERT here would answer the
@@ -360,20 +380,39 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
             if version == SCHEMA_VERSION {
                 return Ok(());
             }
-            // v0.5.3 added one column. The v1 shape differs from this build by
-            // exactly that column, so it is migrated in place - adding rows back
-            // would mean deleting a 19 k-record catalogue the user just does not
-            // want to lose. Anything else (v0 shape, a future shape, a foreign
-            // file) keeps the honest refusal below.
-            if version == 1 {
-                match bind_sql(conn, SQL_ADD_MISSING_COLUMN, [].to_vec(), 0) {
-                    Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem.message))),
-                    Ok(_) => {},
-                }
-                match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
-                    Err(problem) => return Err(problem),
-                    Ok(_) => return Ok(()),
-                }
+            // v0.6.0 migrated BOTH older shapes, in a chain: the user's own catalogue
+            // sits at v1 on disk, so refusing v1 (or v2) would throw away a 19 258-row
+            // file on the excuse of a schema bump. v1 -> v2 is v0.5.3's ALTER, then
+            // v2 -> v3 adds the icon columns, the price-history table and its index -
+            // all additive, so existing rows and stamps stay intact and the cursor in
+            // sync_state keeps its meaning. Anything newer or foreign keeps the honest
+            // refusal below.
+            match version {
+                1 => {
+                    match bind_sql(conn, SQL_ADD_MISSING_COLUMN, [].to_vec(), 0) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem.message))),
+                        Ok(_) => {},
+                    }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V3) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
+                    match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
+                        Err(problem) => return Err(problem),
+                        Ok(_) => return Ok(()),
+                    }
+                },
+                2 => {
+                    match conn.execute_batch(SQL_MIGRATE_TO_V3) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
+                    match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
+                        Err(problem) => return Err(problem),
+                        Ok(_) => return Ok(()),
+                    }
+                },
+                _ => {},
             }
             return Err(AppError::db(format!("database on disk uses schema {}, this build wants {}; delete the file to rebuild it", version, SCHEMA_VERSION)));
         },
