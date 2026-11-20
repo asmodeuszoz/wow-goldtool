@@ -16,12 +16,14 @@ use crate::models::ItemDetail;
 use crate::models::Price;
 use crate::models::Weapon;
 use crate::models::Links;
+use crate::models::ManualEdit;
 
 use rusqlite::Connection;
 use rusqlite::params_from_iter;
 use rusqlite::types::Value;
 
 use serde_json::to_string;
+use serde_json::from_str;
 
 use serde::Serialize;
 
@@ -180,6 +182,39 @@ pub const MARK_VALUE_COUNT: usize = 2;
 
 /// Does this id have a row at all? Guards the mark above.
 pub const SQL_ROW_OF_ID: &str = "SELECT COUNT(1) FROM item WHERE id = ?";
+
+/// The manual layer (v0.8.0, ADR 0010): tombstone readers/writers plus the
+/// reserved manual-id probe. The facts under the rules are measured, not
+/// guessed: the list stage UPSERTs every listed id (so a hard delete would be
+/// resurrected), and the measured max id on the user's file is 288 340, which
+/// keeps the 900 000 000 block clear of every upstream id.
+pub const SQL_MANUAL_EDITS_OF: &str = "SELECT manual_overrides FROM item WHERE id = ?";
+pub const SQL_DELETED_AT_OF: &str = "SELECT deleted_at FROM item WHERE id = ?";
+pub const SQL_MAX_MANUAL_ID: &str = "SELECT MAX(id) FROM item WHERE id >= ?";
+pub const SQL_MARK_DELETED: &str = "UPDATE item SET deleted_at = ? WHERE id = ?";
+pub const SQL_UNDELETE: &str = "UPDATE item SET deleted_at = NULL WHERE id = ?";
+
+pub const MANUAL_ID_BASE: i64 = 900000000;
+
+/// The editable whitelist (ADR 0010): TEXT is kind 0, INTEGER is kind 1, and
+/// anything else is usage. Auction-house price columns are deliberately ABSENT
+/// - they are live data the crawl refreshes, and an override "fixing" them
+/// would be a permanent lie about CURRENT prices; `id` and the icon columns
+/// are absent too (ADR 0010 rejects those doors for this build).
+pub fn editable_kind(field: String) -> i64 {
+    match field.as_str() {
+        "name" => return 0,
+        "quality" => return 0,
+        "item_level" => return 1,
+        "required_level" => return 1,
+        "item_type" => return 0,
+        "item_subtype" => return 0,
+        "flavor" => return 0,
+        "vendor_sell" => return 1,
+        "tooltip_html" => return 0,
+        _ => return -1,
+    }
+}
 
 /// One TEXT column of one item row, by id: the live lookup's ETag reuse reads the
 /// stored copy when the API answers 304 (docs/API.md, docs/DATABASE.md).
@@ -972,9 +1007,455 @@ pub fn optional_text(text: String) -> Option<String> {
     return Some(text);
 }
 
+/// One user entry row of `manual_overrides`, as stored: an empty/NULL column
+/// means "the crawl owns every field"; a malformed store is an honest db error,
+/// not a silent reset (a lie about what the user said would be worse).
+pub fn manual_edits_of(conn: &Connection, id: i64) -> AppResult<Vec<ManualEdit>> {
+    let mut stmt = match conn.prepare(SQL_MANUAL_EDITS_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let text: Option<String> = match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => None,
+        Ok(Some(row)) => match row.get(0) {
+            Err(problem) => return Err(AppError::db(format!("{}", problem))),
+            Ok(found) => found,
+        },
+    };
+    match text {
+        None => return Ok([].to_vec()),
+        Some(body) => {
+            let parsed: Vec<ManualEdit> = match from_str(&body) {
+                Err(problem) => return Err(AppError::db(format!("stored manual overrides unreadable: {}", problem))),
+                Ok(found) => found,
+            };
+            return Ok(parsed);
+        },
+    }
+}
+
+/// The tombstone state of one row (NULL = not deleted).
+pub fn deleted_at_of(conn: &Connection, id: i64) -> AppResult<Option<i64>> {
+    let mut stmt = match conn.prepare(SQL_DELETED_AT_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(found) => Ok(found),
+        },
+    }
+}
+
+/// Next free id in the reserved manual block.
+pub fn next_manual_id(conn: &Connection) -> AppResult<i64> {
+    let mut stmt = match conn.prepare(SQL_MAX_MANUAL_ID) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(MANUAL_ID_BASE));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(MANUAL_ID_BASE),
+        Ok(Some(row)) => {
+            let top: Option<i64> = match row.get(0) {
+                Err(problem) => return Err(AppError::db(format!("{}", problem))),
+                Ok(found) => found,
+            };
+            return match top {
+                None => Ok(MANUAL_ID_BASE),
+                Some(best) => Ok(best + 1),
+            };
+        },
+    }
+}
+
+/// The edit door: ONE whitelist field of one row. The column is set NOW and the
+/// field rides the overrides array (the old entry for the field is replaced,
+/// then this edit is appended - stored order stays chronological, the merge is
+/// last-wins). Existence and tombstone guards belong to the caller (same house
+/// rule as the missing marks, which check SQL_ROW_OF_ID first) so the CLI can
+/// say which one it hit. The field NAME is whitelist-validated HERE because it
+/// interpolates into the SQL string - only whitelist columns can be named.
+pub fn set_item_field(conn: &Connection, id: i64, field: String, value: String, at: i64) -> AppResult<usize> {
+    let kind: i64 = editable_kind(field.clone());
+    match kind {
+        -1 => return Err(AppError::usage("editable fields: name, quality, item_level, required_level, item_type, item_subtype, flavor, vendor_sell, tooltip_html".to_string())),
+        _ => {},
+    }
+    let column_value: Value = match kind {
+        0 => Value::Text(value.clone()),
+        _ => {
+            let typed: i64 = match value.parse() {
+                Err(_) => return Err(AppError::usage("an editable INTEGER field wants a plain number".to_string())),
+                Ok(number) => number,
+            };
+            Value::Integer(typed)
+        },
+    };
+    let edits: Vec<ManualEdit> = match manual_edits_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    let mut fresh: Vec<ManualEdit> = [].to_vec();
+    let mut index: usize = 0;
+    while index < edits.len() {
+        if edits[index].field != field {
+            fresh.push(edits[index].clone())
+        }
+        index = index + 1;
+    }
+    let json_text: String = match kind {
+        0 => match to_string(&value) {
+            Err(_) => return Err(AppError::usage("the override text could not be written".to_string())),
+            Ok(text) => text,
+        },
+        _ => value,
+    };
+    let edit_value: serde_json::Value = match from_str(&json_text) {
+        Err(_) => return Err(AppError::usage("an editable INTEGER field wants a plain number".to_string())),
+        Ok(found) => found,
+    };
+    fresh.push(ManualEdit { field: field.clone(), value: edit_value, at: at });
+    let stored: String = match to_string(&fresh) {
+        Err(problem) => return Err(AppError::db(format!("manual overrides unwritable: {}", problem))),
+        Ok(text) => text,
+    };
+    let sql: String = format!("UPDATE item SET {} = ?, edited_at = ?, manual_overrides = ? WHERE id = ?", field);
+    let mut head: Vec<Value> = [].to_vec();
+    head.push(column_value);
+    head.push(Value::Integer(at));
+    head.push(Value::Text(stored));
+    head.push(Value::Integer(id));
+    let want: usize = head.len();
+    return bind_sql(conn, sql.as_str(), head, want);
+}
+
+/// The create door (ADR 0010): a row in the reserved block, stamped manual_at
+/// AND wearing its fields as overrides from birth - if upstream ever answers
+/// this id someday, the user's version wins by the merge rule, not by accident.
+pub fn add_item_manual(conn: &Connection, id: i64, at: i64, fields: Vec<(String, String)>) -> AppResult<usize> {
+    let there: bool = match has_row_of_id(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    match there {
+        true => return Ok(0),
+        false => {},
+    }
+    let mut has_name: bool = false;
+    let mut seen: usize = 0;
+    while seen < fields.len() {
+        if fields[seen].0 == "name" {
+            has_name = true
+        }
+        if editable_kind(fields[seen].0.clone()) < 0 {
+            return Err(AppError::usage("unknown editable field in add-item".to_string()))
+        }
+        seen = seen + 1;
+    }
+    match has_name {
+        false => return Err(AppError::usage("add-item wants at least a name (name=...)".to_string())),
+        true => {},
+    }
+    let mut cols: Vec<String> = [].to_vec();
+    let mut head: Vec<Value> = [].to_vec();
+    let mut edits: Vec<ManualEdit> = [].to_vec();
+    cols.push("id".to_string());
+    head.push(Value::Integer(id));
+    cols.push("manual_at".to_string());
+    head.push(Value::Integer(at));
+    cols.push("edited_at".to_string());
+    head.push(Value::Integer(at));
+    let mut name_text: String = "".to_string();
+    let mut quality_text: Option<String> = None;
+    let mut index: usize = 0;
+    while index < fields.len() {
+        let field: String = fields[index].0.clone();
+        let value: String = fields[index].1.clone();
+        let kind: i64 = editable_kind(field.clone());
+        match kind {
+            0 => {
+                cols.push(field.clone());
+                head.push(Value::Text(value.clone()));
+                let json_text: String = match to_string(&value) {
+                    Err(_) => return Err(AppError::usage("the field text could not be written".to_string())),
+                    Ok(text) => text,
+                };
+                let edit_value: serde_json::Value = match from_str(&json_text) {
+                    Err(_) => return Err(AppError::usage("the field text could not be written".to_string())),
+                    Ok(found) => found,
+                };
+                edits.push(ManualEdit { field: field.clone(), value: edit_value, at: at });
+                match field.as_str() {
+                    "name" => name_text = value,
+                    "quality" => quality_text = Some(value),
+                    _ => {},
+                }
+            },
+            _ => {
+                let typed: i64 = match value.parse() {
+                    Err(_) => return Err(AppError::usage("an editable INTEGER field wants a plain number".to_string())),
+                    Ok(number) => number,
+                };
+                cols.push(field.clone());
+                head.push(Value::Integer(typed));
+                let number_value: serde_json::Value = match from_str(&typed.to_string()) {
+                    Err(_) => return Err(AppError::usage("an editable INTEGER field wants a plain number".to_string())),
+                    Ok(found) => found,
+                };
+                edits.push(ManualEdit { field: field.clone(), value: number_value, at: at });
+            },
+        }
+        index = index + 1;
+    }
+    match name_text == "" {
+        true => return Err(AppError::usage("add-item wants a name (name=...)".to_string())),
+        false => {},
+    }
+    cols.push("name_lc".to_string());
+    head.push(Value::Text(name_text.to_lowercase()));
+    match quality_text {
+        None => {},
+        Some(quality) => {
+            cols.push("quality_rank".to_string());
+            head.push(int_value(rank_of(Some(quality))));
+        },
+    }
+    let stored: String = match to_string(&edits) {
+        Err(problem) => return Err(AppError::db(format!("manual overrides unwritable: {}", problem))),
+        Ok(text) => text,
+    };
+    cols.push("manual_overrides".to_string());
+    head.push(Value::Text(stored));
+    let sql: String = build_insert(cols);
+    let want: usize = head.len();
+    return bind_sql(conn, sql.as_str(), head, want);
+}
+
+/// DELETE is the tombstone (ADR 0010): the row survives, but search, stats,
+/// pending queues and the card refuse it; a HARD delete would be resurrected
+/// by the next list pass. False = no row or already marked (the caller says
+/// which, and both read the same honest exit 4 family).
+pub fn mark_deleted_at(conn: &Connection, id: i64, at: i64) -> AppResult<bool> {
+    let there: bool = match has_row_of_id(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    match there {
+        false => return Ok(false),
+        true => {},
+    }
+    let already: Option<i64> = match deleted_at_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    match already {
+        Some(_) => return Ok(false),
+        None => {},
+    }
+    let mut head: Vec<Value> = [].to_vec();
+    head.push(Value::Integer(at));
+    head.push(Value::Integer(id));
+    let want: usize = head.len();
+    match bind_sql(conn, SQL_MARK_DELETED, head, want) {
+        Err(problem) => return Err(problem),
+        Ok(_) => return Ok(true),
+    }
+}
+
+/// The mark's undo: a tombstone the user restores. False = not marked.
+pub fn clear_deleted_at(conn: &Connection, id: i64) -> AppResult<bool> {
+    let there: bool = match has_row_of_id(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    match there {
+        false => return Ok(false),
+        true => {},
+    }
+    let already: Option<i64> = match deleted_at_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    match already {
+        None => return Ok(false),
+        Some(_) => {},
+    }
+    let mut head: Vec<Value> = [].to_vec();
+    head.push(Value::Integer(id));
+    let want: usize = head.len();
+    match bind_sql(conn, SQL_UNDELETE, head, want) {
+        Err(problem) => return Err(problem),
+        Ok(_) => return Ok(true),
+    }
+}
+
+/// Merge for the list write: the list payload only carries these four.
+pub fn apply_manual_edits_summary(summary: &mut ItemSummary, edits: Vec<ManualEdit>) {
+    let mut index: usize = 0;
+    while index < edits.len() {
+        match edits[index].field.as_str() {
+            "name" => {
+                match edits[index].value.as_str() {
+                    None => {},
+                    Some(text) => summary.name = text.to_string(),
+                }
+            },
+            "quality" => {
+                match edits[index].value.as_str() {
+                    None => {},
+                    Some(text) => summary.quality = Some(text.to_string()),
+                }
+            },
+            "item_level" => {
+                match edits[index].value.as_i64() {
+                    None => {},
+                    Some(number) => {
+                        if number >= -2147483648 && number <= 2147483647 {
+                            summary.item_level = Some(number as i32)
+                        }
+                    },
+                }
+            },
+            "required_level" => {
+                match edits[index].value.as_i64() {
+                    None => {},
+                    Some(number) => {
+                        if number >= -2147483648 && number <= 2147483647 {
+                            summary.required_level = Some(number as i32)
+                        }
+                    },
+                }
+            },
+            _ => {},
+        }
+        index = index + 1;
+    }
+}
+
+/// Merge for the detail write. `tooltip_html` is NOT here: the detail payload
+/// never carries it (measured key list, docs/API.md) - the tooltip stage and
+/// the edit verb are its only writers, and the stage's write in sync.rs reads
+/// the overrides itself before it binds.
+pub fn apply_manual_edits_detail(detail: &mut ItemDetail, edits: Vec<ManualEdit>) {
+    let mut index: usize = 0;
+    while index < edits.len() {
+        match edits[index].field.as_str() {
+            "name" => {
+                match edits[index].value.as_str() {
+                    None => {},
+                    Some(text) => detail.name = text.to_string(),
+                }
+            },
+            "quality" => {
+                match edits[index].value.as_str() {
+                    None => {},
+                    Some(text) => detail.quality = Some(text.to_string()),
+                }
+            },
+            "item_level" => {
+                match edits[index].value.as_i64() {
+                    None => {},
+                    Some(number) => {
+                        if number >= -2147483648 && number <= 2147483647 {
+                            detail.item_level = Some(number as i32)
+                        }
+                    },
+                }
+            },
+            "required_level" => {
+                match edits[index].value.as_i64() {
+                    None => {},
+                    Some(number) => {
+                        if number >= -2147483648 && number <= 2147483647 {
+                            detail.required_level = Some(number as i32)
+                        }
+                    },
+                }
+            },
+            "item_type" => {
+                match edits[index].value.as_str() {
+                    None => {},
+                    Some(text) => detail.item_type = Some(text.to_string()),
+                }
+            },
+            "item_subtype" => {
+                match edits[index].value.as_str() {
+                    None => {},
+                    Some(text) => detail.item_subtype = Some(text.to_string()),
+                }
+            },
+            "flavor" => {
+                match edits[index].value.as_str() {
+                    None => {},
+                    Some(text) => detail.flavor = Some(text.to_string()),
+                }
+            },
+            "vendor_sell" => {
+                match edits[index].value.as_i64() {
+                    None => {},
+                    Some(number) => detail.vendor_sell = Some(number),
+                }
+            },
+            _ => {},
+        }
+        index = index + 1;
+    }
+}
+
+/// INSERT skeleton for add_item_manual: the caller validated EVERY column name
+/// against the whitelist before collecting, so assembling the statement here
+/// can only ever name whitelist columns (same argument as set_item_field).
+pub fn build_insert(cols: Vec<String>) -> String {
+    let mut names: String = "".to_string();
+    let mut marks: String = "".to_string();
+    let mut index: usize = 0;
+    while index < cols.len() {
+        if index > 0 {
+            names = names + ",";
+            marks = marks + ",";
+        }
+        names = names + cols[index].as_str();
+        marks = marks + "?";
+        index = index + 1;
+    }
+    return format!("INSERT item ({}) VALUES ({})", names, marks)
+}
+
 /// Stage 1 write: one row of a list page. Only summary columns are touched, so the
 /// stage-2 write can fill price and detail columns later without fighting this write.
 pub fn upsert_summary(conn: &Connection, summary: ItemSummary, etag: String, synced_at: i64) -> AppResult<usize> {
+    let mut summary: ItemSummary = summary;
+    let edits: Vec<ManualEdit> = match manual_edits_of(conn, summary.id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    // The manual layer merges LAST (ADR 0010): fields the user stated survive
+    // this write - a corrected name beats the next list pass - while the
+    // columns the crawl owns keep refreshing.
+    apply_manual_edits_summary(&mut summary, edits);
     let name_lc: String = summary.name.to_lowercase();
     let rank: Option<i64> = rank_of(summary.quality.clone());
     let links: Option<Links> = summary.links;
@@ -1002,6 +1483,15 @@ pub fn upsert_summary(conn: &Connection, summary: ItemSummary, etag: String, syn
 /// Stage 2 write: one detail record. `raw_json` keeps the verbatim payload so a future
 /// schema bump can read fields this struct does not model yet.
 pub fn upsert_detail(conn: &Connection, detail: ItemDetail, etag: String, raw_json: String, synced_at: i64) -> AppResult<usize> {
+    let mut detail: ItemDetail = detail;
+    let edits: Vec<ManualEdit> = match manual_edits_of(conn, detail.id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    // Same merge as the list write (ADR 0010): user-said TEXT/INTEGER fields
+    // overwrite the payload's before they bind; ADR 0007's sample still rides
+    // the DETAIL write unchanged - an override never adds its own ledger row.
+    apply_manual_edits_detail(&mut detail, edits);
     let name_lc: String = detail.name.to_lowercase();
     let rank: Option<i64> = rank_of(detail.quality.clone());
     let links: Option<Links> = detail.links;

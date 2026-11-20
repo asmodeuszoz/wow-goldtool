@@ -126,3 +126,15 @@ pub struct SearchResponse {
     /// rest, so a new kind upstream does not break a build.
     pub groups: Value,
 }
+
+/// The manual layer (v0.8.0, ADR 0010): `manual_overrides` rides one JSON ARRAY
+/// per row (this codebase never reaches for a map): `field, value, at` entries
+/// recording what a USER said and when. `value` stays a wire `Value` - the
+/// editable whitelist is TEXT or INTEGER and rides back verbatim, so nothing
+/// here invents a shape.
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct ManualEdit {
+    pub field: String,
+    pub value: Value,
+    pub at: i64,
+}
