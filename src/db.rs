@@ -157,6 +157,18 @@ pub const SQL_ROW_OF_ID: &str = "SELECT COUNT(1) FROM item WHERE id = ?";
 /// One TEXT column of one item row, by id: the live lookup's ETag reuse reads the
 /// stored copy when the API answers 304 (docs/API.md, docs/DATABASE.md).
 pub const SQL_DETAIL_ETAG_OF: &str = "SELECT detail_etag FROM item WHERE id = ?";
+
+/// One price observation per fresh (200) detail write (v0.6.0, ADR 0007): a plain
+/// INSERT, never an upsert - every visit IS the sample. `seq` is left out so SQLite
+/// auto-assigns the primary key. The FK in the table heading is decorative (SQLite
+/// does not enforce FK clauses - measured), so the guard is the ORDER in Rust:
+/// upsert_detail only calls this after the item upsert has made/updated the row.
+pub const SQL_PRICE_SAMPLE: &str = "INSERT INTO price_history (item_id, sampled_at, price_min, price_market) VALUES (?,?,?,?)";
+pub const PRICE_SAMPLE_COUNT: usize = 4;
+
+/// A sample answers 404-then-history: the card reads an item's own samples, newest
+/// N first so a long history stays bounded, and the caller reverses for the chart.
+pub const SQL_HISTORY_OF: &str = "SELECT sampled_at, price_min, price_market FROM price_history WHERE item_id = ? ORDER BY sampled_at DESC, seq DESC LIMIT ?";
 pub const SQL_RAW_JSON_OF: &str = "SELECT raw_json FROM item WHERE id = ?";
 pub const SQL_SYNCED_AT_OF: &str = "SELECT detail_synced_at FROM item WHERE id = ?";
 
@@ -899,5 +911,80 @@ pub fn upsert_detail(conn: &Connection, detail: ItemDetail, etag: String, raw_js
     head.push(int_value(stamp));
     head.push(int_value(cleared));
     head.push(text_value(Some(raw_json)));
-    return bind_sql(conn, UPSERT_DETAIL_SQL, upsert_params(head), DETAIL_VALUE_COUNT * 2 - 1);
+    let written: usize = match bind_sql(conn, UPSERT_DETAIL_SQL, upsert_params(head), DETAIL_VALUE_COUNT * 2 - 1) {
+        Err(problem) => return Err(problem),
+        Ok(count) => count,
+    };
+    // A fresh (200) write IS an observation, so it drops one sample point
+    // (v0.6.0, ADR 0007): zero extra requests, and the trend is made of the
+    // visits the user already runs. A 304 never reaches this helper (no new
+    // numbers were answered), and a fetched-but-not-on-the-AH record has no
+    // price to plot - absence of points, not blank points. The item row above
+    // is what makes the sample's item_id real: SQLite does not enforce FK
+    // clauses (measured: an INSERT referencing a missing item succeeded), so
+    // the guard is this ORDER, in Rust - docs/DATABASE.md.
+    match sample_price(conn, detail.id, synced_at, p_min.clone(), p_market.clone()) {
+        Err(problem) => return Err(problem),
+        Ok(_) => {},
+    }
+    return Ok(written);
+}
+
+/// Writes one price observation of one item: only ever called by upsert_detail
+/// AFTER the item row exists, which is the FK guard SQLite will not give us.
+pub fn sample_price(conn: &Connection, id: i64, sampled_at: i64, price_min: Option<i64>, price_market: Option<i64>) -> AppResult<()> {
+    match price_min {
+        None => return Ok(()),
+        Some(_) => {},
+    }
+    let mut params: Vec<Value> = [].to_vec();
+    params.push(Value::Integer(id));
+    params.push(int_value(Some(sampled_at)));
+    params.push(int_value(price_min));
+    params.push(int_value(price_market));
+    match bind_sql(conn, SQL_PRICE_SAMPLE, params, PRICE_SAMPLE_COUNT) {
+        Err(problem) => return Err(problem),
+        Ok(_) => return Ok(()),
+    }
+}
+
+/// One observed price point of one item, as the card and the CLI print it.
+#[derive(Serialize, Clone)]
+pub struct PriceSample {
+    pub sampled_at: i64,
+    pub price_min: Option<i64>,
+    pub price_market: Option<i64>,
+}
+
+/// An item's own samples, OLDEST first (the trend reads left to right): the read
+/// takes the newest N (bounded, no matter how many crawls ran) and flips the
+/// vector. seq is the read's second ORDER key: samples share seconds when a
+/// chunk wrote them, so the chart order stays stable.
+pub fn history_of(conn: &Connection, id: i64, limit: i64) -> AppResult<Vec<PriceSample>> {
+    let mut params: Vec<Value> = [].to_vec();
+    params.push(Value::Integer(id));
+    params.push(Value::Integer(limit));
+    let mut stmt = match conn.prepare(SQL_HISTORY_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mapped = match stmt.query_map(params_from_iter(params), |row| {
+        Ok(PriceSample {
+            sampled_at: row.get(0)?,
+            price_min: row.get(1)?,
+            price_market: row.get(2)?,
+        })
+    }) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut out: Vec<PriceSample> = [].to_vec();
+    for item in mapped {
+        match item {
+            Err(problem) => return Err(AppError::db(format!("{}", problem))),
+            Ok(value) => out.push(value),
+        }
+    }
+    out.reverse();
+    return Ok(out);
 }
