@@ -190,6 +190,61 @@ pub fn classify(status: u16) -> HttpKind {
     return HttpKind::Failed;
 }
 
+/// Resolve a stored icon_url into something fetchable (v0.6.0). Shapes are measured,
+/// not guessed (docs/API.md): every answered detail record's `icon_url` is ABSOLUTE on
+/// one of two hosts (`render.worldofwarcraft.com/...` or `thewowdb.com/assets/icons/...`),
+/// and the fixture's payloads use the host-root-relative form (`/icon/...`) against the
+/// server this process already points at. Anything else resolves to None: inventing a
+/// host for a half-formed shape is not our call to make, and the stage answers "nothing
+/// to fetch" for those instead of a check-mark.
+pub fn icon_target(stored: Option<String>) -> Option<String> {
+    match stored {
+        None => return None,
+        Some(text) => {
+            if text.starts_with("http") {
+                return Some(text);
+            }
+            if text.starts_with("/") {
+                return Some(format!("{}{}", base_url(), text));
+            }
+            return None;
+        },
+    }
+}
+
+/// A binary response (icon bytes): ApiResponse's body is TEXT because every JSON
+/// endpoint speaks text - icon files are not text and must not go through a lossy
+/// decode. No ETag handling here on purpose: v0.6.0 copies an icon exactly ONCE
+/// (the pending rule excludes rows that already have `icon_at`), so there is no
+/// revalidation pass whose stored copy this could invalidate.
+pub struct BinaryResponse {
+    pub status: u16,
+    pub bytes: Vec<u8>,
+    pub retry_after: Option<u32>,
+}
+
+/// GET one URL for bytes. Pacing is the caller's job like get_json.
+/// bytes() hands back a bytes::Bytes and `From<Bytes> for Vec<u8>` is defined in the
+/// crate (verified against the pinned source) - that conversion is the copy.
+pub fn get_bytes(client: Client, url: String) -> AppResult<BinaryResponse> {
+    let response: Response = match client.get(url).send() {
+        Err(problem) => return Err(AppError::network(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let status: u16 = response.status().as_u16();
+    let headers = response.headers();
+    let retry: Option<u32> = retry_after_of(headers);
+    let payload: Vec<u8> = match response.bytes() {
+        Err(problem) => return Err(AppError::network(format!("{}", problem))),
+        Ok(raw) => Vec::from(raw),
+    };
+    return Ok(BinaryResponse {
+        status,
+        bytes: payload,
+        retry_after: retry,
+    });
+}
+
 /// GET one URL with optional ETag revalidation. Pacing is the caller's job: it must
 /// have called wait_and_count for this request already.
 pub fn get_json(client: Client, url: String, etag: String) -> AppResult<ApiResponse> {

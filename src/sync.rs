@@ -1,4 +1,5 @@
-//! The sync engine: the two crawl stages, resume bookkeeping and progress.
+//! The sync engine: the crawl stages (list, detail, and - v0.6.0 - the icon copy),
+//! resume bookkeeping and progress.
 //!
 //! This is the only module where HTTP and SQLite meet (docs/DEVELOPMENT.md house
 //! rules): `wowdb.rs` never touches the DB and `db.rs` never touches the network.
@@ -23,13 +24,13 @@ use crate::errors::AppResult;
 
 use serde::Serialize;
 
-use crate::wowdb::{Client, ApiResponse, HttpKind, RateBudget, classify, get_json, item_url, page_url, FALLBACK_RETRY_MS};
+use crate::wowdb::{ApiResponse, BinaryResponse, Client, HttpKind, RateBudget, classify, get_bytes, get_json, icon_target, item_url, page_url, FALLBACK_RETRY_MS};
 
 use crate::models::{ItemDetail, ListPage};
 
-use crate::db::{detail_etag_of, mark_missing_at, meta_get, meta_set, sync_state_get, sync_state_set, unix_now, upsert_detail, upsert_summary, SyncState};
+use crate::db::{copy_icon, detail_etag_of, icon_url_of, mark_icon_missing_at, mark_missing_at, meta_get, meta_set, sync_state_get, sync_state_set, unix_now, upsert_detail, upsert_summary, SyncState};
 
-use crate::stats::{pending_ids, coverage, Coverage};
+use crate::stats::{icon_pending_ids, pending_ids, coverage, Coverage};
 
 use rusqlite::Connection;
 
@@ -135,9 +136,11 @@ pub fn parse_page(body: String, url: String) -> AppResult<ListPage> {
     }
 }
 
-/// Pause the loop for the documented Retry-After and slow the schedule down.
-pub fn honour_retry_after(budget: &mut RateBudget, response: ApiResponse) {
-    let wait: u64 = match response.retry_after {
+/// Pause the loop for the documented Retry-After and slow the schedule down. Takes the
+/// header value, not the response: the detail crawl reads text and the icon crawl reads
+/// bytes, and both honour the same pause (v0.6.0).
+pub fn honour_retry_after(budget: &mut RateBudget, retry_after: Option<u32>) {
+    let wait: u64 = match retry_after {
         Some(seconds) => seconds as u64,
         None => FALLBACK_RETRY_MS / 1000,
     };
@@ -256,7 +259,7 @@ pub fn sync_list(client: Client, conn: &Connection, mut budget: RateBudget, page
         match classify(response.status) {
             HttpKind::RateLimited => {
                 report.rate_limited = report.rate_limited + 1;
-                honour_retry_after(&mut budget, response);
+                honour_retry_after(&mut budget, response.retry_after);
                 continue;
             },
             HttpKind::Missing => {
@@ -411,7 +414,7 @@ pub fn sync_detail(client: Client, conn: &Connection, mut budget: RateBudget, id
             match classify(response.status) {
                 HttpKind::RateLimited => {
                     report.rate_limited = report.rate_limited + 1;
-                    honour_retry_after(&mut budget, response);
+                    honour_retry_after(&mut budget, response.retry_after);
                     attempts = attempts + 1;
                     continue;
                 },
@@ -475,6 +478,165 @@ pub fn sync_detail(client: Client, conn: &Connection, mut budget: RateBudget, id
         format!("{}{}",
             format!("detail crawl stopped inside the target list: {} of {} fetched, {} left in the list", report.items, total, remaining),
             missing_note(report.missing))
+    };
+    return finish(conn, report, started, 0, total, "partial".to_string());
+}
+
+/// What the icon stage's third state adds to a run's message (v0.6.0): the record
+/// EXISTS, only its icon file answered 404 - a different fact than "gone upstream".
+pub fn icon_missing_note(missing: i64) -> String {
+    if missing == 0 {
+        return "".to_string();
+    }
+    return format!("; {} answered 404 for the icon file and are checked as no-icon-upstream", missing);
+}
+
+/// Where the icon stage points its queue: pending icon work (stats.rs::SQL_PENDING_ICON)
+/// or exactly the ids a caller targeted. Shares wanted_of's slice mechanics.
+pub fn icon_wanted_of(conn: &Connection, wanted: Vec<i64>, id_limit: Option<i64>) -> AppResult<Vec<i64>> {
+    if wanted.is_empty() {
+        return icon_pending_ids(conn, id_limit);
+    }
+    let mut out: Vec<i64> = [].to_vec();
+    let cap: i64 = match id_limit {
+        None => wanted.len() as i64,
+        Some(number) => number,
+    };
+    for one in wanted {
+        if out.len() as i64 >= cap {
+            break;
+        }
+        out.push(one);
+    }
+    return Ok(out);
+}
+
+/// Stage 3 of a pull (v0.6.0, ADR 0008): copy the icon FILES of records that answered,
+/// once each - the pending rule (copied? checked? never looked at?) is the icon twin of
+/// the detail rule, so a full crawl costs ONE request per icon, ever. Bytes ride the
+/// DB as a BLOB; the card reads them back. Note where the requests go: icon files live
+/// on the asset hosts the detail payloads name (docs/API.md measures both), NOT on the
+/// rate-limited API endpoints - but the schedule and the Retry-After courtesy still
+/// apply: one host, one politeness, and the GUI runs this stage from the same budget.
+/// A 404 on the ICON of an existing record is the third state (mark, keep crawling);
+/// any other failure aborts. `--ids`/`--watch` targeting is honored so a user can copy
+/// just the icons of their watch list.
+pub fn sync_icons(client: Client, conn: &Connection, mut budget: RateBudget, id_limit: Option<i64>, cancel: &CancelFlag, wanted: Vec<i64>) -> AppResult<SyncReport> {
+    let started: i64 = unix_now();
+    let mut report: SyncReport = SyncReport::make("icons".to_string());
+    let ids: Vec<i64> = match icon_wanted_of(conn, wanted.clone(), id_limit) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    let total: i64 = ids.len() as i64;
+    for id in ids.clone() {
+        if cancel.cancelled {
+            let left: i64 = if wanted.is_empty() {
+                match icon_pending_ids(conn, None) {
+                    Err(problem) => return Err(problem),
+                    Ok(value) => value.len() as i64,
+                }
+            } else {
+                ids.len() as i64 - report.items
+            };
+            report.message = format!("{}{}",
+                format!("icon crawl cancelled by user request: {} icons copied, {} left pending", report.written, left),
+                icon_missing_note(report.missing));
+            return finish(conn, report, started, 0, total, "cancelled".to_string());
+        }
+        let stored_url: Option<String> = match icon_url_of(conn, id) {
+            Err(problem) => return Err(problem),
+            Ok(found) => found,
+        };
+        let target: Option<String> = icon_target(stored_url.clone());
+        match target {
+            None => {
+                // a targeted visit of a record whose detail answered WITHOUT an icon_url
+                // (or with a shape icon_target refuses to guess): there is nothing to
+                // fetch, and calling that "no icon upstream" would be a lie about a
+                // fact the upstream never stated. Nothing requested, nothing marked.
+                report.items = report.items + 1;
+                report.unchanged = report.unchanged + 1;
+                continue;
+            },
+            Some(url) => {
+                let mut attempts: i32 = 0;
+                while attempts < 4 {
+                    budget.wait_and_count();
+                    report.requests = report.requests + 1;
+                    let response: BinaryResponse = match get_bytes(client.clone(), url.clone()) {
+                        Err(problem) => return Err(problem),
+                        Ok(value) => value,
+                    };
+                    match classify(response.status) {
+                        HttpKind::RateLimited => {
+                            report.rate_limited = report.rate_limited + 1;
+                            honour_retry_after(&mut budget, response.retry_after);
+                            attempts = attempts + 1;
+                            continue;
+                        },
+                        HttpKind::Missing => {
+                            // the RECORD exists (its detail answered) - the icon FILE
+                            // does not: the third state of THIS stage. Mark and move on.
+                            report.missing = report.missing + 1;
+                            match mark_icon_missing_at(conn, id, unix_now()) {
+                                Err(problem) => return Err(problem),
+                                Ok(_) => {},
+                            }
+                            report.items = report.items + 1;
+                            break;
+                        },
+                        HttpKind::Failed => {
+                            return Err(AppError::network(format!("icon of item {} answered {}", id, response.status)));
+                        },
+                        HttpKind::NotModified => {
+                            // no If-None-Match is ever sent for icons, so this cannot
+                            // happen against a well-behaved server; count and move on.
+                            report.unchanged = report.unchanged + 1;
+                            report.items = report.items + 1;
+                            break;
+                        },
+                        HttpKind::Success => {},
+                    }
+                    match copy_icon(conn, id, response.bytes.clone(), unix_now()) {
+                        Err(problem) => return Err(problem),
+                        Ok(copied) => report.written = report.written + copied as i64,
+                    }
+                    report.items = report.items + 1;
+                    break;
+                }
+            },
+        }
+    }
+    let remaining: i64 = if wanted.is_empty() {
+        match icon_pending_ids(conn, None) {
+            Err(problem) => return Err(problem),
+            Ok(value) => value.len() as i64,
+        }
+    } else {
+        ids.len() as i64 - report.items
+    };
+    report.complete = remaining == 0;
+    if report.complete {
+        report.message = if wanted.is_empty() {
+            format!("{}{}",
+                format!("icon crawl copied {} icons", report.written),
+                icon_missing_note(report.missing))
+        } else {
+            format!("{}{}",
+                format!("icon crawl visited every targeted record: {} handled", report.items),
+                icon_missing_note(report.missing))
+        };
+        return finish(conn, report, started, 0, total, "complete".to_string());
+    }
+    report.message = if wanted.is_empty() {
+        format!("{}{}",
+            format!("icon crawl paused: {} of {} icons copied, {} left pending", report.written, total, remaining),
+            icon_missing_note(report.missing))
+    } else {
+        format!("{}{}",
+            format!("icon crawl stopped inside the target list: {} of {} handled, {} left in the list", report.items, total, remaining),
+            icon_missing_note(report.missing))
     };
     return finish(conn, report, started, 0, total, "partial".to_string());
 }
