@@ -81,6 +81,7 @@ pub const SCHEMA_SQL: &str = concat!(
     "message TEXT, updated_at INTEGER, error TEXT",
     ");",
     "CREATE TABLE price_history (seq INTEGER PRIMARY KEY, item_id INTEGER, sampled_at INTEGER, price_min INTEGER, price_market INTEGER);",
+    "CREATE INDEX item__name_lc ON item (name_lc);",
     "CREATE INDEX price_history__item ON price_history (item_id);",
     "CREATE INDEX item__detail ON item (detail_synced_at);",
     "CREATE INDEX item__rank ON item (quality_rank, item_level);",
