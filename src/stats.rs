@@ -21,6 +21,7 @@ pub struct Coverage {
     pub named: i64,
     pub priced: i64,
     pub detailed: i64,
+    pub missing: i64,
     pub min_price: Option<i64>,
     pub max_price: Option<i64>,
     pub avg_price: Option<f64>,
@@ -52,6 +53,7 @@ pub const SQL_COVERAGE: &str = concat!(
     "CAST(IFNULL(SUM(name IS NOT NULL), 0) AS INTEGER), ",
     "CAST(IFNULL(SUM(price_min IS NOT NULL), 0) AS INTEGER), ",
     "CAST(IFNULL(SUM(detail_synced_at IS NOT NULL), 0) AS INTEGER), ",
+    "CAST(IFNULL(SUM(detail_missing_at IS NOT NULL), 0) AS INTEGER), ",
     "MIN(price_min), MAX(price_min), AVG(price_min) ",
     "FROM item",
 );
@@ -76,12 +78,14 @@ pub const SQL_RICH: &str = concat!(
 );
 
 /// Item ids that have no detail record yet: what stage 2 of the sync will fetch.
-/// The rule is "never fetched", not "no price": an item that was fetched and has
-/// a NULL price is fetched-but-not-on-the-AH (docs/DATABASE.md's distinction),
-/// and under the old OR price_min rule such items stayed pending forever - the
-/// detail run never terminated on the real catalogue, and a pull-all run could
-/// never honestly promise "nothing pending" (v0.5.2 patch).
-pub const SQL_PENDING: &str = "SELECT id FROM item WHERE detail_synced_at IS NULL ORDER BY id ASC";
+/// Three states per id (docs/DATABASE.md): fetched (detail_synced_at set), checked
+/// and gone upstream (detail_missing_at set after a 404), or never looked at.
+/// Only the last one is pending, so a removed record costs one request per crawl
+/// instead of one per run, and "nothing pending" stays literally true.
+pub const SQL_PENDING: &str = concat!(
+    "SELECT id FROM item WHERE detail_synced_at IS NULL AND detail_missing_at IS NULL ",
+    "ORDER BY id ASC",
+);
 
 struct PendingSql {
     pub sql: String,
@@ -107,9 +111,10 @@ pub fn coverage(conn: &Connection) -> AppResult<Coverage> {
             named: row.get(1)?,
             priced: row.get(2)?,
             detailed: row.get(3)?,
-            min_price: row.get(4)?,
-            max_price: row.get(5)?,
-            avg_price: row.get(6)?,
+            missing: row.get(4)?,
+            min_price: row.get(5)?,
+            max_price: row.get(6)?,
+            avg_price: row.get(7)?,
         })
     }) {
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
