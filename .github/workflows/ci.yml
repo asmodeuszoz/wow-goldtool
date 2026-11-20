@@ -106,5 +106,10 @@ jobs:
           cargo run -- sync --stage detail --ids 25,40 --fixture http://127.0.0.1:8765
           cargo run -- sync --stage detail --watch --fixture http://127.0.0.1:8765
           cargo run -- sync --stage icons --fixture http://127.0.0.1:8765
+          # the live-search door: one ask, one request, against the fixture's
+          # grouped answer - ungated because the door answers a 429 with exit 3
+          cargo run -- live-search sword --fixture http://127.0.0.1:8765
+          # names-only trap: a tooltip-ish word answers EMPTY groups - still success
+          cargo run -- live-search tooltip --fixture http://127.0.0.1:8765
           cargo run -- item 25 --cached
           cargo run -- stats
