@@ -75,7 +75,9 @@ pub fn search_url(query: String) -> String {
 
 /// Percent-encode one query value: letters, digits and the three harmless
 /// punctuation marks ride through; a space rides as `%20` like the measured
-/// probe; everything else rides as its UTF-8 bytes, two hex digits each.
+/// probe; everything else rides as its UTF-8 bytes, two hex digits each. The
+/// rule is RFC-3911-lite for a query value, and the measured ask grounds the
+/// shape: `?q=Worn%20Shortsword` answered 200 (docs/API.md).
 pub fn encode_query(text: String) -> String {
     let mut out: String = "".to_string();
     for one in text.chars() {

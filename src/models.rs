@@ -111,6 +111,11 @@ pub struct ItemDetail {
 /// The search endpoint answers a grouped page; the door prints the answer, so the
 /// model is only the mirror of the wire. `groups` stays a `Value`: the door prints
 /// what upstream answered, and a new kind upstream cannot break a build.
+/// The grouped search answer, kept as the mirror of the wire (measured: top keys
+/// `attribution, groups, q, version`; every group carries `has_more`, a `more`
+/// page URL and `results`). `groups` stays a `Value` on purpose: the door prints
+/// what upstream answered, and the card renders the groups it knows about, so a
+/// new kind upstream cannot break a build (docs/API.md).
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct SearchResponse {
     pub q: Option<String>,
