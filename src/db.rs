@@ -172,6 +172,30 @@ pub const SQL_HISTORY_OF: &str = "SELECT sampled_at, price_min, price_market FRO
 pub const SQL_RAW_JSON_OF: &str = "SELECT raw_json FROM item WHERE id = ?";
 pub const SQL_SYNCED_AT_OF: &str = "SELECT detail_synced_at FROM item WHERE id = ?";
 
+/// The icon stage's copy write (v0.6.0): bytes ride the same row, like every other
+/// stage-2 column. The INSERT..ON CONFLICT shape matches the marks', and the stage
+/// hands ids that came FROM a SELECT on this table, so the row exists: a plain INSERT
+/// here could invent a name-less row, an UPDATE could not find one. The trailing
+/// icon_missing_at = ? binds NULL: a copied icon is not a checked-missing one, and
+/// the two stamps stay mutually exclusive exactly like detail_synced_at/detail_missing_at
+/// do (docs/DATABASE.md, ADR 0008).
+pub const SQL_COPY_ICON: &str = "INSERT INTO item (id, icon_blob, icon_at, icon_missing_at) VALUES (?,?,?,?) ON CONFLICT (id) DO UPDATE SET icon_blob = ?, icon_at = ?, icon_missing_at = ?";
+pub const ICON_VALUE_COUNT: usize = 4;
+
+/// The icon's third state (v0.6.0): upstream answered 404 FOR THE ICON FILE of a
+/// record that exists. Same guard as the detail mark (SQL_ROW_OF_ID via has_row_of_id)
+/// so a check can never invent a row.
+pub const SQL_MARK_ICON_MISSING: &str = "INSERT INTO item (id, icon_missing_at) VALUES (?,?) ON CONFLICT (id) DO UPDATE SET icon_missing_at = ?";
+pub const ICON_MARK_VALUE_COUNT: usize = 2;
+
+/// The icon URL the detail record stored: the icon stage fetches bytes from it
+/// (absolute on one of the two grounded hosts, root-relative for the fixture -
+/// docs/API.md measures both).
+pub const SQL_ICON_URL_OF: &str = "SELECT icon_url FROM item WHERE id = ?";
+/// The copied bytes for the card: the webview cannot open the DB, so the CLI
+/// hands them out base64'd in the card JSON (the one helper without a dependency).
+pub const SQL_ICON_BLOB_OF: &str = "SELECT icon_blob FROM item WHERE id = ?";
+
 /// Where the SQLite file lives and why: the CLI prints both so a user always knows
 /// which file they are looking at.
 #[derive(Serialize, Clone)]
@@ -705,6 +729,85 @@ pub fn mark_missing_at(conn: &Connection, id: i64, checked_at: i64) -> AppResult
     match bind_sql(conn, SQL_MARK_MISSING, upsert_params(head), MARK_VALUE_COUNT * 2 - 1) {
         Err(problem) => return Err(problem),
         Ok(_) => return Ok(true),
+    }
+}
+
+/// The icon's checked-missing state (v0.6.0): upstream answered 404 for the ICON FILE
+/// of a record that exists. Guarded like the detail mark so a check cannot invent a row.
+pub fn mark_icon_missing_at(conn: &Connection, id: i64, checked_at: i64) -> AppResult<bool> {
+    let there: bool = match has_row_of_id(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    match there {
+        false => return Ok(false),
+        true => {},
+    }
+    let stamp: Option<i64> = Some(checked_at);
+    let mut head: Vec<Value> = [].to_vec();
+    head.push(Value::Integer(id));
+    head.push(int_value(stamp));
+    match bind_sql(conn, SQL_MARK_ICON_MISSING, upsert_params(head), ICON_MARK_VALUE_COUNT * 2 - 1) {
+        Err(problem) => return Err(problem),
+        Ok(_) => return Ok(true),
+    }
+}
+
+/// Copy an icon into the row: the bytes rusqlite binds as a BLOB (Value::Blob(Vec) is
+/// the variant, and ToSql for Value exists - verified against the crate). icon_missing_at
+/// is written NULL: an icon that copied is not a checked-missing one.
+pub fn copy_icon(conn: &Connection, id: i64, blob: Vec<u8>, copied_at: i64) -> AppResult<usize> {
+    let mut head: Vec<Value> = [].to_vec();
+    head.push(Value::Integer(id));
+    head.push(Value::Blob(blob));
+    head.push(int_value(Some(copied_at)));
+    head.push(int_value(None));
+    return bind_sql(conn, SQL_COPY_ICON, upsert_params(head), ICON_VALUE_COUNT * 2 - 1);
+}
+
+/// The stored icon URL of an item (NULL when the detail record had none): what the
+/// icon stage resolves into a fetch.
+pub fn icon_url_of(conn: &Connection, id: i64) -> AppResult<Option<String>> {
+    let mut stmt = match conn.prepare(SQL_ICON_URL_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(found) => Ok(found),
+        },
+    }
+}
+
+/// The copied icon bytes for the card: NULL means no local copy yet (not "empty file").
+/// Option<Vec> handles the NULL BLOB (FromSql for Option<T> is generic - verified).
+pub fn icon_blob_of(conn: &Connection, id: i64) -> AppResult<Option<Vec<u8>>> {
+    let mut stmt = match conn.prepare(SQL_ICON_BLOB_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(found) => Ok(found),
+        },
     }
 }
 
