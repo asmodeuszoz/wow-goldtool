@@ -76,6 +76,19 @@ async function refreshStatus() {
     if (num(status.coverage.icon_missing) !== null && num(status.coverage.icon_missing) !== 0) {
       grid.push(["checked: no icon upstream", num(status.coverage.icon_missing) + " icon files gone, never asked again"]);
     }
+    grid.push(["descriptions copied", num(status.coverage.tooltips) + " of " + num(status.coverage.detailed) + " answered records (the forever/item body carries no description: the tooltip door does, docs/API.md)"]);
+    if (num(status.coverage.tooltip_missing) !== null && num(status.coverage.tooltip_missing) !== 0) {
+      grid.push(["checked: no description upstream", num(status.coverage.tooltip_missing) + " tooltips answered 404, never asked again"]);
+    }
+    if (num(status.coverage.edited) !== null && num(status.coverage.edited) !== 0) {
+      grid.push(["fields the user said", num(status.coverage.edited) + " rows wear a manual override (the crawl keeps them, ADR 0010)"]);
+    }
+    if (num(status.coverage.manual) !== null && num(status.coverage.manual) !== 0) {
+      grid.push(["items the user made", num(status.coverage.manual) + " rows in the reserved id block (never crawled, ADR 0010)"]);
+    }
+    if (num(status.coverage.deleted) !== null && num(status.coverage.deleted) !== 0) {
+      grid.push(["hidden by the user", num(status.coverage.deleted) + " tombstones: every query and the card refuse them"]);
+    }
     grid.push(["price samples", num(status.coverage.history) + " stored (" + num(status.coverage.detailed) + " fresh detail writes add one each, 304s add none)"]);
     if (num(status.coverage.min_price) !== null) {
       grid.push(["price range", num(status.coverage.min_price) + " .. " + num(status.coverage.max_price)]);
@@ -86,6 +99,7 @@ async function refreshStatus() {
     grid.push(["list crawl", fmt_state(status.list)]);
     grid.push(["detail crawl", fmt_state(status.detail)]);
     grid.push(["icon copies", fmt_state(status.icons)]);
+    grid.push(["description copies", fmt_state(status.tooltip)]);
     var html = "";
     for (var i = 0; i < grid.length; i = i + 1) {
       html = html + "<span>" + esc(grid[i][0]) + "</span><b>" + esc(grid[i][1]) + "</b>";
@@ -258,7 +272,7 @@ function requestCancel() {
 // only revalidate (AH prices are live data, so re-checks still make sense).
 async function runPullAll() {
   set_note(document.getElementById("sync-note"),
-    "pull-all: list stage to the end (~193 pages, minutes at 2/s), then details for everything never fetched (~19k records, hours at 2/s), then the icon FILES of every record that answered (one request each, checked once, never asked again) — Cancel stops at the next chunk boundary; nothing is hotlinked, the DB gets the bytes", false);
+    "pull-all: list stage to the end (~193 pages, minutes at 2/s), then details for everything never fetched (~19k records, hours at 2/s), then the icon FILES of every record that answered (one request each, checked once, never asked again), then the DESCRIPTION copy of every answered record (the tooltip door, one request each, ≈ 2.7 h at the measured pace) — Cancel stops at the next chunk boundary; nothing is hotlinked, the DB gets the bytes", false);
   var list_out = await runSync("list");
   if (list_out === "cancelled") {
     set_note(document.getElementById("sync-note"),
@@ -274,9 +288,16 @@ async function runPullAll() {
   }
   if (detail_out !== "complete") { return; }
   var icons_out = await runSync("icons");
-  if (icons_out === "complete") {
+  if (icons_out === "cancelled") {
     set_note(document.getElementById("sync-note"),
-      "icons copied for everything that answered (and checked once where the icon file is gone)", false);
+      "pull-all stopped by Cancel in the icon stage: the next click resumes the icon queue; descriptions wait until the icons are in", false);
+    return;
+  }
+  if (icons_out !== "complete") { return; }
+  var tooltip_out = await runSync("tooltip");
+  if (tooltip_out === "complete") {
+    set_note(document.getElementById("sync-note"),
+      "descriptions copied for everything that answered (and checked once where the tooltip answered 404)", false);
     await pull_all_summary();
   }
 }
@@ -287,7 +308,8 @@ async function pull_all_summary() {
     set_note(document.getElementById("sync-note"),
       "nothing left to pull: " + num(st.items) + " items stored, " + num(st.coverage.detailed) + " with details (" + num(st.coverage.priced) + " of them priced — the rest are simply not on the AH)"
       + (num(st.coverage.missing) > 0 ? ", and " + num(st.coverage.missing) + " the walk listed are checked as gone upstream" : "")
-      + ", and " + num(st.coverage.icons) + " icons copied into the DB (" + num(st.coverage.icon_missing) + " icon files checked as gone, " + num(st.coverage.history) + " price samples stored)"
+      + ", " + num(st.coverage.icons) + " icons copied into the DB (" + num(st.coverage.icon_missing) + " icon files checked as gone)"
+      + ", and " + num(st.coverage.tooltips) + " description copies stored (" + num(st.coverage.tooltip_missing) + " tooltips answered 404, " + num(st.coverage.history) + " price samples stored)"
       + "; future syncs only revalidate stored ETags, and prices stay live", false);
   } catch (problem) {
     show_error(problem);
