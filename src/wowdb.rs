@@ -168,6 +168,9 @@ pub enum HttpKind {
     Success,
     NotModified,
     RateLimited,
+    /// The upstream has no record for this id (404). Not a failure: a removed
+    /// record is a fact about the catalogue, so the crawl keeps going (v0.5.3).
+    Missing,
     Failed,
 }
 
@@ -180,6 +183,9 @@ pub fn classify(status: u16) -> HttpKind {
     }
     if status == 429 {
         return HttpKind::RateLimited;
+    }
+    if status == 404 {
+        return HttpKind::Missing;
     }
     return HttpKind::Failed;
 }

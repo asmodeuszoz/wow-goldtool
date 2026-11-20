@@ -9,7 +9,7 @@ use crate::errors::AppError;
 use crate::errors::AppResult;
 use crate::errors::ErrorKind;
 
-use crate::db::{count_items, db_path, detail_etag_of, open_db_at, raw_json_of, synced_at_of, sync_state_get, upsert_detail, watch_add, watch_drop, watch_list, DbTarget, SyncState, unix_now};
+use crate::db::{count_items, db_path, detail_etag_of, mark_missing_at, open_db_at, raw_json_of, synced_at_of, sync_state_get, upsert_detail, watch_add, watch_drop, watch_list, DbTarget, SyncState, unix_now};
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
@@ -471,7 +471,11 @@ pub fn cmd_sync(inv: &Invocation) -> AppResult<String> {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };
-    eprintln!("detail stage: {} records fetched", report.items);
+    if report.missing == 0 {
+        eprintln!("detail stage: {} records fetched", report.items);
+    } else {
+        eprintln!("detail stage: {} records fetched, {} checked as removed upstream", report.items, report.missing);
+    }
     return Ok(json_report(report));
 }
 
@@ -589,6 +593,15 @@ pub fn cmd_item(inv: &Invocation) -> AppResult<String> {
                 HttpKind::Success => {},
                 HttpKind::NotModified => {},
                 HttpKind::RateLimited => return Err(AppError::rate_limited("the API asked us to back off".to_string(), response.retry_after)),
+                HttpKind::Missing => {
+                    // a direct ask answers once and remembers: the row gets the
+                    // checked-missing stamp when we have a row to stamp.
+                    match mark_missing_at(&conn, number, unix_now()) {
+                        Err(problem) => return Err(problem),
+                        Ok(_) => {},
+                    }
+                    return Err(AppError::not_found(format!("no item {} upstream: the forever catalogue has no record for it", number)));
+                },
                 HttpKind::Failed => return Err(AppError::http(response.status, response.body)),
             }
             let payload: String = match response.status {

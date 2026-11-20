@@ -27,7 +27,7 @@ use crate::wowdb::{Client, ApiResponse, HttpKind, RateBudget, classify, get_json
 
 use crate::models::{ItemDetail, ListPage};
 
-use crate::db::{detail_etag_of, meta_get, meta_set, sync_state_get, sync_state_set, unix_now, upsert_detail, upsert_summary, SyncState};
+use crate::db::{detail_etag_of, mark_missing_at, meta_get, meta_set, sync_state_get, sync_state_set, unix_now, upsert_detail, upsert_summary, SyncState};
 
 use crate::stats::{pending_ids, coverage, Coverage};
 
@@ -57,6 +57,7 @@ pub struct SyncReport {
     pub written: i64,
     pub unchanged: i64,
     pub rate_limited: i64,
+    pub missing: i64,
     pub seconds: i64,
     pub resumed_from: Option<i64>,
     pub complete: bool,
@@ -73,6 +74,7 @@ impl SyncReport {
             written: 0,
             unchanged: 0,
             rate_limited: 0,
+            missing: 0,
             seconds: 0,
             resumed_from: None,
             complete: false,
@@ -112,6 +114,16 @@ pub fn finish(conn: &Connection, report: SyncReport, started: i64, cursor: i64, 
         Err(problem) => return Err(problem),
         Ok(_) => return Ok(out),
     }
+}
+
+/// What the checked-missing third state (v0.5.3) adds to a run's message: those
+/// ids cost ONE request per crawl, not one per run, so a catalogue with removed
+/// records still finishes.
+pub fn missing_note(missing: i64) -> String {
+    if missing == 0 {
+        return "".to_string();
+    }
+    return format!("; {} answered 404 and are checked as removed", missing);
 }
 
 /// Turn one list-page body into a `ListPage`, or a decode error naming the URL that
@@ -247,6 +259,9 @@ pub fn sync_list(client: Client, conn: &Connection, mut budget: RateBudget, page
                 honour_retry_after(&mut budget, response);
                 continue;
             },
+            HttpKind::Missing => {
+                return Err(AppError::network(format!("list page {} answered {}", page, response.status)));
+            },
             HttpKind::Failed => {
                 return Err(AppError::network(format!("list page {} answered {}", page, response.status)));
             },
@@ -374,7 +389,9 @@ pub fn sync_detail(client: Client, conn: &Connection, mut budget: RateBudget, id
             } else {
                 ids.len() as i64 - report.items
             };
-            report.message = format!("detail sync cancelled by user request: {} records fetched, {} left pending", report.items, left);
+            report.message = format!("{}{}",
+                format!("detail sync cancelled by user request: {} records fetched, {} left pending", report.items, left),
+                missing_note(report.missing));
             return finish(conn, report, started, 0, total, "cancelled".to_string());
         }
         let mut attempts: i32 = 0;
@@ -397,6 +414,15 @@ pub fn sync_detail(client: Client, conn: &Connection, mut budget: RateBudget, id
                     honour_retry_after(&mut budget, response);
                     attempts = attempts + 1;
                     continue;
+                },
+                HttpKind::Missing => {
+                    // the record is gone upstream: remember the check, keep crawling.
+                    report.missing = report.missing + 1;
+                    match mark_missing_at(conn, id, unix_now()) {
+                        Err(problem) => return Err(problem),
+                        Ok(_) => {},
+                    }
+                    break;
                 },
                 HttpKind::Failed => {
                     return Err(AppError::network(format!("item {} answered {}", id, response.status)));
@@ -431,16 +457,24 @@ pub fn sync_detail(client: Client, conn: &Connection, mut budget: RateBudget, id
     report.complete = remaining == 0;
     if report.complete {
         report.message = if wanted.is_empty() {
-            format!("detail crawl fetched {} records", report.items)
+            format!("{}{}",
+                format!("detail crawl fetched {} records", report.items),
+                missing_note(report.missing))
         } else {
-            format!("detail crawl visited every targeted record: {} fetched", report.items)
+            format!("{}{}",
+                format!("detail crawl visited every targeted record: {} fetched", report.items),
+                missing_note(report.missing))
         };
         return finish(conn, report, started, 0, total, "complete".to_string());
     }
     report.message = if wanted.is_empty() {
-        format!("detail crawl paused: {} of {} records fetched, {} left pending", report.items, total, remaining)
+        format!("{}{}",
+            format!("detail crawl paused: {} of {} records fetched, {} left pending", report.items, total, remaining),
+            missing_note(report.missing))
     } else {
-        format!("detail crawl stopped inside the target list: {} of {} fetched, {} left in the list", report.items, total, remaining)
+        format!("{}{}",
+            format!("detail crawl stopped inside the target list: {} of {} fetched, {} left in the list", report.items, total, remaining),
+            missing_note(report.missing))
     };
     return finish(conn, report, started, 0, total, "partial".to_string());
 }
