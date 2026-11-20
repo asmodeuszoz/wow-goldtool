@@ -77,6 +77,24 @@
       <div class="note" id="card-note">the card reads the DB: it answers offline, and "Re-check online" is the only button that touches the API</div>
     </section>
 
+    <section class="card wide" id="live-card">
+      <h2>Live search: ask the API once</h2>
+      <div class="fields" id="live-fields">
+        <input class="field" id="live-text" type="text" placeholder="one human ask, for example Worn Shortsword" />
+        <button class="act" id="btn-live" type="button">Ask once</button>
+      </div>
+      <table class="mini hitstable" id="live-hits">
+        <thead><tr><th>group</th><th class="col-id">id</th><th class="col-name">name</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="note" id="live-note">a look, not a sync: ONE request per ask, and the answer is upstream's own JSON printed as it
+        came - the DB is not touched, and an empty answer is still success because
+        this search matches NAMES only: a tooltip word finds nothing (docs/API.md
+        measures it), and a group can say has_more - this build stops at one ask.
+        Every hit row carries its own upstream page link, so attribution reaches
+        the answer, not only the footer</div>
+    </section>
+
     <section class="card wide" id="stats-card">
       <h2>Price analytics</h2>
       <button class="act" id="btn-stats" type="button">Read the DB</button>

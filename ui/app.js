@@ -577,6 +577,63 @@ function extreme_rows(rows) {
   return html;
 }
 
+// ---- live search card ------------------------------------------------------
+// One click, ONE request: the door is a look, not a sync (ADR 0009), so this card
+// never writes the DB and never chases a group's `more`. The answer rides through
+// as upstream's own JSON; the card renders the groups it knows about and prints
+// `remaining` because the burst header is part of the door's answer (measured:
+// `x-ratelimit-remaining: 119`). Names-only is a fact of the endpoint, so the card
+// says it: a tooltip word is not searched (the measured `?q=socket` answers empty
+// groups), and an empty answer is still a SUCCESS - exit 0, not a failure.
+async function runLive() {
+  var text = document.getElementById("live-text").value;
+  document.getElementById("btn-live").classList.add("running");
+  if (text === "") {
+    set_note(document.getElementById("live-note"), "an empty ask is a usage error: the door wants text, for example: live-search Worn Shortsword", true);
+    document.getElementById("btn-live").classList.remove("running");
+    return;
+  }
+  try {
+    var found = await cli_ok(["live-search", text]);
+    var answer = found.answer;
+    var groups = answer.groups;
+    var order = ["item", "spell", "quest", "npc", "zone", "sound"];
+    var rows = "";
+    var seen = 0;
+    for (var g = 0; g < order.length; g = g + 1) {
+      var kind = order[g];
+      if (!(kind in groups)) { continue; }
+      var bucket = groups[kind];
+      var hits = bucket.results;
+      for (var i = 0; i < hits.length; i = i + 1) {
+        var one = hits[i];
+        var label = one.name || "(unnamed)";
+        var link = "";
+        if (one.links && one.links.html) {
+          link = '<a class="source" href="' + esc(one.links.html) + '">view</a>';
+        }
+        seen = seen + 1;
+        rows = rows + "<tr><td class=\"namecell\">" + esc(kind) + '</td><td class="namecell">' + esc(label) + " " + link + "</td></tr>";
+      }
+    }
+    document.querySelector("#live-hits tbody").innerHTML = rows;
+    var left = "the API did not report a burst budget for this answer";
+    if (found.remaining !== null && found.remaining !== undefined) { left = "requests left in the current burst window: " + found.remaining; }
+    var more_note = "";
+    for (var k = 0; k < order.length; k = k + 1) {
+      if ((order[k] in groups) && groups[order[k]].has_more) { more_note = " and at least one group answered has_more: this build stops at one ask, it does not chase the paged more URL"; }
+    }
+    var note = "";
+    if (seen === 0) { note = "no group answered a hit - and empty groups are still a success: "; }
+    note = note + left + ", names only (a tooltip word is not searched)" + more_note + " - the hits' own upstream page: " + hits_link;
+    set_note(document.getElementById("live-note"), note, false);
+    document.getElementById("btn-live").classList.remove("running");
+  } catch (problem) {
+    set_note(document.getElementById("live-note"), problem.message, true);
+    document.getElementById("btn-live").classList.remove("running");
+  }
+}
+
 // ---- wiring ----------------------------------------------------------------
 document.getElementById("btn-refresh").addEventListener("click", function () { refreshStatus(); });
 document.getElementById("btn-search").addEventListener("click", function () { runSearch(); });
@@ -588,6 +645,7 @@ document.getElementById("btn-detail-hits").addEventListener("click", function ()
 document.getElementById("btn-cancel").addEventListener("click", requestCancel);
 document.getElementById("btn-card-db").addEventListener("click", function () { runCard(false); });
 document.getElementById("btn-card-live").addEventListener("click", function () { runCard(true); });
+document.getElementById("btn-live").addEventListener("click", function () { runLive(); });
 document.getElementById("btn-stats").addEventListener("click", function () { runStats(); });
 
 // One delegated handler for the whole hits table: the toggle button carries the
@@ -596,6 +654,8 @@ document.getElementById("hits").addEventListener("click", function (event) {
   var node = event.target;
   if (node.dataset.id !== undefined) { toggle_watch(node); }
 });
+
+
 
 // The cards are never empty: at startup the app reads its own DB (status, the watch
 // list, the analytics) so the first paint already shows what exists. Those are verb
