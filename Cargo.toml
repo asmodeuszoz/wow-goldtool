@@ -1,6 +1,20 @@
+# Single Cargo project at the repo root — see docs/DECISIONS/0001-flat-cargo-layout-no-cli.md.
+# `cargo build` in RustRover builds the real app: tauri::generate_context!() reads
+# tauri.conf.json and embeds ./ui at compile time, so no Tauri CLI step is required.
+
 [package]
 name = "wow-goldtool"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
+description = "Browse and price-check the WoW Forever item catalogue offline (TheWoWDB -> SQLite)"
+license = "MIT"
+keywords = ["wow", "item-browser", "sqlite", "tauri"]
 
 [dependencies]
+# Pinned to a minor line (see docs/DECISIONS/0001): pinning keeps a future release from
+# silently changing the API surface we rely on between two of our commits.
+tauri = "2.12.7"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rusqlite = { version = "0.43", features = ["bundled"] }
+reqwest = { version = "0.13", features = ["blocking"] }
