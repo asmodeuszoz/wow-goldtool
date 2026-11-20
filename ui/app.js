@@ -72,6 +72,11 @@ async function refreshStatus() {
     grid.push(["with prices", num(status.coverage.priced) + " of " + num(status.coverage.items)]);
     grid.push(["details fetched", num(status.coverage.detailed) + " of " + num(status.coverage.items)]);
     grid.push(["checked as gone upstream", num(status.coverage.missing) + " answered 404, not re-fetched"]);
+    grid.push(["icons copied", num(status.coverage.icons) + " of " + num(status.coverage.detailed) + " answered records"]);
+    if (num(status.coverage.icon_missing) !== null && num(status.coverage.icon_missing) !== 0) {
+      grid.push(["checked: no icon upstream", num(status.coverage.icon_missing) + " icon files gone, never asked again"]);
+    }
+    grid.push(["price samples", num(status.coverage.history) + " stored (" + num(status.coverage.detailed) + " fresh detail writes add one each, 304s add none)"]);
     if (num(status.coverage.min_price) !== null) {
       grid.push(["price range", num(status.coverage.min_price) + " .. " + num(status.coverage.max_price)]);
     }
@@ -80,6 +85,7 @@ async function refreshStatus() {
     }
     grid.push(["list crawl", fmt_state(status.list)]);
     grid.push(["detail crawl", fmt_state(status.detail)]);
+    grid.push(["icon copies", fmt_state(status.icons)]);
     var html = "";
     for (var i = 0; i < grid.length; i = i + 1) {
       html = html + "<span>" + esc(grid[i][0]) + "</span><b>" + esc(grid[i][1]) + "</b>";
@@ -252,7 +258,7 @@ function requestCancel() {
 // only revalidate (AH prices are live data, so re-checks still make sense).
 async function runPullAll() {
   set_note(document.getElementById("sync-note"),
-    "pull-all: list stage to the end (~193 pages, minutes at 2/s), then details for everything never fetched (~19k records, hours at 2/s) — Cancel stops at the next chunk boundary; a record the upstream has dropped is checked once and counted as gone, never asked again", false);
+    "pull-all: list stage to the end (~193 pages, minutes at 2/s), then details for everything never fetched (~19k records, hours at 2/s), then the icon FILES of every record that answered (one request each, checked once, never asked again) — Cancel stops at the next chunk boundary; nothing is hotlinked, the DB gets the bytes", false);
   var list_out = await runSync("list");
   if (list_out === "cancelled") {
     set_note(document.getElementById("sync-note"),
@@ -261,9 +267,16 @@ async function runPullAll() {
   }
   if (list_out !== "complete") { return; }
   var detail_out = await runSync("detail");
-  if (detail_out === "complete") {
+  if (detail_out === "cancelled") {
     set_note(document.getElementById("sync-note"),
-      "details pulled for everything the walk ever listed", false);
+      "pull-all stopped by Cancel in the detail stage: later clicks resume the pending queue; icons wait until the records are in", false);
+    return;
+  }
+  if (detail_out !== "complete") { return; }
+  var icons_out = await runSync("icons");
+  if (icons_out === "complete") {
+    set_note(document.getElementById("sync-note"),
+      "icons copied for everything that answered (and checked once where the icon file is gone)", false);
     await pull_all_summary();
   }
 }
@@ -274,6 +287,7 @@ async function pull_all_summary() {
     set_note(document.getElementById("sync-note"),
       "nothing left to pull: " + num(st.items) + " items stored, " + num(st.coverage.detailed) + " with details (" + num(st.coverage.priced) + " of them priced — the rest are simply not on the AH)"
       + (num(st.coverage.missing) > 0 ? ", and " + num(st.coverage.missing) + " the walk listed are checked as gone upstream" : "")
+      + ", and " + num(st.coverage.icons) + " icons copied into the DB (" + num(st.coverage.icon_missing) + " icon files checked as gone, " + num(st.coverage.history) + " price samples stored)"
       + "; future syncs only revalidate stored ETags, and prices stay live", false);
   } catch (problem) {
     show_error(problem);
