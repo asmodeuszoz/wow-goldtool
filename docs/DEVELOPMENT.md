@@ -24,23 +24,29 @@ Forever item catalogue in a local SQLite database and syncs it from the free
 ## Module map (`src/`)
 
 ```
-main.rs        entry point: dispatches to cli::run(argv) or gui::run()
-cli.rs         headless subcommands: sync | stats | search | item | watch | status
-gui.rs         Tauri Builder: context, state, invoke_handler, window creation
-state.rs       AppState: DB path, sync-request flag, progress, cancel flag
+main.rs        entry point: a verb means cli::run(argv), no verb means gui::run_gui()
+cli.rs         the verbs and their JSON: dispatch(Invocation) + the CLI guard (exit codes)
+commands.rs    the app's one Tauri command: cli_call(argv) -> envelope JSON, zero logic
+gui.rs         the Builder shell: on_page_load log, generate_handler!, generate_context!
 wowdb.rs       HTTP client: URL building, ETag revalidation, rate-limit pacing
 models.rs      JSON <-> Rust structs for list summaries, item details, search hits
 db.rs          SQLite bootstrap: schema, db-path resolution, upserts, meta table
 query.rs       search + facets + sort + count, all executed as SQL over the local DB
 sync.rs        the sync engine: list crawl, detail crawl, resume, cancel, progress
 stats.rs       price analytics (coverage, per-quality averages, extremes)
-commands.rs    Tauri command surface: thin serialisation over the modules above
+errors.rs      one AppError + kind -> exit-code/JSON-kind mapping shared by both doors
 ```
 
-As of v0.2.0 the tree holds `main.rs`, `cli.rs`, `wowdb.rs`, `models.rs`, `db.rs`,
-`query.rs`, `sync.rs`, `stats.rs`, `errors.rs`; `gui.rs`, `state.rs`, `commands.rs`
-and `ui/` are the v0.4.0 plan above and not in the tree yet (their absence is why
-`cargo build` still ends in dead-code warnings only).
+Outside `src/`: `build.rs` (calls `tauri_build::build()` — the write-half of the compile-time
+embedding), `tauri.conf.json`, `ui/` (`index.html`, `app.css`, `app.js` — the embedded
+frontend), `icons/icon.png` (generated), `tools/gen_icon.py` (what generated it), `tests/`
+(the fixture server). There is **no `state.rs`**: ADR 0002 makes the `sync_state` row the
+progress truth and both doors read it, so mirroring it in `AppState` would be a second
+source of truth; cancel is a JS flag read at chunk granularity (ADR 0005).
+
+As of v0.4.0 every module above exists, and `cargo build` still ends in dead-code warnings
+only — the unused ones are the v0.5.0 plan (`search_url`, `SearchResponse`, `catalogue`,
+`open_db`, the `NotFound` kind).
 
 Rules of thumb: `wowdb.rs` never touches the DB, `db*.rs` never touches the network,
 `sync.rs` is the only place where the two meet, `commands.rs` contains no logic.
@@ -69,7 +75,7 @@ git tag. The dated narrative lives in [docs/DEVLOG.md](./DEVLOG.md).
 - [x] `v0.1.0` — repository scaffold, docs, licence, CI templates
 - [x] `v0.2.0` — data layer **plus a working sync engine**: API client, JSON models, SQLite schema, headless CLI verbs, paced list/detail crawl, exit-code contract
 - [x] `v0.3.0` — sync hardening: conditional GETs with stored ETags (per page in `meta`, per item in the row), stop→resume on the `sync_state` page cursor, cancel plumbing for the GUI's AppState
-- [ ] `v0.4.0` — Tauri shell + webview UI (search, filters, sorting, item cards)
+- [x] `v0.4.0` — Tauri shell + webview UI: one `cli_call(argv)` command, status/search/sync cards, chunked sync with cancel, `build.rs` + `tauri-build`, generated icon
 - [ ] `v0.5.0` — detail-sync targets (watchlist/ids), price analytics, UI polish
 
 ## Build & run
@@ -80,6 +86,13 @@ cargo run -- status                        # headless data pipeline, no display 
 cargo build                                # dev build
 cargo build --release                      # release build, run ./target/release/wow-goldtool
 ```
+
+The GUI is a foreground process: it blocks until the window is closed and exits 0. While it
+runs it writes `gui:` lines to stderr (`gui: ipc verb status (0 words)`), because the webview
+console is not forwarded on Linux — those lines are how the launch audit is read
+(see [docs/DEVLOG.md](./DEVLOG.md)). The GUI uses the same DB resolution as the CLI, so
+`WGT_DB=/tmp/opencode/fixture.sqlite cargo run` audits the UI against the fixture DB instead
+of the real one.
 
 CLI subcommands (identical code path as the GUI, so they double as the app's own
 integration test):
@@ -113,14 +126,21 @@ Environment switches used by tests and CI:
   plan, not code: v0.2.0 has no `#[test]` functions yet, so `cargo test` only proves
   everything compiles.
 - CI (`.github/workflows/ci.yml`) runs `cargo build`, `cargo test`, `cargo run -- stats`
-  on a seeded fixture DB and `cargo fmt`/`cargo lint` gates.
+  on a seeded fixture DB and `cargo fmt`/`cargo lint` gates. The GUI is **compiled** by CI
+  (one build unit) but not exercised: CI has no display server. The webview's only access to
+  the app is the CLI's argv, so the CLI smoke sequence *is* the app's integration test
+  (ADR 0004, ADR 0005); the GUI launch audit runs on a real desktop and is recorded in
+  [docs/DEVLOG.md](./DEVLOG.md).
 
 ## House rules
 
 - Conventional commits (`feat(sync): …`, `fix(db): …`, `docs(devlog): …`) with a body
   that explains *why*, not only *what*.
 - One logical change per commit, and every commit must build.
-- Version bumps happen in `Cargo.toml` **and** `tauri.conf.json` together, get a
+- Version bumps happen in `Cargo.toml` — and only there. `tauri.conf.json` deliberately omits
+  `version`, because `tauri-codegen` falls back to `env!("CARGO_PKG_VERSION")`
+  (`context.rs:255`): two version fields would be one too many. Every bump still gets a
   `CHANGELOG.md` entry and a `vX.Y.Z` git tag.
 - Rate limits are respected by construction, never by luck (see [docs/API.md](./API.md)).
-- The visible attribution link to TheWoWDB stays in the UI.
+- The visible attribution link to TheWoWDB stays in the UI. In v0.4.0 it is static HTML in
+  `ui/index.html`, and no JS path removes it.

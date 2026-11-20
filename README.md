@@ -5,12 +5,13 @@ Forever** from the free [TheWoWDB](https://thewowdb.com/developers) JSON API and
 it in a local **SQLite** database, so browsing, filtering, searching and price-checking
 items works offline.
 
-Status: **v0.3.0 — sync hardening lands** (resume, ETag revalidation, cancel plumbing);
-the GUI shell lands at v0.4.0. See the milestone list below and the dated narrative in
-[docs/DEVLOG.md](./docs/DEVLOG.md).
+Status: **v0.4.0 — the GUI shell lands** (window, search, chunked sync with cancel); the
+headless CLI verbs stay the same door into the same code. See the milestone list below and
+the dated narrative in [docs/DEVLOG.md](./docs/DEVLOG.md).
 
 ```
 cargo build          # works from RustRover straight away, no Tauri CLI needed
+cargo run            # the app: opens a window (needs a display server)
 cargo run -- status  # headless: DB location, coverage, sync state — no display needed
 ```
 
@@ -29,7 +30,7 @@ highest damage per second, most expensive vendor sell…).
 | `v0.1.0` | repository scaffold, docs, licence, CI templates | done |
 | `v0.2.0` | data layer + working sync: TheWoWDB client, JSON models, SQLite schema, headless CLI (`sync`, `stats`, `search`, `item`, `watch`, `status`), paced two-stage crawl, exit-code contract | done |
 | `v0.3.0` | sync hardening: conditional GETs with stored ETags (per page in `meta`, per item in the row), stop→resume on the `sync_state` page cursor, cancel plumbing, live lookup answered from the DB on `304` | done |
-| `v0.4.0` | Tauri shell + webview UI: search, filters, sorting, item cards | planned |
+| `v0.4.0` | Tauri shell + webview UI: status card, local search (text, quality, sort, `priced only`), chunked sync with cancel; `build.rs` + `tauri-build`, generated icon | done |
 | `v0.5.0` | detail-sync targets (watchlist / ids), price analytics, UI polish | planned |
 
 ## Design notes
@@ -37,7 +38,15 @@ highest damage per second, most expensive vendor sell…).
 * **One Cargo project at the repo root.** Tauri's `generate_context!` macro reads
   `tauri.conf.json` at compile time, so plain `cargo build` embeds config and UI assets.
   No `src-tauri/` directory and no Node/Tauri-CLI toolchain is required to build or run
-  the app — see [ADR 0001](./docs/DECISIONS/0001-flat-cargo-layout-no-cli.md).
+  the app — see [ADR 0001](./docs/DECISIONS/0001-flat-cargo-layout-no-cli.md). What cargo
+  *does* need is a `build.rs` calling `tauri_build::build()`: that is the write-half of the
+  same compile-time embedding, and without it `window.__TAURI__` never exists. `tauri-build`
+  drops JSON schemas into `/gen/`, which is gitignored.
+* **One command across the IPC hop.** The webview sends the CLI's argv
+  (`window.__TAURI__.core.invoke('cli_call', { argv })`) and gets the same JSON back, so a
+  click and a `cargo run --` line cannot drift apart — see
+  [ADR 0005](./docs/DECISIONS/0005-gui-ipc-commands.md), which also records that app commands
+  are not ACL-checked by construction while no app ACL manifest ships.
 * **Two-stage sync.** The API lists ~19 k items cheaply (name/quality/level) but prices,
   stats and icons need one request per item. Stage 1 is fast, stage 2 is staged, resumable
   and cancellable — see [ADR 0002](./docs/DECISIONS/0002-two-stage-sync.md).

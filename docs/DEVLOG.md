@@ -5,6 +5,98 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-19 · v0.4.0 — the shell: `build.rs`, `window.__TAURI__`, chunked cancel
+
+### The question that shaped the release
+
+v0.3.0 proved the pipeline headless. The next question is the one the IDE asks first: does
+`cargo run` open a window at all? Everything in this release is downstream of reading the
+crate sources in the registry cache instead of tutorials — every tutorial assumes `create-tauri-app`
+plus `tauri dev`, which [ADR 0001](./DECISIONS/0001-flat-cargo-layout-no-cli.md) forbids.
+
+### The trap that cost the most time
+
+`cargo build` failed with `error: OUT_DIR env var is not set, do you have a build script?`,
+raised by `tauri-codegen/src/embedded_assets.rs:335` while expanding `generate_context!`. The
+obvious fix — an empty `build.rs` — compiles, opens the window, loads the page **and leaves
+`window.__TAURI__` undefined**, so every button in the UI fails silently. The reason is one
+line up the pipeline: `tauri-codegen/src/context.rs:412` injects the global-API scripts only
+when `tauri_utils::plugin::read_global_api_scripts(out_dir)` finds a list file that
+`tauri_build::build()` writes. So the fix is not "a build.rs", it is "the build.rs that runs
+`tauri-build`", which is why `tauri-build = "2.7.6"` is a build-dependency and why
+`tauri.conf.json`'s `withGlobalTauri` means anything at all. A GUI feature that can fail
+silently is a design smell, and it is why the audit below ends in Rust log lines.
+
+### ACL: measured, not assumed
+
+The gate is `tauri/src/webview/mod.rs:2080`:
+
+```rust
+if (plugin_command.is_some() || has_app_acl_manifest || !is_local)
+  && request.cmd != crate::ipc::channel::FETCH_CHANNEL_DATA_COMMAND
+  && invoke.acl.is_none()
+```
+
+Ours is none of the three: `cli_call` is an app command, the page is a local origin, and
+`has_app_acl_manifest` is false — `acl/mod.rs:353` defines it as `acl.contains_key("__app-acl__")`
+and the build's own artifact `gen/schemas/acl-manifests.json` carries 10 plugin keys with no
+`__app-acl__` in it. The app command is reachable **by construction**, and the evidence is a
+file the build itself produced. The trap that follows is recorded in ADR 0005: the moment an
+app-side ACL manifest lands, `has_app_acl_manifest` flips and a missing grant becomes a hard
+failure.
+
+### Cancel without `AppState`, because v0.3.0 already made it possible
+
+ADR 0002 says the progress truth is the `sync_state` row, and v0.3.0 made `sync_state.page` an
+absolute cursor with resume legal for `stopped` and `cancelled`. That makes chunked sync free:
+the UI issues `sync --stage <stage> --budget 10` (list) or `--budget 25` (detail) in a row until
+the report says `complete`, each chunk ends with a `sync_state` write, and a JS flag read at the
+next chunk boundary *is* cancel. There is no `state.rs`: nothing mirrors the cursor in Rust, so
+nothing can drift. The cost is honest — cancel waits for the chunk, and a `304` still costs one
+request of rate budget (the v0.3.0 note), so a chunk of list pages is cheap in bandwidth, not
+in budget.
+
+### The icon is generated, so the blob is explainable
+
+Codegen reads `bundle.icon` at compile time (`CachedIcon`), so `cargo build` fails without the
+PNG. `tools/gen_icon.py` draws it in PIL from fixed constants — navy plate, gold coin, rising
+price line — supersampled 1024 → 256 with LANCZOS. Nothing is downloaded or pasted: the script
+sits next to the committed PNG, so a fresh clone builds and a reviewer can see how the icon was
+made.
+
+### The version source, once more
+
+`tauri-codegen/src/context.rs:255` computes `package_version` as `config.version` **else**
+`env!("CARGO_PKG_VERSION")`. The shipped conf therefore omits `version` entirely: `Cargo.toml`
+is the only version source, and the house rule that used to say "bump both files" was amended
+rather than broken silently.
+
+### Launch audit — display server: KDE Plasma on Wayland (`wayland-1`), XWayland `:1`
+
+| Run | Expectation | Observed |
+| --- | ----------- | -------- |
+| `cargo build` with the new files | still one buildable unit | four errors, each fixed at the source of the message: `OUT_DIR` (build.rs + `tauri-build`), `cannot find macro __tauri_command_name_cli_call` and `__cmd__cli_call` (→ `generate_handler![crate::commands::cli_call]`, because `handler.rs:166` rewrites the last path segment), `E0382` partial move of `inv` (→ match on `inv.fixture.clone()`) |
+| `WGT_DB=/tmp/opencode/fixture.sqlite cargo run` | window opens, page loads, JS reaches Rust | `gui: wow-goldtool shell starting…` → `gui: the webview asked for tauri://localhost (window main)` → `gui: ipc verb status (0 words)` — the page-load log proves the asset map served `index.html`, the ipc line proves the awaited `core.invoke` round-tripped |
+| webview console | not a channel | `console.log` added to `ui/app.js` never appeared; grepping `tauri`/`wry`/`tauri-runtime-wry` for console forwarding found nothing on Linux, so the observable audit channel is Rust's `gui:` lines and the UI states its own rendered-field count in the status card |
+| CI mirror + exit codes + v0.3.0 audits after the `cli.rs` refactor | unchanged | smoke mirror all `exit=0` (it is a zsh script: run with `zsh`, `bash` mis-parses the `$=step` split), exit-code audit `2 · 2 · 3 · 4 · 4 · 0`, `resumed_from: 2`, `unchanged: 2`, `item 25 → 304 reused true` |
+| `window.__TAURI__` presence | proven by the round trip above | the empty-`build.rs` trap above is exactly the state that produces no `gui: ipc …` line |
+
+### Deliberately not done in this tag
+
+No packaging yet (`bundle.icon` and `identifier` are in place for it). No `state.rs`. No
+detail-sync target selection from the UI yet — the buttons run the whole stage with chunk
+budgets, and choosing watchlist/ids is v0.5.0. The webview's first paint was not reviewed
+pixel-by-pixel: KDE is Wayland, `grim`/`kscreen-shot` are absent and X11 `import` cannot see
+Wayland windows, so the visual check is a `cargo run` for the user to run.
+
+### Follow-ups parked for later
+
+* `.deb`/`.AppImage` once packaging is worth doing — the identifier and icon groundwork is done.
+* Whether a second window (`app.windows` with `templates`) is worth the config surface.
+* `tests/api.rs` / `tests/pipeline.rs` unit tests are still a plan, not code.
+
+---
+
 ## 2026-11-19 · v0.3.0 — reuse, resume, cancel: the second crawl
 
 ### The question that shaped the release

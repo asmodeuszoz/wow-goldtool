@@ -1,0 +1,69 @@
+# ADR 0005 · One IPC command, ACL by construction, chunk-granular cancel
+
+- **Status:** accepted
+- **Date:** 2026-11-19
+- **Discussion:** [docs/DEVLOG.md](../DEVLOG.md) · commits tagged `v0.4.0`
+
+## Context
+
+`v0.4.0` has to put a UI in front of the CLI verbs of
+[ADR 0004](./0004-headless-cli-mode.md) while keeping
+[ADR 0001](./0001-flat-cargo-layout-no-cli.md) (plain `cargo`, no Tauri CLI, no Node).
+Four questions have no answer outside the crate sources, because every tutorial assumes
+the CLI layout that ADR 0001 rejects. Each fact below is quoted from the crates in the
+cargo registry cache (`file:line`), not from prose docs.
+
+| Question | Fact found in the crate source | Consequence |
+| -------- | ------------------------------ | ----------- |
+| Does the page load at all? | `tauri-macros/src/lib.rs:200` — conf is read **relative to `CARGO_MANIFEST_DIR` at compile time**; `tauri-utils/src/config.rs` `WindowConfig.url` deserializes `"index.html"` through `WebviewUrlDeserializer::Path` → `WebviewUrl::App(PathBuf)` | the window is declared in `tauri.conf.json` (`app.windows`), the page is served from the embedded asset map |
+| Is `window.__TAURI__` injected without the CLI? | `tauri-codegen/src/context.rs:412` injects the global-API scripts **only** when `config.app.with_global_tauri` **and** `tauri_utils::plugin::read_global_api_scripts(&out_dir)` is `Some`; `tauri-utils/src/plugin.rs:63` returns `None` when `GLOBAL_API_SCRIPT_FILE_LIST_PATH` is not in `OUT_DIR`; that file is written by `tauri-build::build()` | a `build.rs` calling `tauri_build::build()` is **required**; `withGlobalTauri: true` on its own does nothing at all (an empty `build.rs` fixes the `OUT_DIR` codegen read but leaves the webview without `__TAURI__` — a silent trap) |
+| Are the app's own commands ACL-checked? | `tauri/src/webview/mod.rs:2080` gates the invoke on `plugin_command.is_some() \|\| has_app_acl_manifest \|\| !is_local`; `acl/mod.rs:353` defines `has_app_acl` as `acl.contains_key("__app-acl__")`, and the build's own `gen/schemas/acl-manifests.json` carries 10 plugin keys with **no** `__app-acl__` | a local page reaching an app command is **not** ACL-checked by construction: no `*.permission.toml` is needed today, and the reason is visible in the shipped build artifacts |
+| Does `Builder.run` block? | `tauri/src/app.rs:2616` — `Builder::run(ctx)` is `self.build(ctx)?.run(\|_, _\| {})` | `run_gui()` blocks until the window is closed, then `main` exits 0 — the GUI is a normal foreground process, so RustRover's run button behaves |
+| How is a command from another module registered? | `tauri-macros/src/command/handler.rs:166` rewrites the last path segment to `__tauri_command_name_<cmd>`, a macro emitted next to `#[tauri::command]` | register as `generate_handler![crate::commands::cli_call]`; `use crate::commands::cli_call;` alone does not bring the macro along |
+
+## Options considered for the UI ↔ Rust bridge
+
+| Option | Trade-off |
+| ------ | --------- |
+| one command per CLI verb | six Rust wrappers, six JSON shapes the UI must learn; the UI and the CLI can drift apart, which is exactly what ADR 0004 refuses to allow |
+| crawl state in `AppState` + a `cancel()` command | progress would live twice — a Rust mirror of the `sync_state` row and the DB — and ADR 0002 says the DB is the truth |
+| **one `cli_call(argv)` + a JS chunk loop bounded by `--budget`** | one wrapper; the argv the CLI parses *is* the argv the UI sends; cancel is a JS flag read at the next chunk boundary |
+
+## Decision
+
+* `src/commands.rs` holds exactly one `#[tauri::command] cli_call(argv: Vec<String>) -> String`.
+  It returns an envelope: `{"ok": true, "result": <verb json>}` or
+  `{"ok": false, "error": {"kind","exit","message","retry_after"}}`. It contains no logic
+  besides handing the argv to `cli::dispatch` and wrapping the result.
+* `src/cli.rs` grew `dispatch(Invocation) -> AppResult<String>`, the single place both doors
+  send verbs through; `run()` is the CLI door (`guard(dispatch(inv))`), `cli_call` the GUI
+  door. The `--fixture` switch is applied inside `dispatch`, so both doors can aim at the
+  fixture server.
+* `ui/app.js` issues a crawl as chunks: `["sync", "--stage", stage, "--budget", …]` — 10
+  requests per chunk for `list`, 25 for `detail` — and loops until the report says
+  `complete`. Cancel sets a JS flag the loop reads before the next chunk.
+* `build.rs` calls `tauri_build::build()`; `tauri-build = "2.7.6"` is a **build**-dependency.
+* `tauri.conf.json` ships no `app.security` and no `version` —
+  `tauri-codegen/src/context.rs:255` falls back to `env!("CARGO_PKG_VERSION")`, so `Cargo.toml`
+  is the single version source.
+
+## Consequences
+
+**Gained**
+
+* One code path from a click to a verb: a UI bug and a CLI bug are the same bug, and the
+  CLI audits of ADR 0004 keep covering the app.
+* Cancel is resumable by construction — the chunk boundary ends a `sync_state` write, so
+  the next chunk continues from the stored cursor (ADR 0002).
+* The audit channel is Rust's `gui:` log lines: nothing in `tauri`/`wry` forwards the webview
+  console on Linux, which the launch audit confirmed by running it.
+
+**Given up / traps**
+
+* Cancel granularity is one chunk: at most 10 list pages or 25 detail records keep running
+  after the click. Stopping at a request boundary is what keeps the DB consistent.
+* `--fixture` is reachable from the GUI, so a fixture run is user-reachable. Honest, and the
+  status card prints which DB file is in play; documented rather than hidden.
+* If an app-side ACL manifest ever lands, `has_app_acl_manifest` flips to `true` and the
+  missing grant for `cli_call` becomes a hard failure — the trap to know before adding one.
+* `AppState` stays unused: there is no `state.rs`, deliberately (progress truth = DB).

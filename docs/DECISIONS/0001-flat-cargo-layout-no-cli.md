@@ -48,6 +48,25 @@ Take the **flat layout**. Concretely:
 * `bundle.active = false`: the app ships as a plain Cargo executable. Installers remain a
   roadmap item.
 
+## Amendment · v0.4.0 (2026-11-19)
+
+Building the shell forced three more facts, all consistent with the decision above:
+
+* `tauri-build` is a **build**-dependency and `build.rs` calls `tauri_build::build()`. That is
+  cargo's own build script, not the Tauri CLI: ADR 0001's "no CLI" is about `@tauri-apps/cli`
+  plus Node. The call is what writes the global-API script list, the ACL manifests and the
+  capabilities file into `OUT_DIR` for `generate_context!` to read back — without it
+  `withGlobalTauri` is inert and `window.__TAURI__` never exists (see ADR 0005).
+* `tauri-build` writes `gen/schemas/*.json` next to `Cargo.toml` at build time. The flat layout
+  has no `src-tauri/` to hide such artifacts in, so `.gitignore` carries `/gen/`.
+* `bundle.icon` is read at compile time (`CachedIcon`), so `icons/icon.png` must exist before
+  the first GUI build. `tools/gen_icon.py` generates it deterministically and the PNG is
+  committed, so a fresh clone still builds.
+
+The shipped `tauri.conf.json` also carries no `app.security` section: the UI is fully local, so
+no CSP header and no ACL manifest are emitted at all (which is why app commands are reachable —
+ADR 0005 spells out the gate at `tauri/src/webview/mod.rs:2080`).
+
 ## Consequences
 
 **Gained**
