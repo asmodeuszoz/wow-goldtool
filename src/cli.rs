@@ -13,7 +13,7 @@ use crate::db::{count_items, db_path, detail_etag_of, mark_missing_at, open_db_a
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
-use crate::sync::{sync_detail, sync_list, CancelFlag, SyncReport};
+use crate::sync::{sync_icons, sync_detail, sync_list, CancelFlag, SyncReport};
 use crate::wowdb::{build_client, get_json, item_url, ApiResponse, HttpKind, RateBudget, classify, Client, ENV_FIXTURE_KEY};
 use crate::models::{ItemDetail};
 
@@ -27,7 +27,7 @@ use std::env::set_var;
 /// What the CLI can answer. Keeping the list here means an unknown verb becomes a
 /// usage error that names what the user actually typed.
 pub fn usage_text() -> String {
-    return "usage: status | sync --stage list|detail [--budget N] [--ids A,B,C] [--watch] | search TEXT [--quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--limit N] | item ID [--cached] | watch add ID [note] | watch list | watch drop ID | status [--db PATH] [--fixture URL]".to_string();
+    return "usage: status | sync --stage list|detail|icons [--budget N] [--ids A,B,C] [--watch] | search TEXT [--quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--limit N] | item ID [--cached] | watch add ID [note] | watch list | watch drop ID | status [--db PATH] [--fixture URL]".to_string();
 }
 
 /// The verbs of one invocation plus its flags. Unknown flags are kept rather than
@@ -422,12 +422,17 @@ pub fn cmd_status(inv: &Invocation) -> AppResult<String> {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };
+    let icons_state: SyncState = match sync_state_get(&conn, "icons".to_string()) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
     let mut parts: Vec<String> = [].to_vec();
     parts.push(fragment("db".to_string(), json_db_target(target)));
     parts.push(fragment("items".to_string(), format!("{}", seen)));
     parts.push(fragment("coverage".to_string(), json_coverage(found)));
     parts.push(fragment("list".to_string(), json_state(list_state)));
     parts.push(fragment("detail".to_string(), json_state(detail_state)));
+    parts.push(fragment("icons".to_string(), json_state(icons_state)));
     return Ok(object(parts));
 }
 
@@ -436,7 +441,9 @@ pub fn cmd_status(inv: &Invocation) -> AppResult<String> {
 pub fn cmd_sync(inv: &Invocation) -> AppResult<String> {
     if inv.stage != "list" {
         if inv.stage != "detail" {
-            return Err(AppError::usage(format!("sync wants --stage list or --stage detail, got {}", inv.stage)));
+            if inv.stage != "icons" {
+                return Err(AppError::usage(format!("sync wants --stage list, detail or icons, got {}", inv.stage)));
+            }
         }
     }
     let conn: Connection = match open_at(inv) {
@@ -456,6 +463,28 @@ pub fn cmd_sync(inv: &Invocation) -> AppResult<String> {
             Ok(value) => value,
         };
         eprintln!("list stage: {} pages, {} records seen, {} written", report.pages, report.items, report.written);
+        return Ok(json_report(report));
+    }
+    if inv.stage == "icons" {
+        eprintln!("copying icon files: one request per icon of a record that answered, about two per second, on the asset hosts the detail payloads name (docs/API.md)");
+        let wanted: Vec<i64> = match detail_targets(&conn, inv) {
+            Err(problem) => return Err(problem),
+            Ok(value) => value,
+        };
+        if wanted.is_empty() {
+            eprintln!("icon stage queue: every answered record whose icon was never fetched nor checked");
+        } else {
+            eprintln!("icon stage targets: {} records ({} asked by --ids, watch list asked by --watch)", wanted.len(), inv.id_list.len());
+        }
+        let report: SyncReport = match sync_icons(client.clone(), &conn, budget, inv.budget, &cancel, wanted) {
+            Err(problem) => return Err(problem),
+            Ok(value) => value,
+        };
+        if report.missing == 0 {
+            eprintln!("icons stage: {} icons copied ({} requests)", report.written, report.requests);
+        } else {
+            eprintln!("icons stage: {} icons copied, {} checked as no-icon-upstream", report.written, report.missing);
+        }
         return Ok(json_report(report));
     }
     let wanted: Vec<i64> = match detail_targets(&conn, inv) {
