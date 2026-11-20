@@ -134,6 +134,22 @@ pub const SQL_PENDING_ICON: &str = concat!(
     "ORDER BY id ASC",
 );
 
+/// The tooltip stage's queue (v0.8.0, ADR 0010): pending means **a detail record
+/// answered AND no tooltip copy yet AND not already checked as no-tooltip-upstream
+/// AND not a tombstone AND not a user-made row**. A detail stamp is required because
+/// the catalogue's ids come from the list stage, and the door the tooltip lives behind
+/// answers upstream's own 404 JSON for an id it has not (measured 2026-11-20:
+/// `{"error":"not_found","message":"No item 999999999999 in forever.","status":404}`)
+/// - so asking the tooltip of an id upstream lacks costs a request AND stamps a state
+/// about a fact upstream never stated. The manual/tombstone terms are the v0.8.0 rule
+/// that a crawl never walks a row the user made or buried (same reason as SQL_PENDING
+/// and SQL_PENDING_ICON).
+pub const SQL_PENDING_TOOLTIP: &str = concat!(
+    "SELECT id FROM item WHERE detail_synced_at IS NOT NULL AND tooltip_at IS NULL ",
+    "AND tooltip_missing_at IS NULL AND deleted_at IS NULL AND manual_at IS NULL ",
+    "ORDER BY id ASC",
+);
+
 struct PendingSql {
     pub sql: String,
     pub params: Vec<Value>,
@@ -285,6 +301,27 @@ pub fn icon_pending_ids(conn: &Connection, limit: Option<i64>) -> AppResult<Vec<
 /// Item ids the detail stage still has to fetch, oldest id first.
 pub fn pending_ids(conn: &Connection, limit: Option<i64>) -> AppResult<Vec<i64>> {
     let plan: PendingSql = pending_plan(SQL_PENDING.to_string(), limit);
+    let mut stmt = match conn.prepare(&plan.sql) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let rows = match stmt.query_map(params_from_iter(plan.params), |row| row.get(0)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut out: Vec<i64> = [].to_vec();
+    for item in rows {
+        match item {
+            Err(problem) => return Err(AppError::db(format!("{}", problem))),
+            Ok(value) => out.push(value),
+        }
+    }
+    return Ok(out);
+}
+
+/// The tooltip stage's queue (v0.8.0, ADR 0010): see SQL_PENDING_TOOLTIP.
+pub fn tooltip_pending_ids(conn: &Connection, limit: Option<i64>) -> AppResult<Vec<i64>> {
+    let plan: PendingSql = pending_plan(SQL_PENDING_TOOLTIP.to_string(), limit);
     let mut stmt = match conn.prepare(&plan.sql) {
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
         Ok(value) => value,
