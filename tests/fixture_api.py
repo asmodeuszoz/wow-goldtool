@@ -1,8 +1,10 @@
 """Fixture API server: what CI runs the crawler against (docs/DEVELOPMENT.md, WGT_FIXTURE).
 
 Answers the list stage (two pages) and detail records for any item id, and rate limits
-the FIRST request of each stage (429 + Retry-After) so both crawl paths show they honour
-the pacing budget instead of aborting. Nothing here touches the upstream API.
+the FIRST request of each stage (429 + Retry-After, to exercise the pacing path). Speaks
+conditional GETs like the upstream docs promise: stable per-endpoint ETags and a real
+304 (no body) for a matching If-None-Match, so v0.3.0's reuse paths are exercised.
+Nothing here touches the upstream API.
 """
 
 import http.server
@@ -73,8 +75,7 @@ DETAIL_BASE = {
     "attribution": ATTRIBUTION,
 }
 
-# One 429 per stage, so the list crawl and the detail crawl each prove they retry
-# instead of aborting on a rate limit.
+# One 429 per stage (the crawler retries in place and continues).
 limited = set()
 served = {"count": 0}
 
@@ -87,16 +88,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
         if path.startswith("/api/v1/forever/item/") and tail.isdigit():
             stage = "detail"
-            item_id = int(tail)
+            etag = '"fixture-etag-detail-{}"'.format(tail)
             body = dict(DETAIL_BASE)
-            body["id"] = item_id
-            body["name"] = "Fixture Detail {}".format(item_id)
+            body["id"] = int(tail)
+            body["name"] = "Fixture Detail {}".format(tail)
         elif path.startswith("/api/v1/forever/search/"):
             stage = "search"
+            etag = '"fixture-etag-search"'
             body = {"q": "fixture", "groups": {"item": []}, "attribution": ATTRIBUTION}
         elif "item" in path and "page" in path:
             stage = "list"
             page = "2" if "page=2" in path else "1"
+            etag = '"fixture-etag-list-{}"'.format(page)
             body = LIST_PAGES[page]
         else:
             self.send_response(404)
@@ -113,9 +116,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.wfile.write(b'{"error":"slow down"}')
             return
 
+        sent_before = self.headers.get("If-None-Match")
+        if sent_before is not None and sent_before == etag:
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.end_headers()
+            return
+
         self.send_response(200)
         self.send_header("Content-Type", "application/json")
-        self.send_header("ETag", '"fixture-etag-{}"'.format(stage))
+        self.send_header("ETag", etag)
         self.end_headers()
         self.wfile.write(json.dumps(body).encode())
 

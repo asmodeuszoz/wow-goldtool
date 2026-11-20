@@ -76,8 +76,10 @@ jobs:
       - name: Unit + pipeline tests (fixture server, never the live API)
         run: cargo test
       # Active from v0.2.0 on: the headless CLI (docs/DECISIONS/0004) doubles as the
-      # app's own integration test, run against the committed fixture server so the
-      # suite never hammers the upstream API.
+      # app's own integration test, run against the committed fixture server (which
+      # speaks conditional GETs and forces one 429 per stage) so the suite never hammers
+      # the upstream API. From v0.3.0 on the sequence also proves stop -> resume, a full
+      # re-sync answered by 304s, and a live lookup served from the DB.
       - name: CLI smoke test on a seeded fixture DB
         env:
           WGT_DB: ${{ runner.tmpDir }}/fixture.sqlite
@@ -85,6 +87,9 @@ jobs:
         run: |
           python3 tests/fixture_api.py > /dev/null 2>&1 &
           sleep 1
-          cargo run -- sync --stage list --fixture http://127.0.0.1:8765 --budget 2
+          cargo run -- sync --stage list --fixture http://127.0.0.1:8765 --budget 1
+          cargo run -- sync --stage list --fixture http://127.0.0.1:8765
+          cargo run -- sync --stage list --fixture http://127.0.0.1:8765
           cargo run -- sync --stage detail --fixture http://127.0.0.1:8765
+          cargo run -- item 25 --fixture http://127.0.0.1:8765
           cargo run -- stats
