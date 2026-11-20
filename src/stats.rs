@@ -76,7 +76,12 @@ pub const SQL_RICH: &str = concat!(
 );
 
 /// Item ids that have no detail record yet: what stage 2 of the sync will fetch.
-pub const SQL_PENDING: &str = "SELECT id FROM item WHERE price_min IS NULL OR detail_synced_at IS NULL ORDER BY id ASC";
+/// The rule is "never fetched", not "no price": an item that was fetched and has
+/// a NULL price is fetched-but-not-on-the-AH (docs/DATABASE.md's distinction),
+/// and under the old OR price_min rule such items stayed pending forever - the
+/// detail run never terminated on the real catalogue, and a pull-all run could
+/// never honestly promise "nothing pending" (v0.5.2 patch).
+pub const SQL_PENDING: &str = "SELECT id FROM item WHERE detail_synced_at IS NULL ORDER BY id ASC";
 
 struct PendingSql {
     pub sql: String,
