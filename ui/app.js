@@ -77,16 +77,16 @@ async function refreshStatus() {
       grid.push(["checked: no icon upstream", num(status.coverage.icon_missing) + " icon files gone, never asked again"]);
     }
     grid.push(["descriptions copied", num(status.coverage.tooltips) + " of " + num(status.coverage.detailed) + " answered records (the forever/item body carries no description: the tooltip door does, docs/API.md)"]);
-    if (num(status.coverage.tooltip_missing) !== null && num(status.coverage.tooltip_missing) !== 0) {
+    if (status.coverage.tooltip_missing !== null && status.coverage.tooltip_missing > 0) {
       grid.push(["checked: no description upstream", num(status.coverage.tooltip_missing) + " tooltips answered 404, never asked again"]);
     }
-    if (num(status.coverage.edited) !== null && num(status.coverage.edited) !== 0) {
+    if (status.coverage.edited !== null && status.coverage.edited > 0) {
       grid.push(["fields the user said", num(status.coverage.edited) + " rows wear a manual override (the crawl keeps them, ADR 0010)"]);
     }
-    if (num(status.coverage.manual) !== null && num(status.coverage.manual) !== 0) {
+    if (status.coverage.manual !== null && status.coverage.manual > 0) {
       grid.push(["items the user made", num(status.coverage.manual) + " rows in the reserved id block (never crawled, ADR 0010)"]);
     }
-    if (num(status.coverage.deleted) !== null && num(status.coverage.deleted) !== 0) {
+    if (status.coverage.deleted !== null && status.coverage.deleted > 0) {
       grid.push(["hidden by the user", num(status.coverage.deleted) + " tombstones: every query and the card refuse them"]);
     }
     grid.push(["price samples", num(status.coverage.history) + " stored (" + num(status.coverage.detailed) + " fresh detail writes add one each, 304s add none)"]);
@@ -445,7 +445,9 @@ async function runCard(live) {
     render_card(found);
     var fetched = found.detail_synced_at;
     var line = "";
-    if (found.cached) {
+    if (found.manual_at !== null && found.manual_at !== undefined) {
+      line = "the DB created this row on " + when(found.manual_at) + " (reserved id block, ADR 0010): its own columns answer the card, and no request went out even on Re-check online, because upstream has no such id";
+    } else if (found.cached) {
       line = "read from the DB only, no request sent; that record was fetched " + when(fetched);
     } else {
       line = "answered HTTP " + found.status + ", reused " + (found.reused ? "from the stored copy" : "a fresh copy") + " — " + when(fetched);
@@ -457,6 +459,15 @@ async function runCard(live) {
     } else if (fetched !== null && fetched !== undefined) {
       line = line + " — icon not fetched yet (the icons stage will copy it)";
     }
+    if (found.manual_at === null || found.manual_at === undefined) {
+      if (found.tooltip_html) {
+        line = line + ", and the description copy is stored (copied " + when(found.tooltip_at) + ")";
+      } else if (found.tooltip_missing_at !== null && found.tooltip_missing_at !== undefined) {
+        line = line + ", and the tooltip answered 404 for this record — checked as having no description upstream, never asked again";
+      } else if (fetched !== null && fetched !== undefined) {
+        line = line + ", and no description copy yet (the tooltip stage will ask once)";
+      }
+    }
     if (found.history && found.history.length > 1) {
       line = line + ", and the price has " + found.history.length + " samples (trend drawn on the card)";
     } else if (found.history && found.history.length === 1) {
@@ -467,6 +478,9 @@ async function runCard(live) {
     if (problem.kind === "not-found") {
       set_note(document.getElementById("card-note"),
         problem.message + " — 'Re-check online' fetches and stores it", false);
+    } else if (problem.message.indexOf("tombstoned") >= 0) {
+      set_note(document.getElementById("card-note"),
+        problem.message + " — 'Bring it back' in the write panel restores it", false);
     } else {
       set_note(document.getElementById("card-note"), problem.message, true);
     }
@@ -480,23 +494,32 @@ function when(stamp) {
 
 function render_card(found) {
   var item = found.item;
-  var rows = [];
-  rows.push(["id", String(item.id)]);
-  rows.push(["name", item.name]);
-  rows.push(["quality", item.quality]);
-  rows.push(["item level", item.item_level]);
-  rows.push(["requires level", item.required_level]);
-  rows.push(["type", item.item_type]);
-  rows.push(["slot", item.slot]);
-  rows.push(["min price", item.price ? item.price.min : null]);
-  rows.push(["market price", item.price ? item.price.market : null]);
-  rows.push(["available", item.price ? item.price.available : null]);
-  rows.push(["vendor sell", item.vendor_sell]);
-  if (item.weapon) {
-    rows.push(["damage", item.weapon.damage_min + "-" + item.weapon.damage_max]);
-    rows.push(["dps / speed", item.weapon.dps + " / " + item.weapon.speed]);
+  // The fields the USER stated (ADR 0010): the card carries the stored override
+  // ARRAY, so the mark comes from the DB's own record, not from what the UI typed.
+  var said = {};
+  if (found.manual_overrides) {
+    for (var o = 0; o < found.manual_overrides.length; o = o + 1) {
+      said[String(found.manual_overrides[o].field)] = found.manual_overrides[o].at;
+    }
   }
-  if (item.flavor) { rows.push(["flavour", item.flavor]); }
+  var rows = [];
+  rows.push(["id", String(item.id), ""]);
+  rows.push(["name", item.name, "name"]);
+  rows.push(["quality", item.quality, "quality"]);
+  rows.push(["item level", item.item_level, "item_level"]);
+  rows.push(["requires level", item.required_level, "required_level"]);
+  rows.push(["type", item.item_type, "item_type"]);
+  rows.push(["subtype", item.item_subtype, "item_subtype"]);
+  rows.push(["slot", item.slot, ""]);
+  rows.push(["min price", item.price ? item.price.min : null, ""]);
+  rows.push(["market price", item.price ? item.price.market : null, ""]);
+  rows.push(["available", item.price ? item.price.available : null, ""]);
+  rows.push(["vendor sell", item.vendor_sell, "vendor_sell"]);
+  if (item.weapon) {
+    rows.push(["damage", item.weapon.damage_min + "-" + item.weapon.damage_max, ""]);
+    rows.push(["dps / speed", item.weapon.dps + " / " + item.weapon.speed, ""]);
+  }
+  if (item.flavor) { rows.push(["flavour", item.flavor, "flavor"]); }
   // stats is the ONE previously-unshaped field the live catalogue has ever filled
   // (docs/API.md measures: across 47 answered records stats carried values while
   // sockets/socket_bonus/classes/effects came back empty on every single one) -
@@ -509,12 +532,12 @@ function render_card(found) {
       var one = item.stats[s];
       stat_text.push(String(one.name) + " " + String(one.value));
     }
-    rows.push(["stats", stat_text.join(" \u00b7 ")]);
+    rows.push(["stats", stat_text.join(" \u00b7 "), ""]);
   }
-  if (item.socket_bonus) { rows.push(["socket bonus", String(item.socket_bonus)]); }
-  if (item.sockets && item.sockets.length > 0) { rows.push(["sockets", JSON.stringify(item.sockets)]); }
-  if (item.classes && item.classes.length > 0) { rows.push(["classes", JSON.stringify(item.classes)]); }
-  if (item.effects && item.effects.length > 0) { rows.push(["effects", JSON.stringify(item.effects)]); }
+  if (item.socket_bonus) { rows.push(["socket bonus", String(item.socket_bonus), ""]); }
+  if (item.sockets && item.sockets.length > 0) { rows.push(["sockets", JSON.stringify(item.sockets), ""]); }
+  if (item.classes && item.classes.length > 0) { rows.push(["classes", JSON.stringify(item.classes), ""]); }
+  if (item.effects && item.effects.length > 0) { rows.push(["effects", JSON.stringify(item.effects), ""]); }
   var html = "";
   for (var i = 0; i < rows.length; i = i + 1) {
     var value = rows[i][1];
@@ -522,7 +545,17 @@ function render_card(found) {
     // esc() again, always: these are API texts. The RAW rows (sockets/classes/
     // effects) print the JSON exactly as it came back - still escaped, because
     // API text is markup-neutral by rule, not by hope.
-    html = html + '<div class="cardrow"><span>' + esc(rows[i][0]) + "</span><b>" + esc(String(value)) + "</b></div>";
+    var mark = "";
+    var key = String(rows[i][2]);
+    if (said[key] !== undefined) {
+      mark = " <i>the user said this on " + esc(when(said[key])) + "</i>";
+    }
+    html = html + '<div class="cardrow"><span>' + esc(rows[i][0]) + "</span><b>" + esc(String(value)) + mark + "</b></div>";
+  }
+  // A row the user MADE (ADR 0010): the DB's own columns answer its card, and the
+  // card says so - the fields only an upstream record can state read empty above.
+  if (found.manual_at !== null && found.manual_at !== undefined) {
+    html = html + '<div class="cardrow"><span>made by the user</span><b>the DB created this row on ' + esc(when(found.manual_at)) + ", in the reserved id block: no upstream record of it exists, and no crawl will ask for one</b></div>";
   }
   // The local icon copy (v0.6.0): bytes travel in the verb JSON as base64 (b64_text
   // on the Rust side), and a data URI is how offline browsing keeps icons - the card
@@ -532,6 +565,16 @@ function render_card(found) {
     html = html + '<div class="cardrow"><span>icon (local copy)</span><b><img class="iconimg" src="data:image/jpeg;base64,' + found.icon_b64 + '" alt="item icon"></b></div>';
   } else if (found.icon_missing_at !== null && found.icon_missing_at !== undefined) {
     html = html + '<div class="cardrow"><span>icon</span><b>no icon upstream (checked ' + esc(when(found.icon_missing_at)) + ")</b></div>";
+  }
+  // The description copy (v0.8.0, ADR 0010): upstream's own markup, printed as
+  // TEXT and escaped - pasting it as markup would let an upstream body write the
+  // card. Three states, one row each, like the icon's.
+  if (found.tooltip_html) {
+    html = html + '<div class="cardrow"><span>description (upstream\u2019s own copy)</span><b>' + esc(String(found.tooltip_html)) + (said["tooltip_html"] !== undefined ? " <i>the user said this on " + esc(when(said["tooltip_html"])) + "</i>" : "") + "</b></div>";
+  } else if (found.tooltip_missing_at !== null && found.tooltip_missing_at !== undefined) {
+    html = html + '<div class="cardrow"><span>description</span><b>none upstream (the tooltip answered 404, checked ' + esc(when(found.tooltip_missing_at)) + ", never asked again)</b></div>";
+  } else if (found.manual_at === null || found.manual_at === undefined) {
+    html = html + '<div class="cardrow"><span>description</span><b>not copied yet — the tooltip stage fetches it once per record that answered</b></div>';
   }
   // The price trend: one bar per sample, oldest first (history_of reads newest-40
   // reversed). Heights are a percentage of the window's max price_min; a one-sample
@@ -552,6 +595,111 @@ function render_card(found) {
     html = html + '<div class="cardrow"><span>price trend</span><b><div class="trendbox">' + bars + "</div></b></div>";
   }
   document.getElementById("card-box").innerHTML = html;
+}
+
+// ---- the DB's own writes (v0.8.0, ADR 0010) ---------------------------------
+// Four verbs, no network: each button sends ONE argv in the exact shape the headless
+// CLI takes, so a click and a `cargo run --` line share the code path down to the
+// message (docs/DECISIONS/0004): a bad ask answers usage(2), a row that is not there
+// answers database(4), and both land here as the same words the CLI prints. set-item
+// states ONE field per ask through db.rs's whitelist; add-item takes NO id - the
+// reserved block's next free slot is the DB's to choose, so a new item cannot collide
+// with a future forever record (measured max upstream id: 288 340, block at 900 000
+// 000). Hide it is the tombstone: the row keeps its stamps and its bytes, which is
+// why Bring it back restores everything. Every write refreshes the status grid, so
+// the manual-layer counts move on the same breath the user wrote them.
+async function runEdit() {
+  var note = document.getElementById("edit-note");
+  var raw = document.getElementById("edit-id").value.trim();
+  var field = document.getElementById("edit-field").value;
+  var value = document.getElementById("edit-value").value;
+  if (raw === "") {
+    set_note(note, "type an item id first (only rows the DB already has can be edited)", true);
+    return;
+  }
+  if (field === "") {
+    set_note(note, "pick the field the user states: name, quality, item level, requires level, type, subtype, flavour, vendor sell, description copy", true);
+    return;
+  }
+  if (value === "") {
+    set_note(note, "an edit states a value; to hide a row use Hide it", true);
+    return;
+  }
+  try {
+    var answer = await cli_ok(["set-item", raw, field + "=" + value]);
+    set_note(note,
+      "the DB says: item " + answer.id + "'s " + answer.field + " is now " + answer.value + " (stated " + when(answer.edited_at) + ") — the crawl keeps refreshing the fields it owns, this one survives the next write of the row, and the card marks it", false);
+    await refreshStatus();
+  } catch (problem) {
+    set_note(note, problem.message, true);
+  }
+}
+
+async function runCreate() {
+  var note = document.getElementById("edit-note");
+  var name = document.getElementById("new-name").value.trim();
+  if (name === "") {
+    set_note(note, "a new item needs a name: the DB refuses to create a row without one", true);
+    return;
+  }
+  var argv = ["add-item", "name=" + name];
+  // one pair per argv element, so a value holding spaces stays ONE word
+  var quality = document.getElementById("new-quality").value;
+  if (quality !== "") { argv.push("quality=" + quality); }
+  var type = document.getElementById("new-type").value.trim();
+  if (type !== "") { argv.push("item_type=" + type); }
+  var level = document.getElementById("new-level").value.trim();
+  if (level !== "") { argv.push("item_level=" + level); }
+  var req = document.getElementById("new-req").value.trim();
+  if (req !== "") { argv.push("required_level=" + req); }
+  var sell = document.getElementById("new-sell").value.trim();
+  if (sell !== "") { argv.push("vendor_sell=" + sell); }
+  try {
+    var answer = await cli_ok(argv);
+    var made = [];
+    for (var i = 0; i < answer.fields.length; i = i + 1) {
+      made.push(String(answer.fields[i]));
+    }
+    set_note(note,
+      "made as item " + answer.id + " (the reserved block's next free slot, stamped manual_at " + when(answer.manual_at) + "): it wears " + made.join(", ") + " as the user's own overrides from birth, so even a future forever record cannot take it — and no crawl will ever ask upstream for this id", false);
+    await refreshStatus();
+  } catch (problem) {
+    set_note(note, problem.message, true);
+  }
+}
+
+async function runHide() {
+  var note = document.getElementById("edit-note");
+  var raw = document.getElementById("edit-id").value.trim();
+  if (raw === "") {
+    set_note(note, "type an item id first", true);
+    return;
+  }
+  try {
+    var answer = await cli_ok(["delete-item", raw]);
+    set_note(note,
+      "hidden: item " + answer.deleted[0] + " is tombstoned (stamped " + when(answer.at) + ") — search, stats, the crawl's queues and both card doors refuse it, and its icon bytes, price samples and overrides stay in the DB until Bring it back puts them to work again", false);
+    await refreshStatus();
+  } catch (problem) {
+    set_note(note, problem.message, true);
+  }
+}
+
+async function runUnhide() {
+  var note = document.getElementById("edit-note");
+  var raw = document.getElementById("edit-id").value.trim();
+  if (raw === "") {
+    set_note(note, "type an item id first", true);
+    return;
+  }
+  try {
+    var answer = await cli_ok(["undelete-item", raw]);
+    set_note(note,
+      "back: item " + answer.restored[0] + " answers again — the tombstone only hid it, so the name, the icon copy, the samples and the user's overrides all came back", false);
+    await refreshStatus();
+  } catch (problem) {
+    set_note(note, problem.message, true);
+  }
 }
 
 // ---- price analytics -------------------------------------------------------
@@ -669,6 +817,10 @@ document.getElementById("btn-card-db").addEventListener("click", function () { r
 document.getElementById("btn-card-live").addEventListener("click", function () { runCard(true); });
 document.getElementById("btn-live").addEventListener("click", function () { runLive(); });
 document.getElementById("btn-stats").addEventListener("click", function () { runStats(); });
+document.getElementById("btn-edit").addEventListener("click", function () { runEdit(); });
+document.getElementById("btn-create").addEventListener("click", function () { runCreate(); });
+document.getElementById("btn-delete").addEventListener("click", function () { runHide(); });
+document.getElementById("btn-undelete").addEventListener("click", function () { runUnhide(); });
 
 // One delegated handler for the whole hits table: the toggle button carries the
 // item id it belongs to, so rows do not need per-row listeners.

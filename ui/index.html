@@ -77,6 +77,49 @@
       <div class="note" id="card-note">the card reads the DB: it answers offline, and "Re-check online" is the only button that touches the API</div>
     </section>
 
+    <section class="card" id="edit-card">
+      <h2>The DB's own writes</h2>
+      <div class="fields" id="edit-fields">
+        <input class="field" id="edit-id" type="text" placeholder="item id" />
+        <select class="field" id="edit-field">
+          <option value="">pick a field</option>
+          <option value="name">name</option>
+          <option value="quality">quality</option>
+          <option value="item_level">item level</option>
+          <option value="required_level">requires level</option>
+          <option value="item_type">item type</option>
+          <option value="item_subtype">item subtype</option>
+          <option value="flavor">flavour</option>
+          <option value="vendor_sell">vendor sell</option>
+          <option value="tooltip_html">description copy</option>
+        </select>
+        <input class="field" id="edit-value" type="text" placeholder="what the user says it is" />
+        <input class="field" id="new-name" type="text" placeholder="a new item's name" />
+        <select class="field" id="new-quality">
+          <option value="">any quality</option>
+          <option value="Common">Common</option>
+          <option value="Uncommon">Uncommon</option>
+          <option value="Rare">Rare</option>
+          <option value="Epic">Epic</option>
+          <option value="Legendary">Legendary</option>
+          <option value="Artifact">Artifact</option>
+          <option value="Heirloom">Heirloom</option>
+        </select>
+        <input class="field" id="new-type" type="text" placeholder="item type" />
+        <input class="field" id="new-level" type="text" placeholder="item level" />
+        <input class="field" id="new-req" type="text" placeholder="requires level" />
+        <input class="field" id="new-sell" type="text" placeholder="vendor sell" />
+        <button class="act" id="btn-edit" type="button">Say it</button>
+        <button class="act" id="btn-create" type="button">Make one</button>
+        <button class="act" id="btn-delete" type="button">Hide it</button>
+        <button class="act" id="btn-undelete" type="button">Bring it back</button>
+      </div>
+      <div class="note" id="edit-note">the user's own writes: these four buttons send NO request, and the values they write
+        survive every later crawl write (ADR 0010) - an id here is one the DB has, an
+        item the user makes lands in the reserved id block, and hiding is a tombstone
+        (the row keeps its bytes so bringing it back restores everything)</div>
+    </section>
+
     <section class="card wide" id="live-card">
       <h2>Live search: ask the API once</h2>
       <div class="fields" id="live-fields">

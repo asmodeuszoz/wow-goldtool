@@ -191,6 +191,11 @@ td.namecell a { color: var(--gold); text-decoration: none; font-size: 11px; marg
 .cardrow { display: grid; grid-template-columns: auto auto; gap: 14px; }
 .cardbox span { color: var(--muted); font-size: 12.5px; }
 .cardbox b { color: var(--text); font-size: 13px; font-variant-numeric: tabular-nums; }
+/* the manual layer (v0.8.0, ADR 0010): a field the USER stated carries the DB's own
+   stamp next to it, and upstream's description copy prints as escaped TEXT - the
+   tooltip body is upstream's markup, and pasting it here would let upstream write
+   the card, so it stays text (docs/DATABASE.md's "values are data, not markup"). */
+.cardbox i { color: var(--gold); font-size: 11.5px; font-style: normal; }
 
 /* card extras (v0.6.0): the icon comes from the DB as a data URI (never a hotlink),
    the trend is one bar per stored sample - flex bottom-aligned so bar heights are
