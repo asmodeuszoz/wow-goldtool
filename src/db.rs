@@ -542,8 +542,8 @@ pub fn synced_at_of(conn: &Connection, id: i64) -> AppResult<Option<i64>> {
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
         Ok(None) => return Ok(None),
         Ok(Some(row)) => return match row.get(0) {
-            Err(problem) => return Err(AppError::db(format!("{}", problem))),
-            Ok(found) => return Ok(found),
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(found) => Ok(found),
         },
     }
 }
