@@ -1,4 +1,4 @@
-use crate::cli::{dispatch, exit_for, fragment, json_opt_seconds, object, parse_invocation, Invocation};
+use crate::cli::{exit_for, fragment, json_opt_seconds, object, parse_invocation, Invocation};
 use crate::errors::{AppError, AppResult, ErrorKind};
 
 use serde_json::to_string;
@@ -28,21 +28,31 @@ pub fn kind_name(problem: AppError) -> String {
 /// The GUI's one command: argv in (exactly the words `cargo run --` would take),
 /// envelope JSON out: {"ok": true, "result": <verb json>} or
 /// {"ok": false, "error": {"kind", "exit", "message", "retry_after"}}.
-/// `async` on purpose (v0.5.1): the macro's blocking wrapper runs the verb
-/// INSIDE the webview's IPC handler - its last acts are `kind.block(result,
-/// resolver)` and `return true` (tauri-macros/src/command/wrapper.rs:425/:428)
-/// - so a bare fn charges one crawl chunk (2/s pacing, plus any Retry-After
-/// wait on a 429) to the whole page: hover stops hit-testing, clicks queue
-/// behind the verb for as long as the crawl runs. An `async fn` routes to
-/// `respond_async_serialized` instead (wrapper.rs:~372): tauri hands the verb
-/// to its tokio-backed async manager and the handler returns true right away,
-/// so the crawl runs while the page stays interactive. Same argv, same
-/// cli::dispatch: only the wrapper kind flips (sync -> async).
+/// `async` on purpose (v0.5.1), plus a plain-thread verb hop (v0.5.2):
+/// the macro's blocking wrapper runs a bare fn's verb INSIDE the webview's
+/// IPC handler (its last acts: `kind.block(result, resolver)` then `return
+/// true`, tauri-macros wrapper.rs:425/:428), and that handler is the page's
+/// message loop - one crawl chunk then parks hover hit-testing, clicks and
+/// later IPC behind it: the reported "hover won't highlight, clicks take
+/// minutes". An `async fn` routes to `respond_async_serialized` (wrapper.rs
+/// :~372): the handler returns immediately and the page keeps running.
+/// The VERB BODY, though, must not run on a tokio manager thread either:
+/// reqwest's blocking client carries a private tokio runtime, and nested
+/// runtimes deadlock - the v0.5.2 audit showed a GUI sync verb stalled at
+/// build_client (zero fixture hits logged, while status polls between it
+/// completed fine: the DB never was the lock). So the verb runs on a fresh
+/// std thread: the same runtime-free home as the headless CLI. `join` costs
+/// one tokio worker; the webview has its own thread and never sees it.
 #[tauri::command]
 pub async fn cli_call(argv: Vec<String>) -> String {
     let inv: Invocation = parse_invocation(argv);
     eprintln!("gui: ipc verb {} ({} words)", inv.verb, inv.words.len());
-    let result: AppResult<String> = dispatch(inv);
+    // The verb itself runs on a fresh plain thread (main.rs helper): reqwest's
+    // blocking client would otherwise be built on a tokio worker of tauri's
+    // async manager and deadlock there (the v0.5.2 audit: verb reached the DB
+    // open, then stalled at build_client, zero fixture hits, while later
+    // status polls kept completing).
+    let result: AppResult<String> = crate::verb_on_plain_thread(inv);
     match result {
         Ok(text) => {
             let mut parts: Vec<String> = [].to_vec();
