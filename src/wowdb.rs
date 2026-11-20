@@ -63,6 +63,17 @@ pub fn item_url(id: i64) -> String {
     return format!("{}/api/v1/{}/item/{}", base_url(), API_VERSION, id);
 }
 
+/// The tooltip door (v0.8.0, ADR 0010, docs/API.md): the description text the
+/// catalogue wants lives HERE, not on the detail record (measured: the forever/
+/// item body carries no description field, and the tooltip body answers `html`
+/// with the card's own markup, incl. `Sell Price: 7c`). The URL is the one docs/
+/// API.md prints and the probe asked: `/api/v1/tooltip/<version>/item/<id>`. Its
+/// 404 answers upstream's own JSON (`No item … in forever.`), so the stage gives
+/// the checked third state, exactly like the detail and icon doors do.
+pub fn tooltip_url(id: i64) -> String {
+    return format!("{}/api/v1/tooltip/{}/item/{}", base_url(), API_VERSION, id);
+}
+
 /// Cross-kind live search over items, spells, quests, npcs, zones and sounds.
 /// The query is percent-encoded on the way in: the live probe asked with
 /// `?q=Worn%20Shortsword` and got a 200 back (docs/API.md measures it), and a

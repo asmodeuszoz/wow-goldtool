@@ -1462,6 +1462,167 @@ pub fn build_insert(cols: Vec<String>) -> String {
     return format!("INSERT INTO item ({}) VALUES ({})", names, marks)
 }
 
+/// The tooltip door's checked third state (v0.8.0, ADR 0010): upstream answered 404
+/// for the TOOLTIP of a record that exists. Guarded like the other marks, so a check
+/// cannot invent a row.
+pub fn mark_tooltip_missing_at(conn: &Connection, id: i64, checked_at: i64) -> AppResult<bool> {
+    let there: bool = match has_row_of_id(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    match there {
+        false => return Ok(false),
+        true => {},
+    }
+    let stamp: Option<i64> = Some(checked_at);
+    let mut head: Vec<Value> = [].to_vec();
+    head.push(Value::Integer(id));
+    head.push(int_value(stamp));
+    match bind_sql(conn, SQL_MARK_TOOLTIP_MISSING, upsert_params(head), MARK_VALUE_COUNT * 2 - 1) {
+        Err(problem) => return Err(problem),
+        Ok(_) => return Ok(true),
+    }
+}
+
+/// The tooltip write, override-aware (ADR 0010): when the user stated `tooltip_html`
+/// themselves, the CRAWL's copy must not replace it - the stamp still moves (we did
+/// ask, that is a fact) but the text stays user-said. Guarded by the row existing, so
+/// an ask for an unknown id writes nothing.
+pub fn write_tooltip(conn: &Connection, id: i64, html: String, etag: String, at: i64) -> AppResult<usize> {
+    let there: bool = match has_row_of_id(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    match there {
+        false => return Ok(0),
+        true => {},
+    }
+    let edits: Vec<ManualEdit> = match manual_edits_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    let mut text: String = html;
+    for one in edits.clone() {
+        if one.field == "tooltip_html" {
+            match one.value.as_str() {
+                None => {},
+                Some(said) => text = said.to_string(),
+            }
+        }
+    }
+    let mut head: Vec<Value> = [].to_vec();
+    head.push(Value::Integer(id));
+    head.push(Value::Text(text));
+    head.push(text_value(optional_text(etag.clone())));
+    head.push(Value::Integer(at));
+    match bind_sql(conn, SQL_SET_TOOLTIP, upsert_params(head), TOOLTIP_VALUE_COUNT * 2 - 1) {
+        Err(problem) => return Err(problem),
+        Ok(count) => return Ok(count),
+    }
+}
+
+/// The tooltip door's stamps and copy (v0.8.0, ADR 0010): the tooltip write is a
+/// FOURTH crawl stage with the same three states as every other door (written /
+/// checked gone upstream / never looked at) and its OWN ETag - the tooltip body
+/// revalidates (measured 2026-11-20: ETag W/"2b111cbcd3bbb4d7078f6d05" and
+/// `cache-control public, max-age=300`), so a targeted re-ask costs a 304 and
+/// writes nothing, exactly like the detail door. The write is the INSERT-with-
+/// ON-CONFLICT idiom the other writers use (docs/DATABASE.md: the DO UPDATE half
+/// never repeats the key), and the stage guards rows because inventing a row from
+/// a door's answer is not our call to make.
+pub const SQL_TOOLTIP_ETAG_OF: &str = "SELECT tooltip_etag FROM item WHERE id = ?";
+pub const SQL_TOOLTIP_HTML_OF: &str = "SELECT tooltip_html FROM item WHERE id = ?";
+pub const SQL_TOOLTIP_AT_OF: &str = "SELECT tooltip_at FROM item WHERE id = ?";
+pub const SQL_TOOLTIP_MISSING_AT_OF: &str = "SELECT tooltip_missing_at FROM item WHERE id = ?";
+pub const SQL_MARK_TOOLTIP_MISSING: &str = "INSERT INTO item (id, tooltip_missing_at) VALUES (?,?) ON CONFLICT (id) DO UPDATE SET tooltip_missing_at = ?";
+pub const SQL_SET_TOOLTIP: &str = "INSERT INTO item (id, tooltip_html, tooltip_etag, tooltip_at) VALUES (?,?,?,?) ON CONFLICT (id) DO UPDATE SET tooltip_html = ?, tooltip_etag = ?, tooltip_at = ?";
+pub const TOOLTIP_VALUE_COUNT: usize = 4;
+
+/// The tooltip door's own ETag, for the conditional GET the tooltip stage sends.
+pub fn tooltip_etag_of(conn: &Connection, id: i64) -> AppResult<Option<String>> {
+    let mut stmt = match conn.prepare(SQL_TOOLTIP_ETAG_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(found) => Ok(found),
+        },
+    }
+}
+
+pub fn tooltip_at_of(conn: &Connection, id: i64) -> AppResult<Option<i64>> {
+    let mut stmt = match conn.prepare(SQL_TOOLTIP_AT_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(found) => Ok(found),
+        },
+    }
+}
+
+pub fn tooltip_missing_at_of(conn: &Connection, id: i64) -> AppResult<Option<i64>> {
+    let mut stmt = match conn.prepare(SQL_TOOLTIP_MISSING_AT_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(found) => Ok(found),
+        },
+    }
+}
+
+pub fn tooltip_html_of(conn: &Connection, id: i64) -> AppResult<Option<String>> {
+    let mut stmt = match conn.prepare(SQL_TOOLTIP_HTML_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(found) => Ok(found),
+        },
+    }
+}
+
 /// Stage 1 write: one row of a list page. Only summary columns are touched, so the
 /// stage-2 write can fill price and detail columns later without fighting this write.
 pub fn upsert_summary(conn: &Connection, summary: ItemSummary, etag: String, synced_at: i64) -> AppResult<usize> {

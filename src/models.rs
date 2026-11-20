@@ -127,6 +127,28 @@ pub struct SearchResponse {
     pub groups: Value,
 }
 
+/// One tooltip answer (v0.8.0, ADR 0010): the shape docs/API.md measured on
+/// `GET /api/v1/tooltip/forever/item/25` (200 application/json 3060 b, keys
+/// attribution,build,fields,html,icon_url,id,kind,links,name,quality,version).
+/// Only `html` matters to the DB (it is the description text the user asked for,
+/// and the forever/item body carries NONE - measured key list); the rest rides
+/// `fields` as a `Value` so a key upstream adds cannot break a build and nothing
+/// here invents a shape beyond what the probe read.
+#[derive(Deserialize, Clone, Debug)]
+pub struct Tooltip {
+    pub id: i64,
+    pub html: String,
+    pub kind: Option<String>,
+    pub name: Option<String>,
+    pub quality: Option<String>,
+    pub version: Option<String>,
+    pub build: Option<String>,
+    pub icon_url: Option<String>,
+    pub fields: Value,
+    pub links: Option<Links>,
+    pub attribution: Option<Attribution>,
+}
+
 /// The manual layer (v0.8.0, ADR 0010): `manual_overrides` rides one JSON ARRAY
 /// per row (this codebase never reaches for a map): `field, value, at` entries
 /// recording what a USER said and when. `value` stays a wire `Value` - the
