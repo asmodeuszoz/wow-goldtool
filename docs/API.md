@@ -50,6 +50,32 @@ GET https://thewowdb.com/api/v1/tooltip/<version>/<kind>/<id>
   each page's `has_more` and `count` in the local `meta` table so it can decide whether
   to walk on without parsing anything (v0.3.0, keys documented in docs/DATABASE.md).
 
+## A record upstream dropped (`404`)
+
+* The `?page=` walk still lists ids whose `forever` detail record no longer exists. The
+  API answers `404` **with a body**, and the body is the upstream's own words, not ours:
+
+  ```json
+  {"error":"not_found","message":"No item 5828 in forever.","status":404}
+  ```
+
+  Measured against the live catalogue (`build: wow_classic_beta-1.60.1.70532`): ids `41`
+  (`OLDRecruit's Belt`), `42` (`OLDSquire's Belt`) and `46` (`OLDFootpad's Belt`) answer
+  that way while the walk lists them; the same name shapes are visible among the ids the
+  user's own walk stored.
+* Our policy (`wowdb.rs::classify` → `HttpKind::Missing`, [ADR 0006](./DECISIONS/0006-checked-missing-third-state.md)):
+  - the detail crawl marks the id (`detail_missing_at`) and **keeps crawling**: a removed
+    record is a fact about the catalogue, not a failed request, so it does not abort the
+    run and does not eat the network exit code;
+  - the mark means later crawls do not re-ask it — one `404` per removed record **per crawl**,
+    which is what a 19 k-record walk needs;
+  - `404` is never retried in place: retrying a `429` waits on a `Retry-After`, and a `404`
+    offers nothing to wait on;
+  - a targeted ask (`item <id>`, `sync --ids`, `sync --watch`) may re-ask once per human
+    request and answers the exit-code contract's `4` (`not-found`);
+  - a **list page** that answers `404` is still a failure: pages exist as long as the walk
+    is told to walk, so that shape stays `HttpKind::Failed` and exits `3`.
+
 ## Rate limits
 
 * **Per IP:** a burst of 120 requests, refilled at **2 requests/second**. Beyond that the

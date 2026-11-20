@@ -5,6 +5,115 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-20 · v0.5.3 — patch: a record the upstream dropped is a state, and the crawl survives it
+
+### The measurement, not a hypothesis
+
+The v0.5.2 build run against the **live** API on a scratch DB whose list walk had
+already stored 3000 ids:
+
+```
+$ cargo run -- sync --stage detail --budget 3
+fetching item details: this is the slow stage, about two records per second
+item 41 answered 404
+$ echo $?
+3
+```
+
+The detail stage read every non-200/304/429 status as `HttpKind::Failed`, and a failed
+record is a network error: the run aborts, exits `3`, and leaves the rest of the queue
+untouched. The ids that answer that way are not exotic — the live catalogue reports
+`build: wow_classic_beta-1.60.1.70532`, and `41` is `OLDRecruit's Belt`, `42`
+`OLDSquire's Belt`, `46` `OLDFootpad's Belt`; the same `OLD…` / `Deprecated …` /
+`… (TEST)` name shapes sit inside the user's 19 258 stored rows. The upstream answers
+with a body, and the body is its own words:
+
+```json
+{"error":"not_found","message":"No item 5828 in forever.","status":404}
+```
+
+So the "Pull all info" flow shipped in v0.5.2 — one click that is supposed to retire
+every pending record — **cannot finish on the real catalogue**: it dies at the first
+removed record. The fixture never showed this because it answers every id. Fixing the
+crawler has to land **before** v0.6.0's price history and icon copies, which are the
+things that read what a finished crawl produced.
+
+### The decision: a third state, not a fourth retry
+
+[ADR 0006](./DECISIONS/0006-checked-missing-third-state.md) is the record; the shape is
+one column and one rule. `classify` grows `HttpKind::Missing`, the crawl marks the id
+(`SQL_MARK_MISSING`, guarded by `SQL_ROW_OF_ID`) and counts it in the report (`missing`),
+then walks on. `SQL_PENDING` becomes `detail_synced_at IS NULL AND detail_missing_at IS
+NULL`, so a removed record costs **one request per crawl** rather than one per run, and
+"nothing pending" stays literally true. Four alternatives were rejected in the ADR:
+staying fatal (the real DB would never finish), skipping silently (every later run re-asks
+the same dead ids and the crawl spends budget on records that cannot arrive), a staleness
+cadence ("nothing pending" becomes a lie; nothing measured says a removed record returns),
+folding the fix into v0.6.0 (ships a crawl that cannot finish next to the features that
+depend on it).
+
+The mark never invents a row: `SQL_MARK_MISSING` is an `INSERT … ON CONFLICT` in the
+codebase's idiom, so the existence check in front of it is what stops an un-listed id from
+becoming a name-less phantom record. And the stage-2 upsert now writes
+`detail_missing_at = NULL` — a record that answered is not a missing record, so the two
+stamps cannot both be set.
+
+### The schema step that was not optional
+
+The column is a schema change, and `check_schema`'s honest refusal would have refused the
+user's file. Refusing is right for a file this build cannot understand, but here it would
+mean asking a human to delete a 19 258-row catalogue because one column was added. So
+`SCHEMA_VERSION` moves `1 → 2` **with** a migration: when the file says `1`, `ALTER TABLE
+item ADD COLUMN detail_missing_at INTEGER` runs in place and the stamp in `meta` moves in
+the same call. A file **newer** than this build is still refused, because that direction
+cannot be guessed at. Both fresh-DB stamps now write `format!("{}", SCHEMA_VERSION)` —
+without that, a v2 file written by this build would have refused itself on the next open.
+
+### Where the pending arithmetic got checked
+
+Numbers, not adjectives. After the first live run on the migrated DB: `3000` listed =
+`10` fetched + `3` checked-gone + `2987` pending, and the report read `requests 6, items
+3, missing 3` with **exit 0**. A second run asked four ids and got `missing: 1` — the newly
+fetched ids were `47, 48, 49`, i.e. the three already-marked ids were **not** re-asked, and
+the new 404 is a fourth removed record, not a re-ask of an old one. That is the difference
+between "keeps crawling" and "silently wastes budget", and the arithmetic proves it.
+
+### The UI says what the third state is
+
+The status card gained a row (`checked as gone upstream · N answered 404, not re-fetched`)
+and the pull-all note gained its clause: the intro explains that a dropped record is
+checked once and counted as gone, and the completion note names how many of the listed ids
+were checked as gone, beside the honest sentence about NULL prices. The numbers come from
+`stats`/`status` coverage, so the card and the CLI report read one aggregate.
+
+### Audit
+
+| Run | Expectation | Observed |
+| --- | ----------- | -------- |
+| v1 scratch DB made by the v0.5.2 build (3000 rows) migrated by this build | rows survive, stamp moves | `status` exits `0`, `3000` rows, `schema_version 2`, `detail_missing_at` column present, the old `list` cursor (`stopped`, page 30) intact |
+| fresh DB written by this build | does not refuse itself | `schema_version 2`, second open exits `0` |
+| live detail run, budget 6 | a 404 does not abort | `requests 6, items 3, missing 3, complete false`, **exit 0**; DB `10` detailed, `3` missing, pending `2987 = 3000 − 10 − 3` |
+| second live run, budget 4 | a marked id is not re-asked | `requests 4, items 3, missing 1`; newly fetched ids `47, 48, 49`; the three marked ids absent |
+| `item 41` on the live API | the exit-code contract's answer for "no record" | exit `4`, message `no item 41 upstream: the forever catalogue has no record for it`, mark re-stamped |
+| fixture mirror (virgin port, thirteen steps) | the third state inside the mirror, pacing intact | detail run `requests 6` (one forced `429` retried in place), `items 4, missing 1, complete true`, message ends `; 1 answered 404 and are checked as removed`; `item 127555` → **exit 4**; the crawl that follows `requests 0, complete true`; DB `5` items, `4` detailed, `1` missing, pending `0` |
+| exit-code audit, seven probes | the new case lands on `4` | `2 · 2 · 3 · 4 · 4 · 4 · 0`, and `detail_missing_at` set for `127555` |
+| committed CI sequence with the new fixture | still green | 11/11 `exit=0`, DB carries `1` missing |
+| GUI pull-all launch audit (virgin port, temp boot probe) | the flow completes with a removed record inside it | verbs `status/watch/stats/status` then `sync` × 2 with the ticker's `status` polls interleaved, then the probe's `item`; fixture log: crawl's single `404` for `127555` plus the probe's targeted `404`; `sync_state` detail row `complete … 1 answered 404 and are checked as removed`; DB `4` detailed, `1` missing, pending `0`; probe removed afterwards |
+| warnings on a clean build | the planned dead-code set only | `PendingSql` privacy, `SearchResponse`, `search_url`, `remaining`, `open_db`, `catalogue` plus the filesystem's hardlink notice — the three new SQL constants and both new helpers are used, so nothing new goes quiet |
+| build from a cleared incremental cache | green, and it is what the notice says | the filesystem under the project (`/run/media/w/...`) cannot hard link, so the incremental cache came back with a corrupt dep-graph and rustc 1.94.0 ICEd in `setup_dep_graph`; `rm -rf target/debug/incremental` then a fresh `cargo build` exits `0` with the planned warnings. The workaround is environmental, not a code change: every audit below ran on that binary |
+
+### Deliberately not done in this tag
+
+No re-check cadence for removed ids ([ADR 0006](./DECISIONS/0006-checked-missing-third-state.md)
+rejects it); no price-history table and no icon copies (those are v0.6.0 and they read what
+a finished crawl produced); no index for the new pending filter. Also still open for v0.6.0:
+the live API has only answered `[]` for `sockets`, `socket_bonus`, `classes` and `effects` on
+every id probed so far (the scratch walks found no level-60 epic gear in the first 3000 ids,
+and the live id space has shifted since the user's crawl — `40` is `Recruit's Boots` there,
+`Mossborer` in the DB), while `stats` is grounded as
+`[{"name":"Intellect","value":4},{"name":"Spirit","value":3}]`. The item card will render the
+grounded shape and print the raw payload for the rest, rather than invent a shape.
+
 ## 2026-11-20 · v0.5.2 — patch: pending's real rule, the client-build stall, the one-click catalogue
 
 ### The ask

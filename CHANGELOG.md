@@ -6,6 +6,47 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.5.3 — patch: a record the upstream dropped is a state · 2026-11-20 · tag `v0.5.3`
+
+Fixed
+
+- A detail record the upstream no longer has (`404`) aborted the whole crawl
+  (`item 41 answered 404` → exit `3` on the live catalogue). The list walk lists
+  those ids — `OLD…`, `Deprecated …`, `… (TEST)` names sit in the user's 19 k rows
+  — so the one-click "Pull all info" from v0.5.2 could never finish. `classify` now
+  answers `HttpKind::Missing`, the detail crawl marks the id
+  (`detail_missing_at`, guarded by a row-exists check so a mark cannot invent a row)
+  and counts it in the report (`missing`), then keeps walking; the stage-2 upsert
+  clears that stamp, so "gone" and "fetched" cannot both be true.
+- Pending is now "never fetched **and** never checked-missing" (`SQL_PENDING`), so a
+  removed record costs one request per crawl instead of one per run. The arithmetic
+  holds on the migrated scratch DB: `3000 = 10 fetched + 3 checked-gone + 2987
+  pending`, and the next run did not re-ask the three marked ids.
+- `SCHEMA_VERSION` moved `1 → 2` **with** a migration: a file saying `schema_version
+  = 1` gets `ALTER TABLE item ADD COLUMN detail_missing_at INTEGER` in place and its
+  `meta` stamp moves in the same call, because refusing it would throw away a 19 258-row
+  catalogue. A file **newer** than this build is still refused. Both fresh-DB stamps now
+  write the build's own version, so a fresh v2 file never refuses itself.
+
+Added
+
+- Coverage counts the third state (`missing` in `status`/`stats`), and the status card
+  prints it (`checked as gone upstream`). The pull-all notes say what a completion
+  means with removed records in it: fetched, gone, and what remains live.
+
+Changed
+
+- `item <id>` on a removed record answers the exit-code contract's `4` (`not-found`)
+  and re-stamps the mark: a human-aimed ask may re-ask once per request, a crawl may
+  not. A **list page** answering `404` stays a failure (exit `3`).
+- The fixture now lists one id (`127555`) that has **no** detail record and answers
+  upstream's own error body, so CI exercises the third state: `item 127555` → exit
+  `4`, and the crawl after it asks nothing. The exit-code audit gained that probe:
+  `2 · 2 · 3 · 4 · 4 · 4 · 0`.
+
+See [ADR 0006](./docs/DECISIONS/0006-checked-missing-third-state.md) and
+[docs/DEVLOG.md](./docs/DEVLOG.md).
+
 ## v0.5.2 — patch: one click finishes the catalogue · 2026-11-20 · tag `v0.5.2`
 
 Fixed

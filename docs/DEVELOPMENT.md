@@ -80,6 +80,7 @@ git tag. The dated narrative lives in [docs/DEVLOG.md](./DEVLOG.md).
 - [x] `v0.5.0` — detail-sync targets (`--ids`, `--watch` driven from the UI), item card that reads the DB first, price-analytics card, watch toggles in hit rows
 - [x] `v0.5.1` (patch) — the crawl stops freezing the page: `cli_call` is an async command, and a status ticker keeps the note and the card alive while a chunk is in flight
 - [x] `v0.5.2` (patch) — pending = never fetched (fetched-but-unpriced stops being pending work), the GUI verb hop to a plain thread (a blocking-client build inside a tokio worker stalled the crawl at `build_client`), "Pull all info" chains both stages to their end
+- [x] `v0.5.3` (patch) — a record upstream dropped is a checked third state (`detail_missing_at`, `HttpKind::Missing`, `missing` in the sync report and in coverage), pending = never fetched **and** never checked-missing, schema `1 → 2` migrated in place with `ALTER TABLE` so an existing catalogue keeps its rows
 - [ ] `v0.6.0` — price history (a second DB table, since one price per item cannot show a trend), local icon copies
 
 ## Build & run
@@ -138,10 +139,15 @@ Environment switches used by tests and CI:
 
 - The real integration path is the headless CLI run against a **fixture server**
   (`tests/fixture_api.py`, committed at v0.2.0): two list pages, a detail record for any
-  item id, and one forced `429` + `Retry-After` per stage — the crawler never sees the
-  upstream API in CI. From v0.5.0 the sequence is eleven steps and also covers a watch
-  list, a targeted detail fetch, the same ids fetched again (which must answer `304` and
-  write nothing) and the DB-only card read.
+  item id, one listed id (`127555`) that has **no** detail record — it answers `404` with
+  the upstream's own error body, the shape v0.5.3's third state exists for — and one forced
+  `429` + `Retry-After` per stage; the crawler never sees the upstream API in CI. From
+  v0.5.0 the sequence is eleven steps and also covers a watch list, a targeted detail
+  fetch, the same ids fetched again (which must answer `304` and write nothing) and the
+  DB-only card read. Since v0.5.3 the local mirror adds two steps on the same DB: `item
+  127555` must answer **exit 4** (`not-found`) and re-stamp the mark, and the crawl that
+  follows must answer `requests 0, complete true` — the removed record is not asked again.
+  The committed CI sequence passes every step with the `404` in it.
 - `tests/api.rs` / `tests/pipeline.rs` (unit tests next to the code they test) are the
   plan, not code: v0.2.0 has no `#[test]` functions yet, so `cargo test` only proves
   everything compiles.

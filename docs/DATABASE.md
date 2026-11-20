@@ -15,7 +15,14 @@ or stale-schema file, or `execute_batch(SCHEMA_SQL)` writes it and stamps
 `schema_version` into `meta`. The schema is idempotent, so a fresh process (CLI or GUI)
 can always attach; `open_db` and `open_db_at` are the two doors into that helper.
 
-## Schema (`schema_version = 1`)
+**One stale shape is migrated instead of refused** (v0.5.3): the file on disk saying
+`schema_version = 1` differs from this build by exactly one column, so `ALTER TABLE item
+ADD COLUMN detail_missing_at INTEGER` runs in place and the stamp moves to `2` in the same
+call. Refusing that file would have thrown away a 19 258-row catalogue on the excuse of a
+new column. A file **newer** than this build is still refused — that direction cannot be
+guessed at. See [ADR 0006](./DECISIONS/0006-checked-missing-third-state.md).
+
+## Schema (`schema_version = 2`)
 
 ```sql
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
@@ -51,6 +58,7 @@ CREATE TABLE item (
   api_url TEXT, html_url TEXT, tooltip_url TEXT,
   list_etag TEXT, detail_etag TEXT, -- conditional GET bookkeeping
   list_synced_at INTEGER, detail_synced_at INTEGER,   -- unix seconds
+  detail_missing_at INTEGER,          -- unix seconds when upstream answered 404 (v0.5.3)
   raw_json TEXT                     -- verbatim detail payload, forward-compatible
 );
 
@@ -71,6 +79,19 @@ Stage-1 (the `?page=` list crawl) fills the summary columns and `list_etag`; sta
 fills the price/stat columns, `icon_url`, `raw_json`, `detail_etag`. A NULL price column means
 "not fetched yet", which is distinct from "fetched and not on the AH" — the difference is visible
 in the UI and in `cargo run -- stats`.
+
+**A detail record has three states** (v0.5.3, [ADR 0006](./DECISIONS/0006-checked-missing-third-state.md)):
+
+| state | columns | meaning |
+| ----- | ------- | ------- |
+| fetched | `detail_synced_at` | upstream answered with a record | later passes revalidate with the stored `detail_etag` |
+| checked and gone | `detail_missing_at` | upstream answered `404` for an id the walk lists | one request **per crawl**, never again inside one |
+| never looked at | neither | the only thing that is *pending* | fetched once, then it becomes one of the two above |
+
+The two stamps are mutually exclusive: the stage-2 upsert writes `detail_missing_at = NULL`
+for a record that answered (a thing that answered is not missing), and marking an id checks
+first that a row exists (`SQL_ROW_OF_ID`) so a mark can never invent a name-less row for an
+id the walk never listed. `status`/`stats` count the third state, and the UI prints it.
 
 Reuse bookkeeping (v0.3.0): `raw_json` is the verbatim last detail body, which is what
 a live lookup answers when the API returns `304` for a stored `detail_etag` — no fresh
@@ -98,6 +119,10 @@ CREATE INDEX item__rank ON item (quality_rank, item_level);
 CREATE INDEX item__price ON item (price_min);
 CREATE INDEX item__detail ON item (detail_synced_at);
 ```
+
+The pending filter gained no index in v0.5.3: the stage reads that list once per run, and
+guessing at a two-column index SQLite may not even use is a plan, not a measurement.
+
 
 ## Query recipes
 
@@ -129,17 +154,32 @@ SELECT COUNT(1),
        CAST(SUM(name IS NOT NULL) AS INTEGER),
        CAST(SUM(price_min IS NOT NULL) AS INTEGER),
        CAST(SUM(detail_synced_at IS NOT NULL) AS INTEGER),
+       CAST(SUM(detail_missing_at IS NOT NULL) AS INTEGER),
        MIN(price_min), MAX(price_min), AVG(price_min) FROM item;
 ```
 
 ```sql
--- the ids the detail stage still has to fetch: pending means **never fetched**.
--- A fetched record with a NULL price is a different state this file keeps apart on
--- purpose — the item exists, it is simply not on the AH — and under the old `price_min
--- IS NULL OR` clause such items stayed pending forever, so the detail stage never
--- terminated and a one-click "pull everything" could never honestly report nothing
--- pending (v0.5.2).
-SELECT id FROM item WHERE detail_synced_at IS NULL ORDER BY id ASC LIMIT ?;
+-- the ids the detail stage still has to fetch: pending means **never fetched and
+-- never checked-missing**. A fetched record with a NULL price is a different state
+-- this file keeps apart on purpose — the item exists, it is simply not on the AH —
+-- and under the old `price_min IS NULL OR` clause such items stayed pending forever,
+-- so the detail stage never terminated and a one-click "pull everything" could never
+-- honestly report nothing pending (v0.5.2). A record upstream has dropped is a third
+-- state (v0.5.3): it costs one request per crawl instead of one per run, which is
+-- what lets a catalogue holding `OLD…`/`Deprecated …` ids finish at all.
+SELECT id FROM item
+   WHERE detail_synced_at IS NULL AND detail_missing_at IS NULL
+   ORDER BY id ASC LIMIT ?;
+```
+
+```sql
+-- the arithmetic the v0.5.3 audits check on the scratch DB (live API, 3000 listed ids):
+-- 3000 = 10 fetched + 3 checked-gone + 2987 pending, and the next crawl asked none of
+-- the three marked ids again
+SELECT COUNT(1) FROM item;
+SELECT COUNT(1) FROM item WHERE detail_synced_at IS NOT NULL;
+SELECT COUNT(1) FROM item WHERE detail_missing_at IS NOT NULL;
+SELECT COUNT(1) FROM item WHERE detail_synced_at IS NULL AND detail_missing_at IS NULL;
 ```
 
 ```sql
