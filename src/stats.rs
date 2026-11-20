@@ -91,9 +91,17 @@ pub const SQL_RICH: &str = concat!(
 /// Three states per id (docs/DATABASE.md): fetched (detail_synced_at set), checked
 /// and gone upstream (detail_missing_at set after a 404), or never looked at.
 /// Only the last one is pending, so a removed record costs one request per crawl
-/// instead of one per run, and "nothing pending" stays literally true.
+/// instead of one per run, and "nothing pending" stays literally true. v0.8.0's two extra terms keep the
+/// user out of the crawl's way: a tombstoned row is deleted ON PURPOSE (a queue
+/// that re-fetched it would answer 404 and stamp the third state on a row the user
+/// buried), and a `manual_at` row is one the user MADE - upstream has no such id
+/// (measured max upstream id on their file: 288 340, manual block starts at 900 000
+/// 000), so a queue that walked it would ask for a record that cannot exist. An
+/// explicit `--ids` ask still reaches both: targeting is a human decision, a queue
+/// is not.
 pub const SQL_PENDING: &str = concat!(
     "SELECT id FROM item WHERE detail_synced_at IS NULL AND detail_missing_at IS NULL ",
+    "AND deleted_at IS NULL AND manual_at IS NULL ",
     "ORDER BY id ASC",
 );
 
@@ -110,6 +118,7 @@ pub const SQL_PENDING: &str = concat!(
 pub const SQL_PENDING_ICON: &str = concat!(
     "SELECT id FROM item WHERE detail_synced_at IS NOT NULL AND icon_at IS NULL ",
     "AND icon_missing_at IS NULL AND icon_url IS NOT NULL AND icon_url <> '' ",
+    "AND deleted_at IS NULL AND manual_at IS NULL ",
     "ORDER BY id ASC",
 );
 
