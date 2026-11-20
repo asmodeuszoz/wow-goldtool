@@ -9,11 +9,11 @@ use crate::errors::AppError;
 use crate::errors::AppResult;
 use crate::errors::ErrorKind;
 
-use crate::db::{count_items, db_path, open_db_at, sync_state_get, watch_add, watch_drop, watch_list, DbTarget, SyncState, unix_now};
+use crate::db::{count_items, db_path, detail_etag_of, open_db_at, raw_json_of, sync_state_get, upsert_detail, watch_add, watch_drop, watch_list, DbTarget, SyncState, unix_now};
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
-use crate::sync::{sync_detail, sync_list, SyncReport};
+use crate::sync::{sync_detail, sync_list, CancelFlag, SyncReport};
 use crate::wowdb::{build_client, get_json, item_url, ApiResponse, HttpKind, RateBudget, classify, Client, ENV_FIXTURE_KEY};
 use crate::models::{ItemDetail};
 
@@ -352,9 +352,10 @@ pub fn cmd_sync(inv: &Invocation) -> AppResult<String> {
         Ok(value) => value,
     };
     let budget: RateBudget = RateBudget::new();
+    let mut cancel: CancelFlag = CancelFlag::make();
     if inv.stage == "list" {
         eprintln!("crawling the item list: about 193 pages, one request per page");
-        let report: SyncReport = match sync_list(client.clone(), &conn, budget, inv.budget) {
+        let report: SyncReport = match sync_list(client.clone(), &conn, budget, inv.budget, &cancel) {
             Err(problem) => return Err(problem),
             Ok(value) => value,
         };
@@ -362,7 +363,7 @@ pub fn cmd_sync(inv: &Invocation) -> AppResult<String> {
         return Ok(json_report(report));
     }
     eprintln!("fetching item details: this is the slow stage, about two records per second");
-    let report: SyncReport = match sync_detail(client.clone(), &conn, budget, inv.budget) {
+    let report: SyncReport = match sync_detail(client.clone(), &conn, budget, inv.budget, &cancel) {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };
@@ -444,8 +445,11 @@ pub fn cmd_stats(inv: &Invocation) -> AppResult<String> {
     return Ok(object(parts));
 }
 
-/// item: one live lookup. The payload is parsed before it is echoed, so a shape
-/// change upstream shows up as a decode error instead of opaque JSON.
+/// item: one live lookup. A copy already in the DB is revalidated, not re-downloaded:
+/// the stored detail ETag goes out as If-None-Match, a 304 comes back with no body,
+/// and the record answered from raw_json on disk (docs/API.md, docs/DATABASE.md). A
+/// fresh 200 is written through the same upsert the sync stage uses, so the next run
+/// can revalidate it.
 pub fn cmd_item(inv: &Invocation) -> AppResult<String> {
     if inv.words.len() < 1 {
         return Err(AppError::usage("item wants an item id, for example: item 25".to_string()));
@@ -454,11 +458,23 @@ pub fn cmd_item(inv: &Invocation) -> AppResult<String> {
     match id {
         None => return Err(AppError::usage(format!("item wants a numeric id, got {}", inv.words[0]))),
         Some(number) => {
+            let conn: Connection = match open_at(inv) {
+                Err(problem) => return Err(problem),
+                Ok(value) => value,
+            };
+            let stored_etag: Option<String> = match detail_etag_of(&conn, number) {
+                Err(problem) => return Err(problem),
+                Ok(found) => found,
+            };
+            let send_etag: String = match stored_etag {
+                None => "".to_string(),
+                Some(text) => text,
+            };
             let client: Client = match build_client() {
                 Err(problem) => return Err(problem),
                 Ok(value) => value,
             };
-            let response: ApiResponse = match get_json(client, item_url(number), "".to_string()) {
+            let response: ApiResponse = match get_json(client, item_url(number), send_etag) {
                 Err(problem) => return Err(problem),
                 Ok(value) => value,
             };
@@ -468,13 +484,29 @@ pub fn cmd_item(inv: &Invocation) -> AppResult<String> {
                 HttpKind::RateLimited => return Err(AppError::rate_limited("the API asked us to back off".to_string(), response.retry_after)),
                 HttpKind::Failed => return Err(AppError::http(response.status, response.body)),
             }
-            let detail: ItemDetail = match from_str(&response.body) {
+            let payload: String = match response.status {
+                304 => match raw_json_of(&conn, number) {
+                    Err(problem) => return Err(problem),
+                    Ok(None) => return Err(AppError::decode(format!("item {} answered 304 but the DB has no stored copy of it", number))),
+                    Ok(Some(text)) => text,
+                },
+                _ => response.body.clone(),
+            };
+            let detail: ItemDetail = match from_str(&payload) {
                 Err(_) => return Err(AppError::decode(format!("item {} is not the JSON we expect", number))),
                 Ok(value) => value,
             };
+            if response.status == 200 {
+                match upsert_detail(&conn, detail.clone(), response.etag.clone(), response.body.clone(), unix_now()) {
+                    Err(problem) => return Err(problem),
+                    Ok(_) => {},
+                }
+            }
+            let reused: bool = response.status == 304;
             let mut parts: Vec<String> = [].to_vec();
             parts.push(fragment("status".to_string(), format!("{}", response.status)));
             parts.push(fragment("retry_after".to_string(), json_opt_seconds(response.retry_after)));
+            parts.push(fragment("reused".to_string(), match reused { true => "true".to_string(), false => "false".to_string() }));
             parts.push(fragment("item".to_string(), json_item(detail)));
             return Ok(object(parts));
         },

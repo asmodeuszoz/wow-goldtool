@@ -115,6 +115,11 @@ pub const SQL_WATCH_DROP: &str = "DELETE FROM watch WHERE id = ?";
 pub const SQL_WATCH_LIST: &str = "SELECT id, note FROM watch ORDER BY id ASC";
 pub const SQL_COUNT_ROWS: &str = "SELECT COUNT(1) FROM item";
 
+/// One TEXT column of one item row, by id: the live lookup's ETag reuse reads the
+/// stored copy when the API answers 304 (docs/API.md, docs/DATABASE.md).
+pub const SQL_DETAIL_ETAG_OF: &str = "SELECT detail_etag FROM item WHERE id = ?";
+pub const SQL_RAW_JSON_OF: &str = "SELECT raw_json FROM item WHERE id = ?";
+
 /// Where the SQLite file lives and why: the CLI prints both so a user always knows
 /// which file they are looking at.
 #[derive(Serialize, Clone)]
@@ -366,6 +371,48 @@ pub fn meta_set(conn: &Connection, key: String, value: String) -> AppResult<usiz
     head.push(Value::Text(key));
     head.push(Value::Text(value));
     return bind_sql(conn, SQL_SET_META, upsert_params(head), META_VALUE_COUNT * 2 - 1);
+}
+
+pub fn detail_etag_of(conn: &Connection, id: i64) -> AppResult<Option<String>> {
+    let mut stmt = match conn.prepare(SQL_DETAIL_ETAG_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(value) => Ok(Some(value)),
+        },
+    }
+}
+
+pub fn raw_json_of(conn: &Connection, id: i64) -> AppResult<Option<String>> {
+    let mut stmt = match conn.prepare(SQL_RAW_JSON_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(value) => Ok(Some(value)),
+        },
+    }
 }
 
 #[derive(Serialize, Clone)]
