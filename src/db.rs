@@ -1462,6 +1462,68 @@ pub fn build_insert(cols: Vec<String>) -> String {
     return format!("INSERT INTO item ({}) VALUES ({})", names, marks)
 }
 
+/// A card built from the DB's OWN columns (v0.8.0, ADR 0010): the row a user MADE
+/// has no upstream payload and never will. Three measured facts say so: the CRUD
+/// door stamps manual_at and puts the row in the reserved id block, the crawl's
+/// pending rules all refuse a manual row (SQL_PENDING, SQL_PENDING_ICON and
+/// SQL_PENDING_TOOLTIP every one carries manual_at IS NULL), and upstream cannot
+/// know such an id (measured max upstream id on their file: 288 340, block starts
+/// at 900 000 000). So the DB is the only source that can answer that row's card,
+/// and the fields ONLY an upstream record can state answer null instead of being
+/// invented: the wire's own labels (kind/version/version_label/build), the wire's
+/// own links and attribution, the auction columns and the weapon columns (crawl-
+/// owned: docs/DATABASE.md says the CRUD whitelist does not accept them) and the
+/// JSON-shaped columns sockets/classes/stats/effects/faction_prices, which the
+/// whitelist never writes either. name is read as a plain String because db.rs's
+/// add_item_manual refuses to create a row without one. rusqlite reads rows by
+/// DECLARED column type (docs/DATABASE.md), so the mapper's get() indices below ARE
+/// the SELECT's order: rusqlite answers an out-of-range get with an error this door
+/// turns into a database door (exit 4), which is what catches a SELECT edited
+/// without its Rust twin.
+pub const SQL_COLUMNS_CARD: &str = concat!(
+    "SELECT id, name, quality, item_level, required_level, item_type, item_subtype, ",
+    "item_set, slot, unique_flag, flavor, icon_url, socket_bonus, vendor_sell FROM item WHERE id = ?",
+);
+pub fn column_card(conn: &Connection, id: i64) -> AppResult<ItemDetail> {
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let found: ItemDetail = match conn.query_row(SQL_COLUMNS_CARD, params_from_iter(single), |row| {
+        Ok(ItemDetail {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            kind: None,
+            version: None,
+            version_label: None,
+            build: None,
+            quality: row.get(2)?,
+            item_level: row.get(3)?,
+            required_level: row.get(4)?,
+            item_type: row.get(5)?,
+            item_subtype: row.get(6)?,
+            item_set: row.get(7)?,
+            slot: row.get(8)?,
+            unique: row.get(9)?,
+            flavor: row.get(10)?,
+            icon_url: row.get(11)?,
+            socket_bonus: row.get(12)?,
+            sockets: None,
+            classes: None,
+            stats: None,
+            effects: None,
+            faction_prices: None,
+            vendor_sell: row.get(13)?,
+            price: None,
+            weapon: None,
+            links: None,
+            attribution: None,
+        })
+    }) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    return Ok(found)
+}
+
 /// The tooltip door's checked third state (v0.8.0, ADR 0010): upstream answered 404
 /// for the TOOLTIP of a record that exists. Guarded like the other marks, so a check
 /// cannot invent a row.

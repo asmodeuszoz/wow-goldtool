@@ -9,7 +9,7 @@ use crate::errors::AppError;
 use crate::errors::AppResult;
 use crate::errors::ErrorKind;
 
-use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_blob_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, next_manual_id, open_db_at, raw_json_of, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, SyncState, unix_now};
+use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_blob_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, next_manual_id, open_db_at, raw_json_of, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, SyncState, unix_now};
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
@@ -468,8 +468,45 @@ pub fn cached_card(conn: &Connection, id: i64) -> AppResult<String> {
         Err(problem) => return Err(problem),
         Ok(found) => found,
     };
+    // A manual row has no upstream copy to read, so its card comes from the DB's
+    // own columns (ADR 0010): a crawl will never fill them and upstream cannot name
+    // them. A crawl row without a copy still gets the actionable answer below.
+    let made: Option<i64> = match manual_at_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
     match stored {
-        None => return Err(AppError::not_found(format!("item {} has no stored copy: fetch it with sync --stage detail --ids {}", id, id))),
+        None => match made {
+            None => return Err(AppError::not_found(format!("item {} has no stored copy: fetch it with sync --stage detail --ids {}", id, id))),
+            Some(_) => {
+                let detail: ItemDetail = match column_card(conn, id) {
+                    Err(problem) => return Err(problem),
+                    Ok(value) => value,
+                };
+                let mut parts: Vec<String> = [].to_vec();
+                parts.push(fragment("status".to_string(), "null".to_string()));
+                parts.push(fragment("retry_after".to_string(), json_opt_seconds(None)));
+                parts.push(fragment("cached".to_string(), "true".to_string()));
+                parts.push(fragment("reused".to_string(), "false".to_string()));
+                parts.push(fragment("detail_synced_at".to_string(), json_opt_int(None)));
+                parts.push(fragment("item".to_string(), json_item(detail.clone())));
+                let extras: Vec<String> = match card_icon_parts(conn, id) {
+                    Err(problem) => return Err(problem),
+                    Ok(found) => found,
+                };
+                for one in extras {
+                    parts.push(one.clone());
+                }
+                let manual: Vec<String> = match card_manual_parts(conn, id) {
+                    Err(problem) => return Err(problem),
+                    Ok(found) => found,
+                };
+                for one in manual {
+                    parts.push(one.clone());
+                }
+                return Ok(object(parts));
+            },
+        },
         Some(text) => {
             // The card reads the DB, so it reads the MERGED row: the stored copy is
             // upstream's payload, and the user-said fields merge LAST (ADR 0010) - the
@@ -812,6 +849,45 @@ pub fn cmd_item(inv: &Invocation) -> AppResult<String> {
             };
             match buried {
                 Some(stamp) => return Err(AppError::db(format!("item {} is tombstoned at {} (undelete-item {} brings it back)", number, stamp, number))),
+                None => {},
+            }
+            // A manual row is the DB's own: upstream cannot know the id, so the live
+            // door answers from the DB's columns and sends ZERO requests - asking
+            // upstream would 404 and stamp the crawl's third states on a row the user
+            // made. Same reason the pending rules refuse manual rows (ADR 0010).
+            let made: Option<i64> = match manual_at_of(&conn, number) {
+                Err(problem) => return Err(problem),
+                Ok(found) => found,
+            };
+            match made {
+                Some(_) => {
+                    let detail: ItemDetail = match column_card(&conn, number) {
+                        Err(problem) => return Err(problem),
+                        Ok(value) => value,
+                    };
+                    let mut parts: Vec<String> = [].to_vec();
+                    parts.push(fragment("status".to_string(), "null".to_string()));
+                    parts.push(fragment("retry_after".to_string(), json_opt_seconds(None)));
+                    parts.push(fragment("cached".to_string(), "true".to_string()));
+                    parts.push(fragment("reused".to_string(), "false".to_string()));
+                    parts.push(fragment("detail_synced_at".to_string(), json_opt_int(None)));
+                    parts.push(fragment("item".to_string(), json_item(detail.clone())));
+                    let extras: Vec<String> = match card_icon_parts(&conn, number) {
+                        Err(problem) => return Err(problem),
+                        Ok(found) => found,
+                    };
+                    for one in extras {
+                        parts.push(one.clone());
+                    }
+                    let manual: Vec<String> = match card_manual_parts(&conn, number) {
+                        Err(problem) => return Err(problem),
+                        Ok(found) => found,
+                    };
+                    for one in manual {
+                        parts.push(one.clone());
+                    }
+                    return Ok(object(parts));
+                },
                 None => {},
             }
             let stored_etag: Option<String> = match detail_etag_of(&conn, number) {
