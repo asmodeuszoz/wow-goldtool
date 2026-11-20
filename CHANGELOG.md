@@ -6,6 +6,26 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.3.0 — sync hardening: reuse, resume, cancel · 2026-11-19 · tag `v0.3.0`
+
+Added
+
+- Conditional GETs everywhere the crawler revisits: each list page keeps its ETag plus
+  `has_more`/`count` continuation hints in `meta` (a `304` has no body — the crawl walks
+  on using the hints), and the `sync_state` page column is an absolute cursor.
+- Stop→resume: a list run that stopped by budget or cancel resumes at the page after the
+  one `sync_state` says it last fetched; a finished run re-crawls from page 1, where the
+  stored ETags make that a walk of `304`s. Honest reports: `resumed_from`, `unchanged`.
+- Live `item` lookups revalidate instead of re-download: stored `detail_etag` goes out as
+  `If-None-Match`, a `304` is answered from `raw_json` on disk, a fresh `200` is written
+  through the same upsert the sync stage uses. Output gained `"reused"`.
+- Cancel plumbing: both crawl loops check a `CancelFlag` before every request; the CLI
+  hands out a fresh one (Ctrl-C stays resume-safe), the GUI raises it via AppState at
+  v0.4.0. A cancelled run records status `cancelled` and exits 0.
+- The fixture server now speaks conditional GETs (stable per-endpoint ETags, real `304`
+  no-body), and the CI smoke sequence exercises the whole v0.3.0 contract: budget stop
+  → resume → full re-sync (all `304`) → detail crawl → `item` answered from the DB.
+
 ## v0.2.0 — data layer + working sync · 2026-11-19 · tag `v0.2.0`
 
 Added

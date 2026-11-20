@@ -68,7 +68,7 @@ git tag. The dated narrative lives in [docs/DEVLOG.md](./DEVLOG.md).
 
 - [x] `v0.1.0` — repository scaffold, docs, licence, CI templates
 - [x] `v0.2.0` — data layer **plus a working sync engine**: API client, JSON models, SQLite schema, headless CLI verbs, paced list/detail crawl, exit-code contract
-- [ ] `v0.3.0` — sync hardening: ETag revalidation reuse across runs, resume + cancel flag
+- [x] `v0.3.0` — sync hardening: conditional GETs with stored ETags (per page in `meta`, per item in the row), stop→resume on the `sync_state` page cursor, cancel plumbing for the GUI's AppState
 - [ ] `v0.4.0` — Tauri shell + webview UI (search, filters, sorting, item cards)
 - [ ] `v0.5.0` — detail-sync targets (watchlist/ids), price analytics, UI polish
 
@@ -86,10 +86,12 @@ integration test):
 
 ```bash
 cargo run -- status                       # where the DB lives, coverage, catalogue build
-cargo run -- sync --stage list            # crawl the whole item list into SQLite
+cargo run -- sync --stage list            # resumes where a stopped run paused; finished
+                                          # runs re-crawl page 1, every page revalidates
 cargo run -- sync --stage detail --budget 500
 cargo run -- search "Worn Shortsword"     # local DB query, prints JSON
-cargo run -- item 25                      # live lookup of one item id
+cargo run -- item 25                      # live lookup; 304 + stored raw_json when
+                                          # the record is already in the DB
 cargo run -- stats                        # DB coverage + price analytics
 ```
 

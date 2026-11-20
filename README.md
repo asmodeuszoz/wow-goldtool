@@ -5,8 +5,8 @@ Forever** from the free [TheWoWDB](https://thewowdb.com/developers) JSON API and
 it in a local **SQLite** database, so browsing, filtering, searching and price-checking
 items works offline.
 
-Status: **v0.2.0 — headless data layer + sync engine work**; the GUI shell lands at
-v0.4.0. See the milestone list below and the dated narrative in
+Status: **v0.3.0 — sync hardening lands** (resume, ETag revalidation, cancel plumbing);
+the GUI shell lands at v0.4.0. See the milestone list below and the dated narrative in
 [docs/DEVLOG.md](./docs/DEVLOG.md).
 
 ```
@@ -28,7 +28,7 @@ highest damage per second, most expensive vendor sell…).
 | --------- | ---------- | ----- |
 | `v0.1.0` | repository scaffold, docs, licence, CI templates | done |
 | `v0.2.0` | data layer + working sync: TheWoWDB client, JSON models, SQLite schema, headless CLI (`sync`, `stats`, `search`, `item`, `watch`, `status`), paced two-stage crawl, exit-code contract | done |
-| `v0.3.0` | sync hardening: ETag revalidation reuse across runs, resume + cancel flag | planned |
+| `v0.3.0` | sync hardening: conditional GETs with stored ETags (per page in `meta`, per item in the row), stop→resume on the `sync_state` page cursor, cancel plumbing, live lookup answered from the DB on `304` | done |
 | `v0.4.0` | Tauri shell + webview UI: search, filters, sorting, item cards | planned |
 | `v0.5.0` | detail-sync targets (watchlist / ids), price analytics, UI polish | planned |
 

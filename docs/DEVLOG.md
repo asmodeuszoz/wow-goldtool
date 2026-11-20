@@ -5,6 +5,70 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-19 · v0.3.0 — reuse, resume, cancel: the second crawl
+
+### The question that shaped the release
+
+The v0.2.0 crawler only ever crawled forward from scratch. Re-opening the app would
+re-download everything it already knew. The upstream had told us how to avoid that
+(`ETag` + `If-None-Match` → `304` **with no body**) — so the release is built around
+what a body-less response forces us to admit.
+
+### What a 304 forces, and what the v0.2 code would have done
+
+The old loop fell through to `parse_page(body)` for every non-429 status: a `304` would
+have died as a decode error on an empty body. Every reuse path now branches **before**
+parsing. Because a list page has no DB row to re-read, each page also caches its
+`has_more` and `count` in `meta` (`list-page-<n>-etag/-more/-count`) — the crawl needs
+exactly those two facts to decide "walk on?" and keep `total` honest across 304s.
+
+The detail side is opposite: the record is already on disk, so `raw_json` is the stored
+copy and `item 25` revalidates the row instead of echoing a fresh payload. A `304`
+**without** a stored copy is a real inconsistency — reported as an honest decode error,
+never papered over. And a fresh `200` from a live lookup is now written through the
+same upsert the sync stage uses, so its ETag can be reused next run.
+
+### Honest accounting, twice
+
+- A `304` still costs one request against the burst: revalidation buys bandwidth and
+  DB churn, **not** rate budget. Written into docs/API.md so nobody reads "reuse" as
+  "19 k fewer requests".
+- `pages` counts a run; the `sync_state` page column must be an **absolute** cursor for
+  resume to mean anything. `finish()` took an explicit `cursor` parameter — the two
+  numbers were quietly the same value in v0.2 only because every run started at page 1.
+- The report grew `resumed_from` and leans on `unchanged`: a run of two 304 pages
+  honestly reads `complete: true, items: 0, unchanged: 2`.
+
+### Resume only for pauses, not for completions
+
+`stopped` and `cancelled` resume at stored page + 1. `complete`/`ceiling`/`idle` restart
+at page 1 — a completed crawl has nothing to resume from, and the ETag walk makes that
+cheap. Unknown status strings fall to the same branch, so a hand-edited DB cannot wedge
+the crawler.
+
+### Cancel without signal juggling
+
+No atomics, no FFI `sigaction`: a plain `CancelFlag` struct that the loops check before
+every request. The GUI will own one in AppState (v0.4.0) and raise it from the UI; the
+CLI hands out a fresh one because Ctrl-C already leaves the DB consistent (every write
+is its own statement) and the next run resumes by construction. A cancelled run records
+status `cancelled` and exits **0** — the user asked for it, nothing failed.
+
+### Fixture audit — every claim executed, never asserted
+
+| Run | Expectation | Observed |
+| --- | ----------- | -------- |
+| list `--budget 1` | stopped, 1 page, forced 429 retried | `requests 2, pages 1, rate_limited 1, complete false` |
+| list (resume) | `resumed_from 2`, page 1 not refetched | `requests 1, resumed_from 2, complete true` |
+| list (full re-sync) | both pages `304`, nothing written | `unchanged 2, written 0, items 0` |
+| detail | 429 + retry + 5 records | `requests 6, written 5, rate_limited 1` |
+| `item 25` | `304`, record served from stored `raw_json` | `status 304 reused true` |
+| exit-code audit | 2 usage · 3 network · 4 DB · 0 healthy | all six cases re-ran green |
+
+The fixture grew conditional-GET behaviour itself (stable per-endpoint ETags, real 304
+responses with no body): a server that cannot answer `If-None-Match` would have made the
+release untestable, so the test asset learned the protocol at the same commit.
+
 ## 2026-11-19 · v0.2.0 — data layer, sync engine, contract checks
 
 ### One buildable unit, eight modules

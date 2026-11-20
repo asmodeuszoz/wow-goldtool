@@ -42,6 +42,10 @@ GET https://thewowdb.com/api/v1/tooltip/<version>/<kind>/<id>
 * Every response has an `ETag`; send `If-None-Match: W/"<etag>"` and an unchanged answer
   is **`304` with no body**. We store the ETag per item (`list_etag`, `detail_etag`) and
   revalidate instead of re-parsing on repeat syncs.
+* A `304` still costs one request against the burst — revalidation saves bandwidth and
+  DB churn, not rate budget. Because a `304` carries no body, the list crawl also caches
+  each page's `has_more` and `count` in the local `meta` table so it can decide whether
+  to walk on without parsing anything (v0.3.0, keys documented in docs/DATABASE.md).
 
 ## Rate limits
 

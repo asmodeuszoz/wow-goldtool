@@ -58,8 +58,11 @@ CREATE TABLE watch (id INTEGER PRIMARY KEY, added_at INTEGER, note TEXT);
 
 CREATE TABLE sync_state (
   kind TEXT PRIMARY KEY,            -- "list" | "detail"
-  status TEXT,                      -- idle | running | paused | done | error | cancelled
-  page INTEGER, done INTEGER, total INTEGER,
+  status TEXT,                      -- idle | complete | stopped | ceiling | partial | cancelled
+  page INTEGER,                     -- absolute page cursor: last page fetched; a stopped
+                                    -- or cancelled list run resumes at page + 1 (v0.3.0)
+  done INTEGER,                     -- records handled during the most recent run
+  total INTEGER,                    -- catalogue size the API itself reported
   message TEXT, updated_at INTEGER, error TEXT
 );
 ```
@@ -68,6 +71,17 @@ Stage-1 (the `?page=` list crawl) fills the summary columns and `list_etag`; sta
 fills the price/stat columns, `icon_url`, `raw_json`, `detail_etag`. A NULL price column means
 "not fetched yet", which is distinct from "fetched and not on the AH" — the difference is visible
 in the UI and in `cargo run -- stats`.
+
+Reuse bookkeeping (v0.3.0): `raw_json` is the verbatim last detail body, which is what
+a live lookup answers when the API returns `304` for a stored `detail_etag` — no fresh
+payload, no re-parse. List pages have no row to hang an ETag on, so `meta` holds the
+revalidation state per page under a key convention:
+
+| meta key | value | why |
+| -------- | ----- | --- |
+| `list-page-<n>-etag` | last ETag of that page | sent back as `If-None-Match` on every re-crawl |
+| `list-page-<n>-more` | `1`/`0` — the page's `has_more` | a `304` has no body, so the crawl needs the hint to know whether to walk on |
+| `list-page-<n>-count` | the page's `count` | the crawl keeps `total` honest across `304`s |
 
 Indexed for the queries the UI actually issues (SQLite's own index syntax, `ON` not `IN`):
 
