@@ -9,13 +9,13 @@ use crate::errors::AppError;
 use crate::errors::AppResult;
 use crate::errors::ErrorKind;
 
-use crate::db::{add_item_manual, clear_deleted_at, count_items, db_path, deleted_at_of, detail_etag_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_blob_of, icon_missing_at_of, mark_deleted_at, mark_missing_at, next_manual_id, open_db_at, raw_json_of, set_item_field, synced_at_of, sync_state_get, upsert_detail, watch_add, watch_drop, watch_list, DbTarget, PriceSample, SyncState, unix_now};
+use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_blob_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, next_manual_id, open_db_at, raw_json_of, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, SyncState, unix_now};
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
 use crate::sync::{sync_icons, sync_detail, sync_list, sync_tooltips, CancelFlag, SyncReport};
 use crate::wowdb::{build_client, get_json, item_url, search_url, ApiResponse, HttpKind, RateBudget, classify, Client, ENV_FIXTURE_KEY};
-use crate::models::{ItemDetail, SearchResponse};
+use crate::models::{ItemDetail, ManualEdit, SearchResponse};
 
 use rusqlite::Connection;
 
@@ -350,6 +350,60 @@ pub fn card_icon_parts(conn: &Connection, id: i64) -> AppResult<Vec<String>> {
     return Ok(parts);
 }
 
+/// The manual layer and the tooltip copy on the card (v0.8.0, ADR 0010): the
+/// card carries EVERY door's three states, so "the crawl has not reached it" and
+/// "a user already said something about it" stay different answers. manual_overrides
+/// rides the stored JSON ARRAY verbatim (the same text the merge reads), which is
+/// what lets the UI mark the fields the user stated. tooltip_html is upstream's
+/// OWN markup for the card, printed as text and never rendered as markup: pasting
+/// an upstream body into the page would let upstream write the card.
+pub fn card_manual_parts(conn: &Connection, id: i64) -> AppResult<Vec<String>> {
+    let said: Option<String> = match manual_overrides_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    let manual: Option<i64> = match manual_at_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    let edited: Option<i64> = match edited_at_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    let buried: Option<i64> = match deleted_at_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    let copy: Option<String> = match tooltip_html_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    let copied: Option<i64> = match tooltip_at_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    let checked: Option<i64> = match tooltip_missing_at_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    let copy_json: String = match copy {
+        None => "null".to_string(),
+        Some(text) => json_text(text.clone()),
+    };
+    let mut parts: Vec<String> = [].to_vec();
+    parts.push(fragment("manual_overrides".to_string(), match said {
+        None => "null".to_string(),
+        Some(text) => text.clone(),
+    }));
+    parts.push(fragment("manual_at".to_string(), json_opt_int(manual)));
+    parts.push(fragment("edited_at".to_string(), json_opt_int(edited)));
+    parts.push(fragment("deleted_at".to_string(), json_opt_int(buried)));
+    parts.push(fragment("tooltip_html".to_string(), copy_json));
+    parts.push(fragment("tooltip_at".to_string(), json_opt_int(copied)));
+    parts.push(fragment("tooltip_missing_at".to_string(), json_opt_int(checked)));
+    return Ok(parts);
+}
+
 
 /// One flag value of ids written comma separated: `--ids 25,40,60`. Split by hand
 /// rather than by pattern so a trailing comma becomes an honest usage error instead of
@@ -400,6 +454,16 @@ pub fn json_opt_int(opt: Option<i64>) -> String {
 /// was never fetched is `not-found` - the UI reads that word and offers to sync the item,
 /// so "no data yet" and "broken data" stay two different answers.
 pub fn cached_card(conn: &Connection, id: i64) -> AppResult<String> {
+    // A tombstone hides the row from EVERY door (ADR 0010), so the card refuses it
+    // before reading a single column: printing a buried row would un-hide it.
+    let buried: Option<i64> = match deleted_at_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    match buried {
+        Some(stamp) => return Err(AppError::db(format!("item {} is tombstoned at {} (undelete-item {} brings it back)", id, stamp, id))),
+        None => {},
+    }
     let stored: Option<String> = match raw_json_of(conn, id) {
         Err(problem) => return Err(problem),
         Ok(found) => found,
@@ -407,10 +471,19 @@ pub fn cached_card(conn: &Connection, id: i64) -> AppResult<String> {
     match stored {
         None => return Err(AppError::not_found(format!("item {} has no stored copy: fetch it with sync --stage detail --ids {}", id, id))),
         Some(text) => {
-            let detail: ItemDetail = match from_str(&text) {
+            // The card reads the DB, so it reads the MERGED row: the stored copy is
+            // upstream's payload, and the user-said fields merge LAST (ADR 0010) - the
+            // same rule the write path uses, applied to the read path so a card cannot
+            // show a value the DB does not have.
+            let mut detail: ItemDetail = match from_str(&text) {
                 Err(problem) => return Err(AppError::decode(format!("the stored copy of item {} is not the JSON we expect: {}", id, problem))),
                 Ok(value) => value,
             };
+            let edits: Vec<ManualEdit> = match manual_edits_of(conn, id) {
+                Err(problem) => return Err(problem),
+                Ok(found) => found,
+            };
+            apply_manual_edits_detail(&mut detail, edits.clone());
             let fetched: Option<i64> = match synced_at_of(conn, id) {
                 Err(problem) => return Err(problem),
                 Ok(found) => found,
@@ -427,6 +500,13 @@ pub fn cached_card(conn: &Connection, id: i64) -> AppResult<String> {
                 Ok(found) => found,
             };
             for one in extras {
+                parts.push(one.clone());
+            }
+            let manual: Vec<String> = match card_manual_parts(conn, id) {
+                Err(problem) => return Err(problem),
+                Ok(found) => found,
+            };
+            for one in manual {
                 parts.push(one.clone());
             }
             return Ok(object(parts));
@@ -723,6 +803,17 @@ pub fn cmd_item(inv: &Invocation) -> AppResult<String> {
                 Err(problem) => return Err(problem),
                 Ok(value) => value,
             };
+            // A tombstone hides the row from EVERY door (ADR 0010), so the live card
+            // refuses it BEFORE any request goes out: re-asking upstream for a row the
+            // user buried would also let the crawl's stamps land on a buried row.
+            let buried: Option<i64> = match deleted_at_of(&conn, number) {
+                Err(problem) => return Err(problem),
+                Ok(found) => found,
+            };
+            match buried {
+                Some(stamp) => return Err(AppError::db(format!("item {} is tombstoned at {} (undelete-item {} brings it back)", number, stamp, number))),
+                None => {},
+            }
             let stored_etag: Option<String> = match detail_etag_of(&conn, number) {
                 Err(problem) => return Err(problem),
                 Ok(found) => found,
@@ -765,7 +856,7 @@ pub fn cmd_item(inv: &Invocation) -> AppResult<String> {
                 },
                 _ => response.body.clone(),
             };
-            let detail: ItemDetail = match from_str(&payload) {
+            let mut detail: ItemDetail = match from_str(&payload) {
                 Err(_) => return Err(AppError::decode(format!("item {} is not the JSON we expect", number))),
                 Ok(value) => value,
             };
@@ -775,6 +866,15 @@ pub fn cmd_item(inv: &Invocation) -> AppResult<String> {
                     Ok(_) => {},
                 }
             }
+            // The live card answers with what the DB NOW says: the write path merged the
+            // user-said fields into the columns, and the card merges them into the payload
+            // it prints (ADR 0010's merge-last rule, one rule for both paths). The write
+            // above stays the single merge point for the DB, so nothing here re-writes.
+            let edits: Vec<ManualEdit> = match manual_edits_of(&conn, number) {
+                Err(problem) => return Err(problem),
+                Ok(found) => found,
+            };
+            apply_manual_edits_detail(&mut detail, edits.clone());
             let reused: bool = response.status == 304;
             let mut parts: Vec<String> = [].to_vec();
             parts.push(fragment("status".to_string(), format!("{}", response.status)));
@@ -787,6 +887,13 @@ pub fn cmd_item(inv: &Invocation) -> AppResult<String> {
                 Ok(found) => found,
             };
             for one in extras {
+                parts.push(one.clone());
+            }
+            let manual: Vec<String> = match card_manual_parts(&conn, number) {
+                Err(problem) => return Err(problem),
+                Ok(found) => found,
+            };
+            for one in manual {
                 parts.push(one.clone());
             }
             return Ok(object(parts));

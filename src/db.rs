@@ -1521,6 +1521,80 @@ pub fn write_tooltip(conn: &Connection, id: i64, html: String, etag: String, at:
     }
 }
 
+/// The manual layer's own stamps (v0.8.0, ADR 0010): the card prints them, so a
+/// row's history of human decisions is visible next to the crawl's - manual_at
+/// says the row was MADE by a user (and lives in the reserved id block), edited_at
+/// says the last field a user stated, deleted_at is the tombstone every query
+/// hides. manual_overrides_of hands back the stored JSON ARRAY verbatim, so the
+/// card and the UI read the same text the merge reads (docs/DATABASE.md's rule:
+/// values are bound or copied whole, never re-derived).
+pub const SQL_MANUAL_AT_OF: &str = "SELECT manual_at FROM item WHERE id = ?";
+pub const SQL_EDITED_AT_OF: &str = "SELECT edited_at FROM item WHERE id = ?";
+pub const SQL_MANUAL_OVERRIDES_OF: &str = "SELECT manual_overrides FROM item WHERE id = ?";
+
+pub fn manual_at_of(conn: &Connection, id: i64) -> AppResult<Option<i64>> {
+    let mut stmt = match conn.prepare(SQL_MANUAL_AT_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(found) => Ok(found),
+        },
+    }
+}
+
+pub fn edited_at_of(conn: &Connection, id: i64) -> AppResult<Option<i64>> {
+    let mut stmt = match conn.prepare(SQL_EDITED_AT_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(found) => Ok(found),
+        },
+    }
+}
+
+pub fn manual_overrides_of(conn: &Connection, id: i64) -> AppResult<Option<String>> {
+    let mut stmt = match conn.prepare(SQL_MANUAL_OVERRIDES_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(found) => Ok(found),
+        },
+    }
+}
+
 /// The tooltip door's stamps and copy (v0.8.0, ADR 0010): the tooltip write is a
 /// FOURTH crawl stage with the same three states as every other door (written /
 /// checked gone upstream / never looked at) and its OWN ETag - the tooltip body
