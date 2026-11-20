@@ -9,7 +9,7 @@ use crate::errors::AppError;
 use crate::errors::AppResult;
 use crate::errors::ErrorKind;
 
-use crate::db::{count_items, db_path, detail_etag_of, history_of, icon_at_of, icon_blob_of, icon_missing_at_of, mark_missing_at, open_db_at, raw_json_of, synced_at_of, sync_state_get, upsert_detail, watch_add, watch_drop, watch_list, DbTarget, PriceSample, SyncState, unix_now};
+use crate::db::{add_item_manual, clear_deleted_at, count_items, db_path, deleted_at_of, detail_etag_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_blob_of, icon_missing_at_of, mark_deleted_at, mark_missing_at, next_manual_id, open_db_at, raw_json_of, set_item_field, synced_at_of, sync_state_get, upsert_detail, watch_add, watch_drop, watch_list, DbTarget, PriceSample, SyncState, unix_now};
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
@@ -27,7 +27,7 @@ use std::env::set_var;
 /// What the CLI can answer. Keeping the list here means an unknown verb becomes a
 /// usage error that names what the user actually typed.
 pub fn usage_text() -> String {
-    return "usage: status | sync --stage list|detail|icons [--budget N] [--ids A,B,C] [--watch] | search TEXT [--quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | status [--db PATH] [--fixture URL]".to_string();
+    return "usage: status | sync --stage list|detail|icons [--budget N] [--ids A,B,C] [--watch] | search TEXT [--quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | status [--db PATH] [--fixture URL]".to_string();
 }
 
 /// The verbs of one invocation plus its flags. Unknown flags are kept rather than
@@ -442,6 +442,15 @@ pub fn json_ids(ids: Vec<i64>) -> String {
     }
 }
 
+/// A string as a JSON string, through serde so quotes and escaping stay out of
+/// hand-written JSON (same reason as json_ids and json_filter).
+pub fn json_text(text: String) -> String {
+    match to_string(&text) {
+        Err(_) => return "\"\"".to_string(),
+        Ok(found) => return found,
+    }
+}
+
 /// An optional number as JSON: absent means `null`, never a made-up 0, because "the
 /// API did not say" and "the API said zero" are different facts.
 pub fn json_opt_seconds(opt: Option<u32>) -> String {
@@ -806,6 +815,220 @@ pub fn cmd_watch(inv: &Invocation) -> AppResult<String> {
     return Err(AppError::usage(format!("watch wants add, list or drop, got {}", action)));
 }
 
+/// ids straight from the word list (collect_ids skips its first token, which is
+/// how watch's action got through; here every word is an id).
+pub fn collect_all_ids(words: Vec<String>) -> AppResult<Vec<i64>> {
+    let mut out: Vec<i64> = [].to_vec();
+    for one in words {
+        match as_int(one.clone()) {
+            None => return Err(AppError::usage(format!("these verbs want numeric item ids, got {}", one))),
+            Some(number) => out.push(number),
+        }
+    }
+    return Ok(out);
+}
+
+/// FIELD=VALUE pairs for the edit and create doors: one char pass per word (same
+/// walk as encode_query's and join_tail's), then EVERY field name is checked
+/// against db.rs's whitelist HERE, so the usage error can name the field the
+/// user actually typoed instead of answering from db.rs with a generic list.
+pub fn collect_pairs(words: Vec<String>) -> AppResult<Vec<(String, String)>> {
+    let mut out: Vec<(String, String)> = [].to_vec();
+    for one in words {
+        let mut head: String = "".to_string();
+        let mut tail: String = "".to_string();
+        let mut seen_eq: bool = false;
+        for ch in one.chars() {
+            if seen_eq {
+                tail = format!("{}{}", tail, ch);
+                continue;
+            }
+            if ch == '=' {
+                seen_eq = true;
+                continue;
+            }
+            head = format!("{}{}", head, ch);
+        }
+        if !seen_eq {
+            return Err(AppError::usage(format!("these verbs want FIELD=VALUE pairs, got {}", one)));
+        }
+        if head == "" {
+            return Err(AppError::usage("FIELD=VALUE wants a field name before the =".to_string()));
+        }
+        if editable_kind(head.clone()) < 0 {
+            return Err(AppError::usage(format!("{} is not editable (name, quality, item_level, required_level, item_type, item_subtype, flavor, vendor_sell, tooltip_html)", head)));
+        }
+        out.push((head.clone(), tail.clone()));
+    }
+    return Ok(out);
+}
+
+/// The edit door (ADR 0010): ONE whitelist field of ONE row. DB-only, so a bad
+/// ask answers 2 and an unknown or tombstoned id answers 4 - never 3: no request
+/// leaves this verb, which is also why the ask needs no budget. db.rs sets the
+/// column AND rides the overrides array, so the crawl's NEXT write of this row
+/// keeps the user's value (the merge in upsert_summary/upsert_detail).
+pub fn cmd_set_item(inv: &Invocation) -> AppResult<String> {
+    if inv.words.len() < 2 {
+        return Err(AppError::usage("set-item wants ID FIELD=VALUE".to_string()));
+    }
+    let mut first: Vec<String> = [].to_vec();
+    first.push(inv.words[0].clone());
+    let ids: Vec<i64> = match collect_all_ids(first) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    let mut rest: Vec<String> = [].to_vec();
+    let mut index: usize = 1;
+    while index < inv.words.len() {
+        rest.push(inv.words[index].clone());
+        index = index + 1;
+    }
+    let pairs: Vec<(String, String)> = match collect_pairs(rest) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    if pairs.len() != 1 {
+        return Err(AppError::usage("set-item states exactly one FIELD=VALUE per ask".to_string()));
+    }
+    let id: i64 = ids[0];
+    let conn: Connection = match open_at(inv) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    match has_row_of_id(&conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(false) => return Err(AppError::db(format!("no item {} in the DB (add-item creates one)", id))),
+        Ok(true) => {},
+    }
+    match deleted_at_of(&conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(Some(stamp)) => return Err(AppError::db(format!("item {} is tombstoned at {} (undelete-item first)", id, stamp))),
+        Ok(None) => {},
+    }
+    let field: String = pairs[0].0.clone();
+    let value: String = pairs[0].1.clone();
+    let now: i64 = unix_now();
+    match set_item_field(&conn, id, field.clone(), value.clone(), now) {
+        Err(problem) => return Err(problem),
+        Ok(_) => {},
+    }
+    let mut parts: Vec<String> = [].to_vec();
+    parts.push(fragment("id".to_string(), format!("{}", id)));
+    parts.push(fragment("field".to_string(), json_text(field.clone())));
+    parts.push(fragment("value".to_string(), json_text(value.clone())));
+    parts.push(fragment("edited_at".to_string(), format!("{}", now)));
+    return Ok(object(parts));
+}
+
+/// The create door (ADR 0010): the id is the reserved block's next free slot,
+/// NEVER one the user picked - a user-picked id could collide with a FUTURE
+/// forever record (measured max upstream id on the user's file: 288 340), which
+/// would overwrite their item on the next crawl. The new row wears its fields as
+/// overrides from birth, so even that future collision cannot take it.
+pub fn cmd_add_item(inv: &Invocation) -> AppResult<String> {
+    let pairs: Vec<(String, String)> = match collect_pairs(inv.words.clone()) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    if pairs.len() < 1 {
+        return Err(AppError::usage("add-item wants FIELD=VALUE pairs (at least name=...)".to_string()));
+    }
+    let conn: Connection = match open_at(inv) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    let id: i64 = match next_manual_id(&conn) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    let now: i64 = unix_now();
+    match add_item_manual(&conn, id, now, pairs.clone()) {
+        Err(problem) => return Err(problem),
+        Ok(_) => {},
+    }
+    let mut names: Vec<String> = [].to_vec();
+    for pair in pairs {
+        names.push(pair.0.clone());
+    }
+    let names_json: String = match to_string(&names) {
+        Err(_) => "[]".to_string(),
+        Ok(text) => text,
+    };
+    let mut parts: Vec<String> = [].to_vec();
+    parts.push(fragment("id".to_string(), format!("{}", id)));
+    parts.push(fragment("manual_at".to_string(), format!("{}", now)));
+    parts.push(fragment("fields".to_string(), names_json));
+    return Ok(object(parts));
+}
+
+/// DELETE is the tombstone (ADR 0010): the row keeps its stamps and its bytes,
+/// but search, stats, pending queues and the card refuse it, and the list stage
+/// (which UPSERTs every id upstream still lists) never brings a hard-deleted row
+/// back. An id with no row answers 4; a second delete says so instead of
+/// pretending the mark moved.
+pub fn cmd_delete_item(inv: &Invocation) -> AppResult<String> {
+    let ids: Vec<i64> = match collect_all_ids(inv.words.clone()) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    if ids.is_empty() {
+        return Err(AppError::usage("delete-item wants an item id".to_string()));
+    }
+    let conn: Connection = match open_at(inv) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    let now: i64 = unix_now();
+    for one in ids.clone() {
+        match has_row_of_id(&conn, one) {
+            Err(problem) => return Err(problem),
+            Ok(false) => return Err(AppError::db(format!("no item {} in the DB", one))),
+            Ok(true) => {},
+        }
+        match mark_deleted_at(&conn, one, now) {
+            Err(problem) => return Err(problem),
+            Ok(true) => {},
+            Ok(false) => return Err(AppError::db(format!("item {} is already tombstoned", one))),
+        }
+    }
+    let mut parts: Vec<String> = [].to_vec();
+    parts.push(fragment("deleted".to_string(), json_ids(ids)));
+    parts.push(fragment("at".to_string(), format!("{}", now)));
+    return Ok(object(parts));
+}
+
+/// The mark's undo: the row comes back with everything it had (icon bytes,
+/// samples, overrides all kept - the tombstone only hid it).
+pub fn cmd_undelete_item(inv: &Invocation) -> AppResult<String> {
+    let ids: Vec<i64> = match collect_all_ids(inv.words.clone()) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    if ids.is_empty() {
+        return Err(AppError::usage("undelete-item wants an item id".to_string()));
+    }
+    let conn: Connection = match open_at(inv) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    for one in ids.clone() {
+        match has_row_of_id(&conn, one) {
+            Err(problem) => return Err(problem),
+            Ok(false) => return Err(AppError::db(format!("no item {} in the DB", one))),
+            Ok(true) => {},
+        }
+        match clear_deleted_at(&conn, one) {
+            Err(problem) => return Err(problem),
+            Ok(true) => {},
+            Ok(false) => return Err(AppError::db(format!("item {} is not tombstoned", one))),
+        }
+    }
+    let mut parts: Vec<String> = [].to_vec();
+    parts.push(fragment("restored".to_string(), json_ids(ids)));
+    return Ok(object(parts));
+}
+
 /// One verb's result through the same output guard: JSON on stdout, the message
 /// and the reason on stderr, and the kind of failure as the exit code.
 pub fn guard(body: AppResult<String>) -> i32 {
@@ -904,6 +1127,10 @@ pub fn dispatch(inv: Invocation) -> AppResult<String> {
     if inv.verb == "item" { return cmd_item(&inv); }
     if inv.verb == "live-search" { return cmd_live_search(&inv); }
     if inv.verb == "watch" { return cmd_watch(&inv); }
+    if inv.verb == "set-item" { return cmd_set_item(&inv); }
+    if inv.verb == "add-item" { return cmd_add_item(&inv); }
+    if inv.verb == "delete-item" { return cmd_delete_item(&inv); }
+    if inv.verb == "undelete-item" { return cmd_undelete_item(&inv); }
     if inv.verb == "help" {
         eprintln!("{}", usage_text());
         return Ok("{}".to_string());
