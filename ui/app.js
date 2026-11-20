@@ -414,6 +414,18 @@ async function runCard(live) {
     } else {
       line = "answered HTTP " + found.status + ", reused " + (found.reused ? "from the stored copy" : "a fresh copy") + " — " + when(fetched);
     }
+    if (found.icon_b64) {
+      line = line + " — icon copied into the DB " + when(found.icon_at);
+    } else if (found.icon_missing_at !== null && found.icon_missing_at !== undefined) {
+      line = line + " — icon checked as not there upstream " + when(found.icon_missing_at);
+    } else if (fetched !== null && fetched !== undefined) {
+      line = line + " — icon not fetched yet (the icons stage will copy it)";
+    }
+    if (found.history && found.history.length > 1) {
+      line = line + ", and the price has " + found.history.length + " samples (trend drawn on the card)";
+    } else if (found.history && found.history.length === 1) {
+      line = line + ", and one price sample so far — a later fresh write adds the next point";
+    }
     set_note(document.getElementById("card-note"), line, false);
   } catch (problem) {
     if (problem.kind === "not-found") {
@@ -449,11 +461,59 @@ function render_card(found) {
     rows.push(["dps / speed", item.weapon.dps + " / " + item.weapon.speed]);
   }
   if (item.flavor) { rows.push(["flavour", item.flavor]); }
+  // stats is the ONE previously-unshaped field the live catalogue has ever filled
+  // (docs/API.md measures: across 47 answered records stats carried values while
+  // sockets/socket_bonus/classes/effects came back empty on every single one) -
+  // so it renders as name/value pairs, and those others get an honest RAW row
+  // only when they actually carry something. Inventing a nicer shape for never-
+  // measured fields is not our call to make; printing what came back is.
+  if (item.stats && item.stats.length > 0) {
+    var stat_text = [];
+    for (var s = 0; s < item.stats.length; s = s + 1) {
+      var one = item.stats[s];
+      stat_text.push(String(one.name) + " " + String(one.value));
+    }
+    rows.push(["stats", stat_text.join(" \u00b7 ")]);
+  }
+  if (item.socket_bonus) { rows.push(["socket bonus", String(item.socket_bonus)]); }
+  if (item.sockets && item.sockets.length > 0) { rows.push(["sockets", JSON.stringify(item.sockets)]); }
+  if (item.classes && item.classes.length > 0) { rows.push(["classes", JSON.stringify(item.classes)]); }
+  if (item.effects && item.effects.length > 0) { rows.push(["effects", JSON.stringify(item.effects)]); }
   var html = "";
   for (var i = 0; i < rows.length; i = i + 1) {
     var value = rows[i][1];
     if (value === null || value === undefined) { value = ""; }
+    // esc() again, always: these are API texts. The RAW rows (sockets/classes/
+    // effects) print the JSON exactly as it came back - still escaped, because
+    // API text is markup-neutral by rule, not by hope.
     html = html + '<div class="cardrow"><span>' + esc(rows[i][0]) + "</span><b>" + esc(String(value)) + "</b></div>";
+  }
+  // The local icon copy (v0.6.0): bytes travel in the verb JSON as base64 (b64_text
+  // on the Rust side), and a data URI is how offline browsing keeps icons - the card
+  // NEVER hotlinks icon_url (docs/API.md grounds both hosts serving image/jpeg; the
+  // data URI says so). No copy, no img tag: three states, one row each.
+  if (found.icon_b64) {
+    html = html + '<div class="cardrow"><span>icon (local copy)</span><b><img class="iconimg" src="data:image/jpeg;base64,' + found.icon_b64 + '" alt="item icon"></b></div>';
+  } else if (found.icon_missing_at !== null && found.icon_missing_at !== undefined) {
+    html = html + '<div class="cardrow"><span>icon</span><b>no icon upstream (checked ' + esc(when(found.icon_missing_at)) + ")</b></div>";
+  }
+  // The price trend: one bar per sample, oldest first (history_of reads newest-40
+  // reversed). Heights are a percentage of the window's max price_min; a one-sample
+  // window shows one bar: the sample EXISTS, the trend just has no slope yet.
+  if (found.history && found.history.length > 0) {
+    var maxp = 1;
+    for (var h = 0; h < found.history.length; h = h + 1) {
+      var point = found.history[h];
+      if (point.price_min !== null && point.price_min > maxp) { maxp = point.price_min; }
+    }
+    var bars = "";
+    for (var g = 0; g < found.history.length; g = g + 1) {
+      var sample = found.history[g];
+      if (sample.price_min === null) { continue; }
+      var pct = Math.max(8, Math.round(100 * sample.price_min / maxp));
+      bars = bars + '<div class="trendcol" style="height:' + pct + '%"></div>';
+    }
+    html = html + '<div class="cardrow"><span>price trend</span><b><div class="trendbox">' + bars + "</div></b></div>";
   }
   document.getElementById("card-box").innerHTML = html;
 }

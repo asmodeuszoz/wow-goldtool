@@ -192,6 +192,13 @@ td.namecell a { color: var(--gold); text-decoration: none; font-size: 11px; marg
 .cardbox span { color: var(--muted); font-size: 12.5px; }
 .cardbox b { color: var(--text); font-size: 13px; font-variant-numeric: tabular-nums; }
 
+/* card extras (v0.6.0): the icon comes from the DB as a data URI (never a hotlink),
+   the trend is one bar per stored sample - flex bottom-aligned so bar heights are
+   the sample percentage of the window max (docs/DATABASE.md, ADR 0008). */
+.iconimg { width: 56px; height: 56px; object-fit: contain; image-rendering: pixelated; }
+.trendbox { display: flex; align-items: flex-end; gap: 4px; height: 48px; min-width: 10px; }
+.trendcol { width: 10px; max-width: 30%; background: var(--gold); border-radius: 2px 2px 0 0; }
+
 /* analytics */
 .bars { display: grid; gap: 6px; margin: 6px 0 10px; }
 .barrow { display: grid; grid-template-columns: 96px 1fr auto; gap: 12px; align-items: center; }
