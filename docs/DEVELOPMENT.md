@@ -32,7 +32,7 @@ wowdb.rs       HTTP client: URL building, ETag revalidation, rate-limit pacing
 models.rs      JSON <-> Rust structs for list summaries, item details, search hits
 db.rs          SQLite bootstrap: schema, db-path resolution, upserts, meta table
 query.rs       search + facets + sort + count, all executed as SQL over the local DB
-sync.rs        the sync engine: list crawl, detail crawl, resume, cancel, progress
+sync.rs        the sync engine: list crawl, detail crawl (pending queue or a target list), resume, cancel, progress
 stats.rs       price analytics (coverage, per-quality averages, extremes)
 errors.rs      one AppError + kind -> exit-code/JSON-kind mapping shared by both doors
 ```
@@ -44,9 +44,10 @@ frontend), `icons/icon.png` (generated), `tools/gen_icon.py` (what generated it)
 progress truth and both doors read it, so mirroring it in `AppState` would be a second
 source of truth; cancel is a JS flag read at chunk granularity (ADR 0005).
 
-As of v0.4.0 every module above exists, and `cargo build` still ends in dead-code warnings
-only — the unused ones are the v0.5.0 plan (`search_url`, `SearchResponse`, `catalogue`,
-`open_db`, the `NotFound` kind).
+As of v0.5.0 every module above exists, and `cargo build` still ends in warnings only —
+the unused ones are the v0.6.0 plan: `search_url`, `SearchResponse`, `catalogue`,
+`open_db`, `ApiResponse.remaining`, and `pending_plan`'s private `PendingSql`. The
+`NotFound` error kind stopped being dead code the moment `item ID --cached` needed it.
 
 Rules of thumb: `wowdb.rs` never touches the DB, `db*.rs` never touches the network,
 `sync.rs` is the only place where the two meet, `commands.rs` contains no logic.
@@ -76,7 +77,8 @@ git tag. The dated narrative lives in [docs/DEVLOG.md](./DEVLOG.md).
 - [x] `v0.2.0` — data layer **plus a working sync engine**: API client, JSON models, SQLite schema, headless CLI verbs, paced list/detail crawl, exit-code contract
 - [x] `v0.3.0` — sync hardening: conditional GETs with stored ETags (per page in `meta`, per item in the row), stop→resume on the `sync_state` page cursor, cancel plumbing for the GUI's AppState
 - [x] `v0.4.0` — Tauri shell + webview UI: one `cli_call(argv)` command, status/search/sync cards, chunked sync with cancel, `build.rs` + `tauri-build`, generated icon
-- [ ] `v0.5.0` — detail-sync targets (watchlist/ids), price analytics, UI polish
+- [x] `v0.5.0` — detail-sync targets (`--ids`, `--watch` driven from the UI), item card that reads the DB first, price-analytics card, watch toggles in hit rows
+- [ ] `v0.6.0` — price history (a second DB table, since one price per item cannot show a trend), local icon copies
 
 ## Build & run
 
@@ -102,9 +104,12 @@ cargo run -- status                       # where the DB lives, coverage, catalo
 cargo run -- sync --stage list            # resumes where a stopped run paused; finished
                                           # runs re-crawl page 1, every page revalidates
 cargo run -- sync --stage detail --budget 500
+cargo run -- sync --stage detail --ids 25,40,60   # exactly these records (also --watch)
 cargo run -- search "Worn Shortsword"     # local DB query, prints JSON
 cargo run -- item 25                      # live lookup; 304 + stored raw_json when
                                           # the record is already in the DB
+cargo run -- item 25 --cached             # the same card with no request at all
+cargo run -- watch add 25 40              # the list the UI turns into sync targets
 cargo run -- stats                        # DB coverage + price analytics
 ```
 
@@ -121,7 +126,9 @@ Environment switches used by tests and CI:
 - The real integration path is the headless CLI run against a **fixture server**
   (`tests/fixture_api.py`, committed at v0.2.0): two list pages, a detail record for any
   item id, and one forced `429` + `Retry-After` per stage — the crawler never sees the
-  upstream API in CI.
+  upstream API in CI. From v0.5.0 the sequence is eleven steps and also covers a watch
+  list, a targeted detail fetch, the same ids fetched again (which must answer `304` and
+  write nothing) and the DB-only card read.
 - `tests/api.rs` / `tests/pipeline.rs` (unit tests next to the code they test) are the
   plan, not code: v0.2.0 has no `#[test]` functions yet, so `cargo test` only proves
   everything compiles.

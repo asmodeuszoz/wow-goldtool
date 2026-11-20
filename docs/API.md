@@ -41,7 +41,10 @@ GET https://thewowdb.com/api/v1/tooltip/<version>/<kind>/<id>
 * Responses are public, cacheable ~1 h (item tooltips ~5 min, they carry live AH prices).
 * Every response has an `ETag`; send `If-None-Match: W/"<etag>"` and an unchanged answer
   is **`304` with no body**. We store the ETag per item (`list_etag`, `detail_etag`) and
-  revalidate instead of re-parsing on repeat syncs.
+  revalidate instead of re-parsing on repeat syncs. From v0.5.0 the detail stage sends the
+  stored ETag as well, so re-asking for the same ids (`--ids 25,40` twice, or a watch list
+  re-sync) answers `304` and writes nothing; the pending stage still sends none, because a
+  pending item has no `detail_etag` to send yet.
 * A `304` still costs one request against the burst — revalidation saves bandwidth and
   DB churn, not rate budget. Because a `304` carries no body, the list crawl also caches
   each page's `has_more` and `count` in the local `meta` table so it can decide whether

@@ -83,6 +83,13 @@ revalidation state per page under a key convention:
 | `list-page-<n>-more` | `1`/`0` — the page's `has_more` | a `304` has no body, so the crawl needs the hint to know whether to walk on |
 | `list-page-<n>-count` | the page's `count` | the crawl keeps `total` honest across `304`s |
 
+Targeted detail runs (v0.5.0) keep the same rules and add two readers: `item ID --cached`
+answers the card from `raw_json` with **no request at all** (`not-found` when the row has no
+stored copy), and `sync --stage detail --ids …` / `--watch` visit those ids instead of the
+pending queue, sending the stored `detail_etag` so a second pass costs requests but no writes
+(`written 0, unchanged 2`). `detail_synced_at` is what the card prints as "fetched …", which
+is how a user tells today's prices from last month's without leaving the app.
+
 Indexed for the queries the UI actually issues (SQLite's own index syntax, `ON` not `IN`):
 
 ```sql

@@ -5,6 +5,92 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-19 · v0.5.0 — targets, analytics, the card: what the buttons finally answer
+
+### The question this release answers
+
+v0.4.0's sync buttons could only crawl "everything": the list stage, and the whole pending
+queue. The watch list had existed since v0.2.0 as something that only **printed**. The
+release starts where the roadmap arithmetic already insisted: 19 k details cost 2.7 hours,
+so the only useful question is "which details do I actually need?" — and that question
+belongs to the user, not the crawler.
+
+### A latent bug found by the first run that read those columns
+
+`sync --ids 25,40` exited 4 on the first audit, and the message was rusqlite's:
+`Invalid column type Null at index: 0, name: detail_etag`. Three single-column lookups in
+`db.rs` were written `Ok(value) => Ok(Some(value))`, which makes rusqlite infer a **bare
+String** for the getter, so a NULL column is an error instead of a value. The signatures
+always claimed `Option<String>`; nothing had ever read a NULL through them, because the
+pending stage fetched an item before it ever asked for that item's ETag. The targeted stage
+reads `detail_etag_of` for every id, so the latent wrongness surfaced immediately. Asking
+for the Option type makes NULL a `None` — which is what the type always promised.
+
+### Chunking targeted ids in JS, not in the engine
+
+The engine's `--budget` truncates from the head of the list, so a second chunk of the same
+`--ids` would re-visit what the first chunk already fetched and the UI's chunk loop would
+never reach the tail. The UI slices instead (20 ids per call), which also keeps Cancel
+meaningful between chunks and one slice far under the 120-request burst. `--budget` still
+bounds the pending crawl, where it means "items per run".
+
+### Honest accounting, twice more
+
+A targeted run answers its own question: `remaining` is the target list, not the pending
+queue ("left in the list" ≠ "left pending"), and `complete` means the target set was fully
+visited. The detail stage now sends the stored `detail_etag` when one exists, so re-asking
+for the same ids is a `304` — the audit reads `requests 2, written 0, unchanged 2` on the
+second pass over 25,40. docs/API.md counts both sides the same way (a `304` costs rate
+budget, saves bandwidth and DB churn) and the sentence about "pending items have no ETag
+yet" is now scoped to what it actually is: the pending stage.
+
+### The card reads the DB, and offline stays the point
+
+`item ID --cached` sends no request: the card answers from `raw_json` and prints
+`detail_synced_at` so the user can tell today's prices from last month's. A record never
+fetched is `not-found`, not an empty card — the UI turns that word into an offer, and the
+first use of the `NotFound` error kind retired its dead-code warning. No item icons are
+rendered: `icon_url` is a remote path, and hotlinking it would trade the app's whole
+purpose (answering offline) for decoration. Quality colour carries identity instead; a
+local icon copy is roadmap work.
+
+### Analytics before any crawl
+
+`stats --limit 6` is one verb, and its JSON (coverage, by-quality, extremes) renders as
+bars in the same palette as the search chips, cheapest/priciest extremes, and one sentence
+about the spread. The question "is this worth hunting" is answerable before the detail
+stage has seen a single item.
+
+### boot() as the audit's witness
+
+Startup reads status, the watch list and the analytics, so no card paints empty — and the
+Rust log shows four verbs (`status`, `watch`, `stats`, `status`). The fourth line is the
+witness that the analytics **render** ran to the end: a JS throw after the awaited verb
+would leave three lines, not four. CI still cannot open a window, so the eleven-step CLI
+mirror (six new steps: `watch add`, a targeted fetch, the same ids again answering 304s, a
+watch-list target, the DB-only card) is what guards this release.
+
+### Audit table
+
+| Run | Expectation | Observed |
+| --- | ----------- | -------- |
+| `sync --ids 25,40` (first pass) | both written | `requests 2, written 2, unchanged 0, complete true` |
+| `sync --ids 25,40` (second pass) | revalidation, nothing rewritten | `requests 2, written 0, unchanged 2` |
+| `sync --watch` after `watch add 25 40` | target = the watch list | `visited every targeted record: 2 fetched` |
+| `--ids 25,x` | usage | exit 2 |
+| `item 999 --cached` | not fetched yet, not a crash | `not-found`, exit 4 |
+| GUI launch | window + four verbs from `boot()` | `gui: ipc verb status/watch/stats/status` |
+| CI mirror | eleven steps | all `exit=0` |
+| exit-code audit | unchanged | `2 · 2 · 3 · 4 · 4 · 0` |
+
+### Deliberately not done in this tag
+
+No price history yet: the DB stores one price per item, so a trend line needs a second
+table (roadmap). No icon download. No item-card rendering of `sockets`/`stats`/`classes`
+values (they arrive as unshaped JSON, and inventing a shape is not our call to make).
+
+---
+
 ## 2026-11-19 · v0.4.0 — the shell: `build.rs`, `window.__TAURI__`, chunked cancel
 
 ### The question that shaped the release

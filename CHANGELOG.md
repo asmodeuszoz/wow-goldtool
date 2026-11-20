@@ -6,6 +6,42 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.5.0 — detail-sync targets, price analytics, item card · 2026-11-19 · tag `v0.5.0`
+
+Added
+
+- Targeted detail sync: `sync --stage detail --ids 25,40,60` and `sync --stage detail --watch`
+  visit exactly those records instead of the pending queue, which is what turns the watch list
+  from something that prints into something that acts. The UI drives it with two buttons
+  ("Details: watch list", "Details: shown hits") that slice the ids 20 per verb call, so
+  Cancel between slices stays meaningful and one slice stays far below the 120-request burst.
+- `item ID --cached`: a DB-only card read — no request at all. A record that was never
+  fetched is `not-found` (the first use of that error kind, which retires its dead-code
+  warning) and the UI turns the word into an offer instead of an empty card.
+- UI cards: an item card that answers offline first (`Read the DB` vs `Re-check online`,
+  printing when the record was fetched), a price-analytics card that renders
+  `stats --limit 6` as per-quality bars in the search-chip palette plus cheapest/priciest
+  extremes, and watch toggles inside the hit rows (the id travels in `data-id`, one
+  delegated handler serves the whole table) with a `Watch these hits` batch action.
+- Detail fetches send the stored `detail_etag` when one exists, so re-asking for the same
+  ids answers `304` and rewrites nothing — the audit reads `written 0, unchanged 2`.
+- The CI smoke block grew by six steps (watch add → targeted fetch → the same ids again
+  answering 304s → watch-list target → DB-only card read), all eleven green in the local
+  mirror before the commit.
+
+Fixed
+
+- Three single-column lookups in `db.rs` inferred a bare `String` getter for a nullable
+  column, so a NULL came back as rusqlite's `Invalid column type Null` **DB error** (exit 4)
+  instead of `None`. The pending stage never read those columns before fetching; the
+  targeted stage reads `detail_etag_of` for every id, so the latent wrongness surfaced on the
+  first audit run. The getters now ask for the `Option` type they always claimed to return.
+- Targeted runs now answer their own question: `remaining` counts the target list ("left in
+  the list", not "left pending") and `complete` means the target set was fully visited.
+- `boot()` reads status, the watch list and the analytics at startup, so no card paints
+  empty; the second status read is the launch audit's witness — four `gui: ipc verb …`
+  lines prove the analytics render ran to the end rather than throwing after its await.
+
 ## v0.4.0 — Tauri shell + webview UI · 2026-11-19 · tag `v0.4.0`
 
 Added
