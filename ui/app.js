@@ -185,13 +185,14 @@ function start_tick(label) {
 async function runSync(stage) {
   if (sync_busy) {
     set_note(document.getElementById("sync-note"), "a crawl is already running — cancel it first", true);
-    return;
+    return "already-running";
   }
   sync_busy = true;
   cancel_requested = false;
   var chunk = stage === "list" ? 10 : 25;
   var seen = 0;
   var tick = 0;
+  var outcome = "failed";
   try {
     while (true) {
       set_note(document.getElementById("sync-note"),
@@ -201,19 +202,22 @@ async function runSync(stage) {
       var report = await cli_ok(["sync", "--stage", stage, "--budget", String(chunk)]);
       clearInterval(tick);
       seen = seen + report.requests;
-      if (report.requests === 0) {
-        set_note(document.getElementById("sync-note"),
-          "the crawl made no progress this chunk — stopping so we do not burn the API", true);
-        break;
-      }
       if (report.complete) {
         set_note(document.getElementById("sync-note"),
           stage + " stage complete: " + num(report.items) + " seen, " + num(report.written) + " written, " + num(report.unchanged) + " reused", false);
+        outcome = "complete";
+        break;
+      }
+      if (report.requests === 0) {
+        set_note(document.getElementById("sync-note"),
+          "the crawl made no progress this chunk — stopping so we do not burn the API", true);
+        outcome = "stalled";
         break;
       }
       if (cancel_requested) {
         set_note(document.getElementById("sync-note"),
           "cancelled: " + num(report.items) + " seen so far — the next run resumes from here", false);
+        outcome = "cancelled";
         break;
       }
     }
@@ -225,6 +229,7 @@ async function runSync(stage) {
   document.getElementById("btn-cancel").classList.remove("running");
   sync_busy = false;
   await refreshStatus();
+  return outcome;
 }
 
 function requestCancel() {
@@ -232,6 +237,43 @@ function requestCancel() {
   if (!sync_busy) {
     set_note(document.getElementById("sync-note"),
       "cancel asked for while idle — the next chunk loop stops before it starts", false);
+  }
+}
+
+// ---- pull-all: finish the catalogue in one click --------------------------------
+// One flow, two stages: walk the list to the end, then fetch a detail record for
+// every item that never had one. Honest only with the pending rule in step ("all
+// info" = every item has a detail record; NULL price on a fetched item simply
+// means not on the AH, docs/DATABASE.md). Cancel semantics: the stage in flight
+// stops at its chunk end and the flow does not jump ahead - the next click
+// resumes the list from sync_state, and the pending queue recomputes what
+// details remain. After a complete pull there is nothing pending: later syncs
+// only revalidate (AH prices are live data, so re-checks still make sense).
+async function runPullAll() {
+  set_note(document.getElementById("sync-note"),
+    "pull-all: list stage to the end (~193 pages, minutes at 2/s), then details for everything never fetched (~19k records, hours at 2/s) — Cancel stops at the next chunk boundary", false);
+  var list_out = await runSync("list");
+  if (list_out === "cancelled") {
+    set_note(document.getElementById("sync-note"),
+      "pull-all stopped by Cancel in the list stage: the next click resumes the list where it stopped; details wait until the walk has passed the cursor", false);
+    return;
+  }
+  if (list_out !== "complete") { return; }
+  var detail_out = await runSync("detail");
+  if (detail_out === "complete") {
+    set_note(document.getElementById("sync-note"),
+      "details pulled for everything the walk ever listed", false);
+    await pull_all_summary();
+  }
+}
+
+async function pull_all_summary() {
+  try {
+    var st = await cli_ok(["status"]);
+    set_note(document.getElementById("sync-note"),
+      "nothing left to pull: " + num(st.items) + " items stored, " + num(st.coverage.detailed) + " with details (" + num(st.coverage.priced) + " of them priced — the rest are simply not on the AH); future syncs only revalidate stored ETags, and prices stay live", false);
+  } catch (problem) {
+    show_error(problem);
   }
 }
 
@@ -463,7 +505,7 @@ document.getElementById("btn-refresh").addEventListener("click", function () { r
 document.getElementById("btn-search").addEventListener("click", function () { runSearch(); });
 document.getElementById("btn-watch-hits").addEventListener("click", function () { watchHits(); });
 document.getElementById("btn-list").addEventListener("click", function () { runSync("list"); });
-document.getElementById("btn-detail").addEventListener("click", function () { runSync("detail"); });
+document.getElementById("btn-pull").addEventListener("click", function () { runPullAll(); });
 document.getElementById("btn-detail-watch").addEventListener("click", function () { runWatchDetails(); });
 document.getElementById("btn-detail-hits").addEventListener("click", function () { runHitsDetails(); });
 document.getElementById("btn-cancel").addEventListener("click", requestCancel);
