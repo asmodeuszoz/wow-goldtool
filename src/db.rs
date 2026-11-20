@@ -30,8 +30,11 @@ use std::fs::create_dir_all;
 use std::fs::exists;
 use std::time::UNIX_EPOCH;
 
-/// The schema this build understands. Bumping it means the DB file is rebuilt.
-pub const SCHEMA_VERSION: i64 = 1;
+/// The schema this build understands. v0.5.3 added one column; the bump is paired
+/// with an in-place migration for the one older shape (ALTER TABLE adds the column)
+/// because "rebuild the file" would mean asking a user to throw away 19 k records.
+/// A file NEWER than this build is still refused: we cannot know what it holds.
+pub const SCHEMA_VERSION: i64 = 2;
 
 /// Default DB file name, used when WGT_DB does not point somewhere else.
 pub const DB_FILE_NAME: &str = "wow-goldtool.sqlite";
@@ -66,6 +69,7 @@ pub const SCHEMA_SQL: &str = concat!(
     "api_url TEXT, html_url TEXT, tooltip_url TEXT,",
     "list_etag TEXT, detail_etag TEXT,",
     "list_synced_at INTEGER, detail_synced_at INTEGER,",
+    "detail_missing_at INTEGER,",
     "raw_json TEXT",
     ");",
     "CREATE TABLE watch (id INTEGER PRIMARY KEY, added_at INTEGER, note TEXT);",
@@ -91,13 +95,14 @@ pub const UPSERT_LIST_SQL: &str = concat!(
 );
 
 /// VALUES markers of the stage-2 upsert: it writes every summary column too (stage 1
-/// may not have seen this id at all) plus the price, stat and detail columns.
-pub const DETAIL_VALUE_COUNT: usize = 38;
+/// may not have seen this id at all) plus the price, stat and detail columns - and it
+/// clears detail_missing_at, because a record that answered is not a missing record.
+pub const DETAIL_VALUE_COUNT: usize = 39;
 
 pub const UPSERT_DETAIL_SQL: &str = concat!(
-    "INSERT INTO item (id, name, name_lc, quality, quality_rank, item_level, required_level, item_type, item_subtype, slot, item_set, unique_flag, flavor, icon_url, sockets, socket_bonus, classes, stats, effects, faction_prices, dmg_min, dmg_max, dps, speed, vendor_sell, price_min, price_market, price_available, price_realms, price_region, price_scope, price_updated_at, api_url, html_url, tooltip_url, detail_etag, detail_synced_at, raw_json)",
-    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-    " ON CONFLICT (id) DO UPDATE SET name = ?, name_lc = ?, quality = ?, quality_rank = ?, item_level = ?, required_level = ?, item_type = ?, item_subtype = ?, slot = ?, item_set = ?, unique_flag = ?, flavor = ?, icon_url = ?, sockets = ?, socket_bonus = ?, classes = ?, stats = ?, effects = ?, faction_prices = ?, dmg_min = ?, dmg_max = ?, dps = ?, speed = ?, vendor_sell = ?, price_min = ?, price_market = ?, price_available = ?, price_realms = ?, price_region = ?, price_scope = ?, price_updated_at = ?, api_url = ?, html_url = ?, tooltip_url = ?, detail_etag = ?, detail_synced_at = ?, raw_json = ?",
+    "INSERT INTO item (id, name, name_lc, quality, quality_rank, item_level, required_level, item_type, item_subtype, slot, item_set, unique_flag, flavor, icon_url, sockets, socket_bonus, classes, stats, effects, faction_prices, dmg_min, dmg_max, dps, speed, vendor_sell, price_min, price_market, price_available, price_realms, price_region, price_scope, price_updated_at, api_url, html_url, tooltip_url, detail_etag, detail_synced_at, detail_missing_at, raw_json)",
+    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    " ON CONFLICT (id) DO UPDATE SET name = ?, name_lc = ?, quality = ?, quality_rank = ?, item_level = ?, required_level = ?, item_type = ?, item_subtype = ?, slot = ?, item_set = ?, unique_flag = ?, flavor = ?, icon_url = ?, sockets = ?, socket_bonus = ?, classes = ?, stats = ?, effects = ?, faction_prices = ?, dmg_min = ?, dmg_max = ?, dps = ?, speed = ?, vendor_sell = ?, price_min = ?, price_market = ?, price_available = ?, price_realms = ?, price_region = ?, price_scope = ?, price_updated_at = ?, api_url = ?, html_url = ?, tooltip_url = ?, detail_etag = ?, detail_synced_at = ?, detail_missing_at = ?, raw_json = ?",
 );
 
 /// Upserts over a primary key all share one shape: N VALUES markers, then the same
@@ -114,6 +119,20 @@ pub const SQL_WATCH_ADD: &str = "INSERT INTO watch (id, added_at, note) VALUES (
 pub const SQL_WATCH_DROP: &str = "DELETE FROM watch WHERE id = ?";
 pub const SQL_WATCH_LIST: &str = "SELECT id, note FROM watch ORDER BY id ASC";
 pub const SQL_COUNT_ROWS: &str = "SELECT COUNT(1) FROM item";
+
+/// The one additive step from the v1 shape (v0.5.0 and earlier): the checked-missing
+/// column. Applied in place so an existing catalogue keeps its rows.
+pub const SQL_ADD_MISSING_COLUMN: &str = "ALTER TABLE item ADD COLUMN detail_missing_at INTEGER";
+
+/// Marking an id as "the upstream has no forever record for it" (v0.5.3). The row
+/// must already exist (the list walk created it): an INSERT here would answer the
+/// item FK (id -> item.id) and invent a name-less row, so callers check existence
+/// first (SQL_ROW_OF_ID) and this statement only ever moves the stamp.
+pub const SQL_MARK_MISSING: &str = "INSERT INTO item (id, detail_missing_at) VALUES (?,?) ON CONFLICT (id) DO UPDATE SET detail_missing_at = ?";
+pub const MARK_VALUE_COUNT: usize = 2;
+
+/// Does this id have a row at all? Guards the mark above.
+pub const SQL_ROW_OF_ID: &str = "SELECT COUNT(1) FROM item WHERE id = ?";
 
 /// One TEXT column of one item row, by id: the live lookup's ETag reuse reads the
 /// stored copy when the API answers 304 (docs/API.md, docs/DATABASE.md).
@@ -288,7 +307,7 @@ pub fn open_db(app_data_dir: Option<String>) -> AppResult<Connection> {
                 Err(problem) => return Err(AppError::db(format!("schema rejected: {}", problem))),
                 Ok(_) => {},
             }
-            match meta_set(&conn, "schema_version".to_string(), "1".to_string()) {
+            match meta_set(&conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
                 Err(problem) => return Err(problem),
                 Ok(_) => return Ok(conn),
             }
@@ -317,7 +336,7 @@ pub fn open_db_at(path: String) -> AppResult<Connection> {
                 Err(problem) => return Err(AppError::db(format!("schema rejected: {}", problem))),
                 Ok(_) => {},
             }
-            match meta_set(&conn, "schema_version".to_string(), "1".to_string()) {
+            match meta_set(&conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
                 Err(problem) => return Err(problem),
                 Ok(_) => return Ok(conn),
             }
@@ -338,10 +357,25 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                 Err(_) => 0,
                 Ok(value) => value,
             };
-            if version != SCHEMA_VERSION {
-                return Err(AppError::db(format!("database on disk uses schema {}, this build wants {}; delete the file to rebuild it", version, SCHEMA_VERSION)));
+            if version == SCHEMA_VERSION {
+                return Ok(());
             }
-            return Ok(());
+            // v0.5.3 added one column. The v1 shape differs from this build by
+            // exactly that column, so it is migrated in place - adding rows back
+            // would mean deleting a 19 k-record catalogue the user just does not
+            // want to lose. Anything else (v0 shape, a future shape, a foreign
+            // file) keeps the honest refusal below.
+            if version == 1 {
+                match bind_sql(conn, SQL_ADD_MISSING_COLUMN, [].to_vec(), 0) {
+                    Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem.message))),
+                    Ok(_) => {},
+                }
+                match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
+                    Err(problem) => return Err(problem),
+                    Ok(_) => return Ok(()),
+                }
+            }
+            return Err(AppError::db(format!("database on disk uses schema {}, this build wants {}; delete the file to rebuild it", version, SCHEMA_VERSION)));
         },
     };
 }
@@ -574,6 +608,55 @@ pub fn count_items(conn: &Connection) -> AppResult<i64> {
     }
 }
 
+/// Does this id have a row? The list walk always makes the row before the detail
+/// stage asks about it, so a "no" here means the caller is about to invent a
+/// name-less record and must not mark anything.
+pub fn has_row_of_id(conn: &Connection, id: i64) -> AppResult<bool> {
+    let mut stmt = match conn.prepare(SQL_ROW_OF_ID) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(false),
+        Ok(Some(row)) => {
+            let count: i64 = match row.get(0) {
+                Err(problem) => return Err(AppError::db(format!("{}", problem))),
+                Ok(value) => value,
+            };
+            return Ok(count > 0);
+        },
+    }
+}
+
+/// The checked-missing state (v0.5.3): remember that upstream answered 404 for this
+/// id, so the next crawl does not re-ask for it. Only moves the stamp of an
+/// existing row - see has_row_of_id, which callers must consult first.
+pub fn mark_missing_at(conn: &Connection, id: i64, checked_at: i64) -> AppResult<bool> {
+    let there: bool = match has_row_of_id(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    match there {
+        false => return Ok(false),
+        true => {},
+    }
+    let stamp: Option<i64> = Some(checked_at);
+    let mut head: Vec<Value> = [].to_vec();
+    head.push(Value::Integer(id));
+    head.push(int_value(stamp));
+    match bind_sql(conn, SQL_MARK_MISSING, upsert_params(head), MARK_VALUE_COUNT * 2 - 1) {
+        Err(problem) => return Err(problem),
+        Ok(_) => return Ok(true),
+    }
+}
+
 /// Read one field out of an optional struct: the API omits plenty of them, and an
 /// omitted field must land as SQL NULL rather than as an empty string.
 pub fn field_api(links: Option<Links>) -> Option<String> {
@@ -735,6 +818,8 @@ pub fn upsert_detail(conn: &Connection, detail: ItemDetail, etag: String, raw_js
     let w_speed: Option<f64> = weapon_speed(weapon);
     let etag_text: Option<String> = optional_text(etag);
     let stamp: Option<i64> = Some(synced_at);
+    // a record that answered is not a missing record: clear any older check.
+    let cleared: Option<i64> = None;
     let mut head: Vec<Value> = [].to_vec();
     head.push(Value::Integer(detail.id));
     head.push(text_value(Some(detail.name)));
@@ -773,6 +858,7 @@ pub fn upsert_detail(conn: &Connection, detail: ItemDetail, etag: String, raw_js
     head.push(text_value(tooltip_url));
     head.push(text_value(etag_text));
     head.push(int_value(stamp));
+    head.push(int_value(cleared));
     head.push(text_value(Some(raw_json)));
     return bind_sql(conn, UPSERT_DETAIL_SQL, upsert_params(head), DETAIL_VALUE_COUNT * 2 - 1);
 }
