@@ -98,13 +98,18 @@ pub const SQL_PENDING: &str = concat!(
 );
 
 /// The icon stage's queue (v0.6.0, ADR 0008): pending means **a detail record
-/// answered AND no icon copied yet AND not already checked as no-icon-upstream**.
-/// The `icon_url IS NOT NULL` term keeps the rule honest: a record whose detail
-/// answered without an icon_url has NOTHING to fetch, so it must not be pending
-/// work - pending would otherwise never drain and "nothing pending" would lie.
+/// answered AND no icon copied yet AND not already checked as no-icon-upstream
+/// AND there IS a url to fetch**. The icon_url terms keep the rule honest: a
+/// record whose detail answered WITHOUT a url, or with the EMPTY one (both
+/// measured live 2026-11-20: Peace Tea, Craftsman's Writ, Scroll of Imbue
+/// Iceknife and Lodestone answer "icon_url": ""), has NOTHING to fetch - under a
+/// rule without them pending would never drain and "nothing pending" would lie,
+/// the same trap v0.5.2 fixed for prices. Unlike the detail queue this one needs
+/// no re-ask-first CASE: every candidate already carries a detail stamp, so the
+/// queue is ordered by id.
 pub const SQL_PENDING_ICON: &str = concat!(
     "SELECT id FROM item WHERE detail_synced_at IS NOT NULL AND icon_at IS NULL ",
-    "AND icon_missing_at IS NULL AND icon_url IS NOT NULL ",
+    "AND icon_missing_at IS NULL AND icon_url IS NOT NULL AND icon_url <> '' ",
     "ORDER BY id ASC",
 );
 
