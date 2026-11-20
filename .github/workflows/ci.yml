@@ -76,13 +76,15 @@ jobs:
       - name: Unit + pipeline tests (fixture server, never the live API)
         run: cargo test
       # Active from v0.2.0 on: the headless CLI (docs/DECISIONS/0004) doubles as the
-      # app's own integration test. Kept commented out in the scaffold tag so history
-      # stays green: `cargo run -- status` does not exist before the data layer lands.
-      # - name: CLI smoke test on a seeded fixture DB
-      #   env:
-      #     WGT_DB: ${{ runner.tmpDir }}/fixture.sqlite
-      #     WGT_FIXTURE: https://thewowdb.com
-      #     WGT_LIMIT_BUDGET: '8'
-      #   run: |
-      #     cargo run -- sync --stage list --limit-pages 1
-      #     cargo run -- stats
+      # app's own integration test, run against the committed fixture server so the
+      # suite never hammers the upstream API.
+      - name: CLI smoke test on a seeded fixture DB
+        env:
+          WGT_DB: ${{ runner.tmpDir }}/fixture.sqlite
+          WGT_LIMIT_BUDGET: '8'
+        run: |
+          python3 tests/fixture_api.py > /dev/null 2>&1 &
+          sleep 1
+          cargo run -- sync --stage list --fixture http://127.0.0.1:8765 --budget 2
+          cargo run -- sync --stage detail --fixture http://127.0.0.1:8765
+          cargo run -- stats
