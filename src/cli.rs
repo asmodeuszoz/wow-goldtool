@@ -9,7 +9,7 @@ use crate::errors::AppError;
 use crate::errors::AppResult;
 use crate::errors::ErrorKind;
 
-use crate::db::{count_items, db_path, detail_etag_of, mark_missing_at, open_db_at, raw_json_of, synced_at_of, sync_state_get, upsert_detail, watch_add, watch_drop, watch_list, DbTarget, SyncState, unix_now};
+use crate::db::{count_items, db_path, detail_etag_of, history_of, icon_at_of, icon_blob_of, icon_missing_at_of, mark_missing_at, open_db_at, raw_json_of, synced_at_of, sync_state_get, upsert_detail, watch_add, watch_drop, watch_list, DbTarget, PriceSample, SyncState, unix_now};
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
@@ -272,6 +272,85 @@ pub fn json_item(detail: ItemDetail) -> String {
     }
 }
 
+/// Samples the card's trend gets: a card-sized window, not the whole ledger - the
+/// DB keeps every sample, the card shows the recent 40 (docs/DATABASE.md).
+pub const CARD_HISTORY_LIMIT: i64 = 40;
+
+/// Standard-alphabet base64 with padding (v0.6.0 card): the DB holds the icon BYTES
+/// and the one door to the webview is a JSON verb answer, which has no binary - so
+/// the icon travels as a base64 string and the card makes it a data URI. Our own
+/// twelve-line encoder rather than a new dependency: the pinned dep graph carries
+/// no direct base64 crate (docs/DEVELOPMENT.md pins by minor; the base64 entries in
+/// Cargo.lock belong to tauri's own subtree), and fixture audits decode what this
+/// emits, so the contract is proven, not asserted. '=' is byte 61.
+pub fn b64_text(data: Vec<u8>) -> String {
+    let table: Vec<u8> = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".as_bytes().to_vec();
+    let mut out: String = "".to_string();
+    let mut index: usize = 0;
+    while index < data.len() {
+        let left: usize = data.len() - index;
+        let b0: u32 = data[index] as u32;
+        let b1: u32 = if left > 1 { data[index + 1] as u32 } else { 0 };
+        let b2: u32 = if left > 2 { data[index + 2] as u32 } else { 0 };
+        let triple: u32 = (b0 << 16) + (b1 << 8) + b2;
+        let mut parts: Vec<u8> = [].to_vec();
+        parts.push(table[((triple >> 18) & 63) as usize]);
+        parts.push(table[((triple >> 12) & 63) as usize]);
+        if left > 1 { parts.push(table[((triple >> 6) & 63) as usize]); } else { parts.push(61); }
+        if left > 2 { parts.push(table[(triple & 63) as usize]); } else { parts.push(61); }
+        for one in parts { out.push(one as char); }
+        index = index + 3;
+    }
+    return out;
+}
+
+/// One sample list as JSON for the card: serde again, never hand-joined money.
+pub fn json_history(samples: Vec<PriceSample>) -> String {
+    match to_string(&samples) {
+        Err(_) => return "[]".to_string(),
+        Ok(text) => return text,
+    }
+}
+
+/// The v0.6.0 card extras, shared by BOTH card doors (live and --cached) so the
+/// UI cannot see one shape from a button and another from the other: the local
+/// icon (base64 or null), when it was copied, when it was checked as no-icon-
+/// upstream, and the item's own price samples. A record with a fresh write has
+/// its new sample in the history already: upsert_detail wrote it before this
+/// read ran (the sampling rule lives there, ADR 0007).
+pub fn card_icon_parts(conn: &Connection, id: i64) -> AppResult<Vec<String>> {
+    let copy: Option<Vec<u8>> = match icon_blob_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    let copied: Option<i64> = match icon_at_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    let checked: Option<i64> = match icon_missing_at_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    let samples: Vec<PriceSample> = match history_of(conn, id, CARD_HISTORY_LIMIT) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    let icon_json: String = match copy {
+        None => "null".to_string(),
+        Some(bytes) => match to_string(&b64_text(bytes.clone())) {
+            Err(_) => "null".to_string(),
+            Ok(text) => text,
+        },
+    };
+    let mut parts: Vec<String> = [].to_vec();
+    parts.push(fragment("icon_b64".to_string(), icon_json));
+    parts.push(fragment("icon_at".to_string(), json_opt_int(copied)));
+    parts.push(fragment("icon_missing_at".to_string(), json_opt_int(checked)));
+    parts.push(fragment("history".to_string(), json_history(samples.clone())));
+    return Ok(parts);
+}
+
+
 /// One flag value of ids written comma separated: `--ids 25,40,60`. Split by hand
 /// rather than by pattern so a trailing comma becomes an honest usage error instead of
 /// a silent empty id.
@@ -342,7 +421,14 @@ pub fn cached_card(conn: &Connection, id: i64) -> AppResult<String> {
             parts.push(fragment("cached".to_string(), "true".to_string()));
             parts.push(fragment("reused".to_string(), "true".to_string()));
             parts.push(fragment("detail_synced_at".to_string(), json_opt_int(fetched)));
-            parts.push(fragment("item".to_string(), json_item(detail)));
+            parts.push(fragment("item".to_string(), json_item(detail.clone())));
+            let extras: Vec<String> = match card_icon_parts(conn, id) {
+                Err(problem) => return Err(problem),
+                Ok(found) => found,
+            };
+            for one in extras {
+                parts.push(one.clone());
+            }
             return Ok(object(parts));
         },
     }
@@ -657,7 +743,14 @@ pub fn cmd_item(inv: &Invocation) -> AppResult<String> {
             parts.push(fragment("retry_after".to_string(), json_opt_seconds(response.retry_after)));
             parts.push(fragment("reused".to_string(), match reused { true => "true".to_string(), false => "false".to_string() }));
             parts.push(fragment("cached".to_string(), "false".to_string()));
-            parts.push(fragment("item".to_string(), json_item(detail)));
+            parts.push(fragment("item".to_string(), json_item(detail.clone())));
+            let extras: Vec<String> = match card_icon_parts(&conn, number) {
+                Err(problem) => return Err(problem),
+                Ok(found) => found,
+            };
+            for one in extras {
+                parts.push(one.clone());
+            }
             return Ok(object(parts));
         },
     }

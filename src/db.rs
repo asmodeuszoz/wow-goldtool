@@ -196,6 +196,12 @@ pub const SQL_ICON_URL_OF: &str = "SELECT icon_url FROM item WHERE id = ?";
 /// hands them out base64'd in the card JSON (the one helper without a dependency).
 pub const SQL_ICON_BLOB_OF: &str = "SELECT icon_blob FROM item WHERE id = ?";
 
+/// When the icon was copied (NULL = never) and when it was checked as no-icon-upstream
+/// (NULL = never checked): the card prints both so the icon's three states stay visible
+/// there, exactly like the detail pair's stamps drive the "fetched" line.
+pub const SQL_ICON_AT_OF: &str = "SELECT icon_at FROM item WHERE id = ?";
+pub const SQL_ICON_MISSING_AT_OF: &str = "SELECT icon_missing_at FROM item WHERE id = ?";
+
 /// Where the SQLite file lives and why: the CLI prints both so a user always knows
 /// which file they are looking at.
 #[derive(Serialize, Clone)]
@@ -1090,4 +1096,50 @@ pub fn history_of(conn: &Connection, id: i64, limit: i64) -> AppResult<Vec<Price
     }
     out.reverse();
     return Ok(out);
+}
+
+/// When the icon was copied (NULL = never): the card prints it like detail_synced_at
+/// prints the detail stamp.
+pub fn icon_at_of(conn: &Connection, id: i64) -> AppResult<Option<i64>> {
+    let mut stmt = match conn.prepare(SQL_ICON_AT_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(found) => Ok(found),
+        },
+    }
+}
+
+/// When upstream answered 404 for this record's icon file (NULL = never checked):
+/// the card shows that state next to "no local copy".
+pub fn icon_missing_at_of(conn: &Connection, id: i64) -> AppResult<Option<i64>> {
+    let mut stmt = match conn.prepare(SQL_ICON_MISSING_AT_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(found) => Ok(found),
+        },
+    }
 }
