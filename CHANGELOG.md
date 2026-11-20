@@ -6,6 +6,32 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.5.1 — patch: the crawl no longer freezes the webview · 2026-11-19 · tag `v0.5.1`
+
+Fixed
+
+- A running sync chunk no longer parks the whole app. A bare-`fn` command
+  gets tauri-macros' blocking wrapper — its last acts are
+  `kind.block(result, resolver)` then `return true` (`wrapper.rs:425`/`:428`)
+  — so one chunk (2/s pacing, plus a `Retry-After` sleep on a 429: minutes in
+  the worst case) ran synchronously **inside** the webview's IPC handler,
+  which is the page's message loop: hover stopped highlighting, clicks queued
+  behind the crawl for minutes. `cli_call` is now an `async` command
+  (`respond_async_serialized`, tauri's tokio-backed async manager — tokio is
+  a required dependency of tauri 2.x, so no feature switch was needed): same
+  argv, same dispatch, same envelope, only the wrapper kind flips.
+- Mid-chunk the page now says so: a ticker re-reads the DB once a second
+  (coverage grows per page in list, per item in detail) and prints the
+  chunk's elapsed time in the sync note; the cursor line honestly stays at
+  the last chunk end, because progress truth lives in `sync_state` (ADR 0002).
+
+Added
+
+- The launch audit gained a witness: during a crawl, `gui: ipc verb sync`
+  alternates with one-per-second `gui: ipc verb status` polls — that
+  interleaving is what proves the webview runs mid-chunk
+  (see [docs/DEVLOG.md](./DEVLOG.md)).
+
 ## v0.5.0 — detail-sync targets, price analytics, item card · 2026-11-19 · tag `v0.5.0`
 
 Added

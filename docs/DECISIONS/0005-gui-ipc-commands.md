@@ -47,6 +47,31 @@ cargo registry cache (`file:line`), not from prose docs.
   `tauri-codegen/src/context.rs:255` falls back to `env!("CARGO_PKG_VERSION")`, so `Cargo.toml`
   is the single version source.
 
+## Amendment (v0.5.1, 2026-11-19)
+
+* `cli_call` became an `async fn` command. The wrapper kind is the whole
+  question: a bare `fn` gets the macro's blocking body, whose last acts are
+  `kind.block(result, resolver)` then `return true`
+  (`tauri-macros/src/command/wrapper.rs:425`/`:428`) — the verb runs
+  synchronously **inside** the webview's IPC handler, which *is* the page's
+  message loop: hit-testing (CSS hover), click dispatch and later IPC
+  messages only run when the verb is done. One crawl chunk — 2/s pacing
+  plus a `Retry-After` sleep on a 429, i.e. minutes in the worst case —
+  charged to the page: that is the reported "hover won't highlight,
+  clicks take several minutes". An `async fn` gets `body_async`: the
+  future is handed to `respond_async_serialized`
+  (`wrapper.rs:~372`), tauri's tokio-backed async manager
+  (tokio `rt-multi-thread` is a required dependency of tauri 2.x, not
+  a feature switch), and the handler returns immediately. Same argv,
+  same `cli.rs` dispatch, same envelope — only the wrapper kind flips.
+* Rejected for mid-crawl feedback: a progress channel from JS
+  (`emit`/`event.listen`) — those are plugin commands and ACL-gated, so
+  the ACL-by-construction exemption above would stop covering them
+  (an `app:core:event` grant would be needed). Progress truth stays in
+  the DB (ADR 0002): the UI polls the `status` verb once a second while
+  a chunk is in flight and prints elapsed seconds, because
+  `sync_state` moves only at chunk ends (`finish()` in src/sync.rs).
+
 ## Consequences
 
 **Gained**

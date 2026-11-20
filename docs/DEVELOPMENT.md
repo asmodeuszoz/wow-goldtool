@@ -78,6 +78,7 @@ git tag. The dated narrative lives in [docs/DEVLOG.md](./DEVLOG.md).
 - [x] `v0.3.0` — sync hardening: conditional GETs with stored ETags (per page in `meta`, per item in the row), stop→resume on the `sync_state` page cursor, cancel plumbing for the GUI's AppState
 - [x] `v0.4.0` — Tauri shell + webview UI: one `cli_call(argv)` command, status/search/sync cards, chunked sync with cancel, `build.rs` + `tauri-build`, generated icon
 - [x] `v0.5.0` — detail-sync targets (`--ids`, `--watch` driven from the UI), item card that reads the DB first, price-analytics card, watch toggles in hit rows
+- [x] `v0.5.1` (patch) — the crawl stops freezing the page: `cli_call` is an async command, and a status ticker keeps the note and the card alive while a chunk is in flight
 - [ ] `v0.6.0` — price history (a second DB table, since one price per item cannot show a trend), local icon copies
 
 ## Build & run
@@ -92,7 +93,11 @@ cargo build --release                      # release build, run ./target/release
 The GUI is a foreground process: it blocks until the window is closed and exits 0. While it
 runs it writes `gui:` lines to stderr (`gui: ipc verb status (0 words)`), because the webview
 console is not forwarded on Linux — those lines are how the launch audit is read
-(see [docs/DEVLOG.md](./DEVLOG.md)). The GUI uses the same DB resolution as the CLI, so
+(see [docs/DEVLOG.md](./DEVLOG.md)). While a crawl chunk is in flight the UI's ticker
+polls `status` once a second, so in the audit the crawl's `gui: ipc verb sync` line
+*alternates* with one-per-second status polls — that interleaving is the witness that
+the webview runs during the chunk (fixed in v0.5.1: a bare-`fn` command runs inside
+the IPC handler and parks the page behind the crawl). The GUI uses the same DB resolution as the CLI, so
 `WGT_DB=/tmp/opencode/fixture.sqlite cargo run` audits the UI against the fixture DB instead
 of the real one.
 

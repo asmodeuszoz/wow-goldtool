@@ -5,6 +5,69 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-19 · v0.5.1 — patch: the crawl no longer owns the page
+
+### The report
+
+During a sync list run the whole app was frozen: hovering a button stopped
+highlighting, clicking anything took several minutes. The measurements agree
+on the length: one GUI chunk is 3.5 s (fixture) / ~5 s (real) at the 2/s
+pacing — and a 429 with a `Retry-After` sleep inside the chunk stretches it
+to minutes. The "several minutes" is that wait, charged to the page rather
+than to the crawl.
+
+### The cause, read from the crate source
+
+`#[tauri::command]`'s wrapper kind decides it. A bare `fn` gets the macro's
+blocking body, and that body's last acts are `kind.block(result, resolver)`
+(`tauri-macros/src/command/wrapper.rs:425`) then `return true` (`:428`): the
+verb runs synchronously **inside** the webview's IPC handler — and that
+handler is the page's message loop. So hit-testing (CSS hover), click
+dispatch and any later IPC message can only run when the verb returns. A
+hover that stays dead for exactly one chunk is that stall.
+
+### The fix: the command itself
+
+`cli_call` becomes `pub async fn`. `body_async` hands the future to
+`respond_async_serialized` (`wrapper.rs:~372`): tauri's tokio-backed async
+manager — tokio `rt-multi-thread` is a required dependency of tauri 2.x,
+not a feature switch, so the manager exists in this build — and the IPC
+handler returns immediately. Same argv, same dispatch in `cli.rs`, same
+envelope: only the wrapper kind flips (sync → async). The crawl still runs
+synchronously inside its own future (pacing blocks one tokio worker and
+none of the webview); tokio logged no complaint about the blocking calls,
+stderr stayed all `gui:` lines.
+
+Cancel granularity deliberately unchanged (chunk ends, ADR 0005): this
+release is about the page, not the crawl — and "always honour `Retry-After`"
+is policy, so the wait still delays Cancel; what must not delay is the page.
+
+### Liveness made visible
+
+The UI gains a ticker: while a chunk's await is pending, every second the
+status card re-reads the DB (coverage grows per page in list, per item in
+detail) and the sync note carries the chunk's elapsed time. Honest about
+position on purpose: `sync_state` moves only at chunk ends (`finish()` in
+src/sync.rs), and ADR 0002 keeps progress truth in the DB — so the note
+prints elapsed seconds, not a mid-chunk cursor that would be a lie.
+
+### Audit
+
+| Run | Expectation | Observed |
+| --- | ----------- | -------- |
+| boot audit after the fix | unchanged from v0.5.0 | four verbs `status/watch/stats/status` |
+| probe launch: 12-id targeted chunk, timestamps added for the run (probe removed before commit) | status polls **inside** the chunk await | `sync` verb at t=…268, ticker polls t=…269…293 one per second — the Retry-After stretch with the page alive |
+| tokio slow-task warnings | none | stderr still only `gui:` lines |
+| exit-code audit | unchanged | `2 · 2 · 3 · 4 · 4 · 0` |
+| CI mirror | unchanged | 11/11 `exit=0` |
+
+Rejected for mid-crawl feedback: a JS progress channel (`emit`/`event.listen`)
+— those are plugin commands and ACL-gated; the exemption recorded in ADR 0005
+would stop covering them (an `app:core:event` grant would be needed), and
+progress truth is already the DB.
+
+---
+
 ## 2026-11-19 · v0.5.0 — targets, analytics, the card: what the buttons finally answer
 
 ### The question this release answers
