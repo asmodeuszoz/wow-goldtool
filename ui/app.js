@@ -157,6 +157,31 @@ function hit_row(hit) {
 }
 
 // ---- sync card -------------------------------------------------------------
+// ---- liveness while one chunk is in flight --------------------------------
+// A chunk is seconds (pacing at 2/s) or minutes (a Retry-After wait on a 429),
+// and the await for it is exactly where the page could look dead. It does not:
+// once a second the status card re-reads the DB (coverage grows per page in
+// list and per item in detail) and the sync note carries the chunk's elapsed
+// time. Honest about position: sync_state only moves at chunk ends (finish()
+// in src/sync.rs), so we print elapsed seconds, not a mid-chunk cursor. The
+// polls are also the launch audit's witness that the webview runs during a
+// crawl - the Rust log interleaves status verbs between the chunk verbs.
+var tick_started = 0;
+var tick_label = "";
+
+function tick_body() {
+  var secs = Math.round((Date.now() - tick_started) / 1000);
+  refreshStatus();
+  set_note(document.getElementById("sync-note"),
+    tick_label + ", chunk in flight " + secs + "s — cancel applies at the chunk end", false);
+}
+
+function start_tick(label) {
+  tick_started = Date.now();
+  tick_label = label;
+  return setInterval(tick_body, 1000);
+}
+
 async function runSync(stage) {
   if (sync_busy) {
     set_note(document.getElementById("sync-note"), "a crawl is already running — cancel it first", true);
@@ -166,12 +191,15 @@ async function runSync(stage) {
   cancel_requested = false;
   var chunk = stage === "list" ? 10 : 25;
   var seen = 0;
+  var tick = 0;
   try {
     while (true) {
       set_note(document.getElementById("sync-note"),
         "running " + stage + ": " + seen + " requests spent, chunks of " + chunk + " — cancel stops at the next chunk", false);
       document.getElementById("btn-cancel").classList.add("running");
+      tick = start_tick("running " + stage + ": " + seen + " requests spent, chunks of " + chunk);
       var report = await cli_ok(["sync", "--stage", stage, "--budget", String(chunk)]);
+      clearInterval(tick);
       seen = seen + report.requests;
       if (report.requests === 0) {
         set_note(document.getElementById("sync-note"),
@@ -190,6 +218,7 @@ async function runSync(stage) {
       }
     }
   } catch (problem) {
+    if (tick !== 0) { clearInterval(tick); }
     var extra = problem.retry_after ? " (the API asked to wait " + problem.retry_after + "s; a later chunk will retry)" : "";
     set_note(document.getElementById("sync-note"), problem.message + extra, true);
   }
@@ -272,13 +301,16 @@ async function runTargeted(ids, label) {
   var done = 0;
   var written = 0;
   var reused = 0;
+  var tick = 0;
   try {
     while (done < ids.length) {
       var chunk = ids.slice(done, done + slice);
       set_note(document.getElementById("sync-note"),
         "targeted details (" + label + "): " + done + " of " + ids.length + " visited, chunks of " + slice, false);
       document.getElementById("btn-cancel").classList.add("running");
+      tick = start_tick("targeted details (" + label + "): " + done + " of " + ids.length + " visited, chunks of " + slice);
       var report = await cli_ok(["sync", "--stage", "detail", "--ids", chunk.join(",")]);
+      clearInterval(tick);
       written = written + report.written;
       reused = reused + report.unchanged;
       done = done + chunk.length;
@@ -297,6 +329,7 @@ async function runTargeted(ids, label) {
         label + " done: " + done + " targets visited, " + written + " fetched, " + reused + " reused by ETag", false);
     }
   } catch (problem) {
+    if (tick !== 0) { clearInterval(tick); }
     set_note(document.getElementById("sync-note"), problem.message, true);
   }
   document.getElementById("btn-cancel").classList.remove("running");
