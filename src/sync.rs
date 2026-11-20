@@ -27,7 +27,7 @@ use crate::wowdb::{Client, ApiResponse, HttpKind, RateBudget, classify, get_json
 
 use crate::models::{ItemDetail, ListPage};
 
-use crate::db::{meta_get, meta_set, sync_state_get, sync_state_set, unix_now, upsert_detail, upsert_summary, SyncState};
+use crate::db::{detail_etag_of, meta_get, meta_set, sync_state_get, sync_state_set, unix_now, upsert_detail, upsert_summary, SyncState};
 
 use crate::stats::{pending_ids, coverage, Coverage};
 
@@ -332,23 +332,47 @@ pub fn sync_list(client: Client, conn: &Connection, mut budget: RateBudget, page
     return finish(conn, report, started, page - 1, total, "complete".to_string());
 }
 
-/// Stage 2: fetch the detail record of items that have none yet. This is the slow
-/// stage (roughly 19,000 requests at two per second), so it is opt-in and bounded.
-/// Detail reuse across runs lives on the live lookup side (docs/DATABASE.md raw_json
-/// rule): pending items are first fetches and have no ETag to revalidate yet.
-pub fn sync_detail(client: Client, conn: &Connection, mut budget: RateBudget, id_limit: Option<i64>, cancel: &CancelFlag) -> AppResult<SyncReport> {
+/// Stage 2: fetch the detail record of items that have none yet (pending), or exactly
+/// the ids a caller asked for (`--ids` / the watch list). This is the slow stage, so it
+/// is opt-in, bounded and targeted. A targeted re-visit of an item that already has a
+/// record sends its stored ETag and gets a `304`, so re-asking for the same ids costs
+/// rate budget but neither bandwidth nor a rewrite - the reuse note in docs/API.md
+/// counts both sides the same way here.
+pub fn wanted_of(conn: &Connection, wanted: Vec<i64>, id_limit: Option<i64>) -> AppResult<Vec<i64>> {
+    if wanted.is_empty() {
+        return pending_ids(conn, id_limit);
+    }
+    let mut out: Vec<i64> = [].to_vec();
+    let cap: i64 = match id_limit {
+        None => wanted.len() as i64,
+        Some(number) => number,
+    };
+    for one in wanted {
+        if out.len() as i64 >= cap {
+            break;
+        }
+        out.push(one);
+    }
+    return Ok(out);
+}
+
+pub fn sync_detail(client: Client, conn: &Connection, mut budget: RateBudget, id_limit: Option<i64>, cancel: &CancelFlag, wanted: Vec<i64>) -> AppResult<SyncReport> {
     let started: i64 = unix_now();
     let mut report: SyncReport = SyncReport::make("detail".to_string());
-    let ids: Vec<i64> = match pending_ids(conn, id_limit) {
+    let ids: Vec<i64> = match wanted_of(conn, wanted.clone(), id_limit) {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };
     let total: i64 = ids.len() as i64;
-    for id in ids {
+    for id in ids.clone() {
         if cancel.cancelled {
-            let left: i64 = match pending_ids(conn, None) {
-                Err(problem) => return Err(problem),
-                Ok(value) => value.len() as i64,
+            let left: i64 = if wanted.is_empty() {
+                match pending_ids(conn, None) {
+                    Err(problem) => return Err(problem),
+                    Ok(value) => value.len() as i64,
+                }
+            } else {
+                ids.len() as i64 - report.items
             };
             report.message = format!("detail sync cancelled by user request: {} records fetched, {} left pending", report.items, left);
             return finish(conn, report, started, 0, total, "cancelled".to_string());
@@ -358,7 +382,12 @@ pub fn sync_detail(client: Client, conn: &Connection, mut budget: RateBudget, id
             budget.wait_and_count();
             report.requests = report.requests + 1;
             let url: String = item_url(id);
-            let response: ApiResponse = match get_json(client.clone(), url.clone(), "".to_string()) {
+            let send_etag: String = match detail_etag_of(conn, id) {
+                Err(problem) => return Err(problem),
+                Ok(None) => "".to_string(),
+                Ok(Some(found)) => found,
+            };
+            let response: ApiResponse = match get_json(client.clone(), url.clone(), send_etag) {
                 Err(problem) => return Err(problem),
                 Ok(value) => value,
             };
@@ -391,16 +420,28 @@ pub fn sync_detail(client: Client, conn: &Connection, mut budget: RateBudget, id
             break;
         }
     }
-    let remaining: i64 = match pending_ids(conn, None) {
-        Err(problem) => return Err(problem),
-        Ok(value) => value.len() as i64,
+    let remaining: i64 = if wanted.is_empty() {
+        match pending_ids(conn, None) {
+            Err(problem) => return Err(problem),
+            Ok(value) => value.len() as i64,
+        }
+    } else {
+        ids.len() as i64 - report.items
     };
     report.complete = remaining == 0;
     if report.complete {
-        report.message = format!("detail crawl fetched {} records", report.items);
+        report.message = if wanted.is_empty() {
+            format!("detail crawl fetched {} records", report.items)
+        } else {
+            format!("detail crawl visited every targeted record: {} fetched", report.items)
+        };
         return finish(conn, report, started, 0, total, "complete".to_string());
     }
-    report.message = format!("detail crawl paused: {} of {} records fetched, {} left pending", report.items, total, remaining);
+    report.message = if wanted.is_empty() {
+        format!("detail crawl paused: {} of {} records fetched, {} left pending", report.items, total, remaining)
+    } else {
+        format!("detail crawl stopped inside the target list: {} of {} fetched, {} left in the list", report.items, total, remaining)
+    };
     return finish(conn, report, started, 0, total, "partial".to_string());
 }
 

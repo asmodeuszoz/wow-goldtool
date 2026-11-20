@@ -119,6 +119,7 @@ pub const SQL_COUNT_ROWS: &str = "SELECT COUNT(1) FROM item";
 /// stored copy when the API answers 304 (docs/API.md, docs/DATABASE.md).
 pub const SQL_DETAIL_ETAG_OF: &str = "SELECT detail_etag FROM item WHERE id = ?";
 pub const SQL_RAW_JSON_OF: &str = "SELECT raw_json FROM item WHERE id = ?";
+pub const SQL_SYNCED_AT_OF: &str = "SELECT detail_synced_at FROM item WHERE id = ?";
 
 /// Where the SQLite file lives and why: the CLI prints both so a user always knows
 /// which file they are looking at.
@@ -389,7 +390,7 @@ pub fn detail_etag_of(conn: &Connection, id: i64) -> AppResult<Option<String>> {
         Ok(None) => return Ok(None),
         Ok(Some(row)) => return match row.get(0) {
             Err(problem) => Err(AppError::db(format!("{}", problem))),
-            Ok(value) => Ok(Some(value)),
+            Ok(found) => Ok(found),
         },
     }
 }
@@ -522,6 +523,29 @@ pub fn watch_drop(conn: &Connection, id: i64) -> AppResult<usize> {
     let mut single: Vec<Value> = [].to_vec();
     single.push(Value::Integer(id));
     return bind_sql(conn, SQL_WATCH_DROP, single, 1);
+}
+
+/// When the detail record was last fetched (NULL means never). The item card prints it
+/// so a user can tell today's prices from last month's without leaving the app.
+pub fn synced_at_of(conn: &Connection, id: i64) -> AppResult<Option<i64>> {
+    let mut stmt = match conn.prepare(SQL_SYNCED_AT_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => return Err(AppError::db(format!("{}", problem))),
+            Ok(found) => return Ok(found),
+        },
+    }
 }
 
 pub fn watch_list(conn: &Connection) -> AppResult<Vec<i64>> {

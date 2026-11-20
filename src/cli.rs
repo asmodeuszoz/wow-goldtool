@@ -9,7 +9,7 @@ use crate::errors::AppError;
 use crate::errors::AppResult;
 use crate::errors::ErrorKind;
 
-use crate::db::{count_items, db_path, detail_etag_of, open_db_at, raw_json_of, sync_state_get, upsert_detail, watch_add, watch_drop, watch_list, DbTarget, SyncState, unix_now};
+use crate::db::{count_items, db_path, detail_etag_of, open_db_at, raw_json_of, synced_at_of, sync_state_get, upsert_detail, watch_add, watch_drop, watch_list, DbTarget, SyncState, unix_now};
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
@@ -27,7 +27,7 @@ use std::env::set_var;
 /// What the CLI can answer. Keeping the list here means an unknown verb becomes a
 /// usage error that names what the user actually typed.
 pub fn usage_text() -> String {
-    return "usage: status | sync --stage list|detail [--budget N] | search TEXT [--quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--limit N] | item ID | watch add ID [note] | watch list | watch drop ID | status [--db PATH] [--fixture URL]".to_string();
+    return "usage: status | sync --stage list|detail [--budget N] [--ids A,B,C] [--watch] | search TEXT [--quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--limit N] | item ID [--cached] | watch add ID [note] | watch list | watch drop ID | status [--db PATH] [--fixture URL]".to_string();
 }
 
 /// The verbs of one invocation plus its flags. Unknown flags are kept rather than
@@ -46,6 +46,9 @@ pub struct Invocation {
     pub budget: Option<i64>,
     pub db: Option<String>,
     pub fixture: Option<String>,
+    pub id_list: Vec<i64>,
+    pub watch: bool,
+    pub cached: bool,
     pub bad: String,
 }
 
@@ -61,12 +64,15 @@ pub fn takes_value(flag: String) -> bool {
     if flag == "--quality" { return true }
     if flag == "--type" { return true }
     if flag == "--max-level" { return true }
+    if flag == "--ids" { return true }
     return false;
 }
 
 /// Flags that stand alone.
 pub fn bare_flag(flag: String) -> bool {
     if flag == "--priced" { return true }
+    if flag == "--watch" { return true }
+    if flag == "--cached" { return true }
     return false;
 }
 
@@ -95,6 +101,9 @@ pub fn parse_invocation(args: Vec<String>) -> Invocation {
         budget: None,
         db: None,
         fixture: None,
+        id_list: [].to_vec(),
+        watch: false,
+        cached: false,
         bad: "".to_string(),
     };
     let mut index: usize = 0;
@@ -102,7 +111,9 @@ pub fn parse_invocation(args: Vec<String>) -> Invocation {
         let token: String = args[index].clone();
         if token.starts_with("--") {
             if bare_flag(token.clone()) {
-                out.priced = true;
+                if token == "--priced" { out.priced = true; }
+                if token == "--watch" { out.watch = true; }
+                if token == "--cached" { out.cached = true; }
                 index = index + 1;
                 continue;
             }
@@ -129,6 +140,15 @@ pub fn parse_invocation(args: Vec<String>) -> Invocation {
             }
             if token == "--quality" {
                 out.quality = Some(value.clone());
+            }
+            if token == "--ids" {
+                match split_ids(value.clone()) {
+                    Err(problem) => {
+                        out.bad = problem.to_text();
+                        return out;
+                    },
+                    Ok(numbers) => out.id_list = numbers.clone(),
+                }
             }
             if token == "--type" {
                 out.type_name = Some(value.clone());
@@ -252,6 +272,82 @@ pub fn json_item(detail: ItemDetail) -> String {
     }
 }
 
+/// One flag value of ids written comma separated: `--ids 25,40,60`. Split by hand
+/// rather than by pattern so a trailing comma becomes an honest usage error instead of
+/// a silent empty id.
+pub fn split_ids(text: String) -> AppResult<Vec<i64>> {
+    let mut parts: Vec<String> = [].to_vec();
+    let mut current: String = "".to_string();
+    for ch in text.chars() {
+        if ch == ',' {
+            parts.push(current.clone());
+            current = "".to_string();
+        } else {
+            current.push(ch);
+        }
+    }
+    parts.push(current);
+    let mut out: Vec<i64> = [].to_vec();
+    for piece in parts {
+        match as_int(piece.clone()) {
+            None => return Err(AppError::usage(format!("--ids wants numeric item ids, got {} in {}", piece, text))),
+            Some(number) => out.push(number),
+        }
+    }
+    return Ok(out);
+}
+
+/// Where a detail run gets its ids. Explicit ids win, then the watch list; an empty
+/// result means "everything still pending" and src/sync.rs owns that difference.
+pub fn detail_targets(conn: &Connection, inv: &Invocation) -> AppResult<Vec<i64>> {
+    if !inv.id_list.is_empty() {
+        return Ok(inv.id_list.clone());
+    }
+    if inv.watch {
+        return watch_list(conn);
+    }
+    return Ok([].to_vec());
+}
+
+/// One optional whole number as JSON: absent means `null`, never a made-up 0.
+pub fn json_opt_int(opt: Option<i64>) -> String {
+    match opt {
+        None => return "null".to_string(),
+        Some(number) => return format!("{}", number),
+    }
+}
+
+/// `item ID --cached`: the card the UI shows before any request went out. A record that
+/// was never fetched is `not-found` - the UI reads that word and offers to sync the item,
+/// so "no data yet" and "broken data" stay two different answers.
+pub fn cached_card(conn: &Connection, id: i64) -> AppResult<String> {
+    let stored: Option<String> = match raw_json_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    match stored {
+        None => return Err(AppError::not_found(format!("item {} has no stored copy: fetch it with sync --stage detail --ids {}", id, id))),
+        Some(text) => {
+            let detail: ItemDetail = match from_str(&text) {
+                Err(problem) => return Err(AppError::decode(format!("the stored copy of item {} is not the JSON we expect: {}", id, problem))),
+                Ok(value) => value,
+            };
+            let fetched: Option<i64> = match synced_at_of(conn, id) {
+                Err(problem) => return Err(problem),
+                Ok(found) => found,
+            };
+            let mut parts: Vec<String> = [].to_vec();
+            parts.push(fragment("status".to_string(), "null".to_string()));
+            parts.push(fragment("retry_after".to_string(), json_opt_seconds(None)));
+            parts.push(fragment("cached".to_string(), "true".to_string()));
+            parts.push(fragment("reused".to_string(), "true".to_string()));
+            parts.push(fragment("detail_synced_at".to_string(), json_opt_int(fetched)));
+            parts.push(fragment("item".to_string(), json_item(detail)));
+            return Ok(object(parts));
+        },
+    }
+}
+
 /// A list of ids as a JSON array: `watch list` prints this, the UI reads it.
 pub fn json_ids(ids: Vec<i64>) -> String {
     match to_string(&ids) {
@@ -362,8 +458,16 @@ pub fn cmd_sync(inv: &Invocation) -> AppResult<String> {
         eprintln!("list stage: {} pages, {} records seen, {} written", report.pages, report.items, report.written);
         return Ok(json_report(report));
     }
-    eprintln!("fetching item details: this is the slow stage, about two records per second");
-    let report: SyncReport = match sync_detail(client.clone(), &conn, budget, inv.budget, &cancel) {
+    let wanted: Vec<i64> = match detail_targets(&conn, inv) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    if wanted.is_empty() {
+        eprintln!("fetching item details: this is the slow stage, about two records per second");
+    } else {
+        eprintln!("fetching item details for {} targeted records ({} asked by --ids, watch list asked by --watch)", wanted.len(), inv.id_list.len());
+    }
+    let report: SyncReport = match sync_detail(client.clone(), &conn, budget, inv.budget, &cancel, wanted.clone()) {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };
@@ -470,6 +574,9 @@ pub fn cmd_item(inv: &Invocation) -> AppResult<String> {
                 None => "".to_string(),
                 Some(text) => text,
             };
+            if inv.cached {
+                return cached_card(&conn, number);
+            }
             let client: Client = match build_client() {
                 Err(problem) => return Err(problem),
                 Ok(value) => value,
@@ -507,6 +614,7 @@ pub fn cmd_item(inv: &Invocation) -> AppResult<String> {
             parts.push(fragment("status".to_string(), format!("{}", response.status)));
             parts.push(fragment("retry_after".to_string(), json_opt_seconds(response.retry_after)));
             parts.push(fragment("reused".to_string(), match reused { true => "true".to_string(), false => "false".to_string() }));
+            parts.push(fragment("cached".to_string(), "false".to_string()));
             parts.push(fragment("item".to_string(), json_item(detail)));
             return Ok(object(parts));
         },
