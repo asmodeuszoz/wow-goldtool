@@ -6,6 +6,51 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.9.3 — the lists draw the DB's own icon: `--icons` on the list doors · 2026-11-21 · tag `v0.9.3`
+
+Added
+
+- **`--icons`** (ADR 0014), a no-value flag on the two list doors: `search TEXT … --icons`
+  and `stats --icons` put each row's icon next to it, from the **DB's own bytes** — the
+  doors read `icon_blob`/`icon_at`/`icon_missing_at` and call the ONE `b64_text` encoder,
+  which moved into `src/db.rs` beside the bytes it encodes so the card and the lists
+  cannot encode the same copy two ways. **ZERO requests leave either door**, so ADR 0004's
+  network door (`3`) is unreachable here: these doors answer `0`, `2` (usage) and `4`
+  (missing DB) only, and the mirror replay's GET tally not moving is the proof.
+- **The icon trio on the row shapes**: `Hit` and `Extreme` grew `icon_b64` / `icon_at` /
+  `icon_missing_at`. The keys are always present; the base64 payload rides only when asked
+  (measured: about 3.1 K chars per icon — avg 2 327 bytes per copy — so an unbounded hit
+  list would be huge and `--limit` bounds it). Rows are COLLECTED before the per-row
+  icon reads run, so a list can never straddle a write of the table it came from.
+- **The UI draws an icon column** on the search hits and on both price lists
+  (cheapest/priciest), asks both with `--icons` at its own bounds (40 hits, 6 extremes),
+  and shows a placeholder glyph (`◇`) where a row has no bytes — with the WHICH state of
+  the row's own stamps in the hover (`icon_missing_at` set → checked as gone upstream;
+  neither stamp → never fetched). ADR 0008's rule again: upstream's `icon_url` rides the
+  row shape but is never an image src.
+
+Honest about what did NOT need to change
+
+- **the item card needed no code**: it has rendered an actual `<img>` (a data URI, never a
+  hotlink) since v0.6.0. The lists were the gap, the card was not;
+- **the watch list gained no panel**: `ui/index.html` has no watch table (measured — the only
+  watch surface is the `Watch these hits` button and the sync scope), so the watched rows
+  gain icons where they appear, in the hits table, and no panel was invented;
+- **the live-search table keeps no icon column**: that door reads and writes NO DB (ADR 0009),
+  so upstream's names have no local copy to show.
+
+Grounded by measurement, on the user's own DB
+
+- 4 030 rows hold icon bytes, 1 was checked as gone upstream, 15 228 were never asked; all
+  4 602 detailed rows carry an `icon_url` but only 4 030 carry bytes — so hotlinking the
+  address would show an image the DB never claims;
+- the encoder did not change across the move: `item 25 --cached` answered `icon_b64` of 2 596
+  chars before and after, same sha256 prefix, and the emitted base64 decodes back to the DB's
+  own 1 945 bytes.
+
+Refs: ADR 0014, ADR 0008's icon stage, ADR 0004's exit-code contract, ADR 0011's CI rule;
+schema stays `5` — the doors write nothing.
+
 ## v0.9.2 — old copies get their twin re-derived, with ZERO requests · 2026-11-21 · tag `v0.9.2`
 
 Added

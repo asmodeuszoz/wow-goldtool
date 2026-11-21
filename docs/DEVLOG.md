@@ -5,6 +5,57 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-21 · v0.9.3 — the icon doors: the lists draw the DB's own bytes, `--icons` on the list doors
+
+### What forced it — one read of the user's own DB
+
+Measured before any code changed, and it is the whole decision:
+
+```
+rows with icon_blob                       4 030  of 19 258 rows
+checked as gone upstream (icon_missing_at)     1
+never asked (no icon_at, no blob)         15 228
+detailed rows                             4 602  ALL carry an icon_url, 4 030 carry bytes
+blob bytes    min 1 385 · avg 2 327 · max 3 268   total 9 380 048  → ≈ 3.1 K chars each
+```
+
+(a) `icon_url` on 4 602 rows but bytes on 4 030: hotlinking the address would show an image
+the DB never claims to hold — ADR 0008 already says the opposite of that ("nothing is
+hotlinked, the DB gets the bytes"), and the hosts were measured serving `image/jpeg`. (b)
+3.1 K chars per icon: the UI asks 40 hits (≈ 124 K chars) and 6 extremes (≈ 19 K), while a
+CLI `search` with NO `--limit` would carry every visible row — tens of MB. So icons ride
+when ASKED, and the ask is bounded by the caller.
+
+### The decision, and what was rejected
+
+Always-inline was rejected by that size measurement; a separate `icon ID…` verb was rejected
+because the hits are already collected and the icon columns sit on the same rows in the same
+DB — a second door would split one truth in two. A flag with no stamps was rejected because
+an empty cell would read as "this item has no icon in the game", a lie for 15 228 rows. So:
+`--icons`, a no-value flag beside `--watch`/`--cached`, and BOTH row shapes (`Hit`, `Extreme`)
+grew the trio `icon_b64`/`icon_at`/`icon_missing_at` — keys always present, payload only when
+asked, stamps always. The encoder moved out of `cli.rs` into `db.rs`, beside the bytes it
+encodes, and `icon_b64_of` became the ONE helper the card and the lists call: the house rule
+is one truth, one encoder, and the move was measured byte-identical (2 596 chars before and
+after, sha256 prefix `c67a63484dc91767` both times, and the emitted base64 decodes back to the
+DB's own 1 945 bytes). ZERO requests leave either door, so ADR 0004's `3` is unreachable there.
+
+### Three honest non-gains, recorded not swept
+
+The card needed NO code — it has drawn an `<img>` data URI since v0.6.0; the lists were the
+gap. The watch list has no panel at all (measured in `ui/index.html`), so nothing was invented
+to hang an icon on: watched rows gain icons where they appear, in the hits table. The live-search
+table keeps no icon column, because that door reads and writes NO DB (ADR 0009) and upstream
+names have no local copy. And 15 228 of 19 258 rows still answer the glyph — honest, because
+those rows genuinely hold no bytes.
+
+### Chain
+
+`770b5bf` refactor(db) (the encoder moves) → `4de3b0d` feat(query) (the `Hit` trio) →
+`d03e2f2` feat(stats) (the `Extreme` trio) → `618fae3` feat(cli) (`--icons`) →
+`7db9502` feat(ui) (the icon columns + the glyph) → `41cc1f0` ci (smoke 29 → 31 cargo steps) →
+`87f97ea` chore (banner 0.9.2 → 0.9.3, schema stays `5`) → this record carries the tag.
+
 ## 2026-11-21 · v0.9.2 — the refresh door: old copies get their twin re-derived, ZERO requests
 
 ### What forced it — one measurement on the user's own file

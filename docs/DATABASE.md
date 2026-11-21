@@ -118,6 +118,34 @@ id the walk never listed. `status`/`stats` count the third state, and the UI pri
 | state | columns | meaning |
 | ----- | ------- | ------- |
 | copied | `icon_blob` + `icon_at` | the asset host answered with bytes; the DB holds them |
+
+### The icon doors (v0.9.3, ADR 0014): lists read these columns, they write nothing
+
+The three columns above are schema `3`'s (ADR 0008's icon stage), and v0.9.3's doors
+READ them — `search … --icons` and `stats --icons` call `icon_b64_of`, which calls the
+ONE `b64_text` encoder that lives in `src/db.rs` beside the bytes it encodes (it moved out
+of `cli.rs` so the card and the lists cannot encode the same copy two ways; the move was
+measured byte-identical). `schema_version` stays `5`: writing nothing means no hop, so a
+DB that already copied icons answers the icon doors with no migration at all.
+
+Rules that live in this file and are enforced by the doors:
+
+* the image is always the DB's own bytes. `icon_url` is upstream's address and rides the
+  row shape, but is never an image src — measured on the user's DB: 4 602 detailed rows
+  ALL carry an `icon_url` while only 4 030 carry bytes, so hotlinking would show an image
+  the DB never claims to hold (ADR 0008's rule, hosts measured serving `image/jpeg`);
+* the trio's keys are always present on a row, the base64 payload rides only when the door
+  was asked with `--icons` — because one icon costs about 3.1 K chars once encoded (avg
+  2 327 bytes, min 1 385, max 3 268; 9 380 048 bytes over 4 030 copies), so an unbounded
+  hit list is a JSON answer of tens of MB. The UI bounds its own asks (40 hits, 6 extremes);
+* the three states stay three answers: bytes + `icon_at` → the image; `icon_missing_at`
+  set and no bytes → the placeholder glyph with "checked as not there upstream <when>" in
+  the hover; neither stamp → the glyph with "never fetched". 4 030 of 19 258 rows on the
+  user's file can show an image, and 15 228 honestly cannot — most rows show the glyph;
+* rows are COLLECTED before the per-row icon reads run, so a list never straddles a write
+  of the table it came from (the refresh door's rule);
+* ZERO requests leave either door, so ADR 0004's network door (`3`) is unreachable there
+  and the doors answer `0`, `2` (usage) and `4` (missing DB) only.
 | checked and gone | `icon_missing_at` | the host answered `404` for that record's `icon_url` | one request, never asked again — nothing revalidates an icon |
 | not pending, not copied | neither, and `icon_url` NULL or `''` | upstream answered no icon to copy (measured live: Peace Tea, Craftsman's Writ, Scroll of Imbue Iceknife, Lodestone answer `"icon_url": ""`) — nothing to fetch, no check to record |
 | waiting | none of the stamps, `icon_url` a real url | the only thing the icon stage sees as pending |
