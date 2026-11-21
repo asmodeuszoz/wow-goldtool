@@ -6,6 +6,42 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.9.2 — old copies get their twin re-derived, with ZERO requests · 2026-11-21 · tag `v0.9.2`
+
+Added
+
+- **`refresh-twins`** (ADR 0013): one ask re-derives every twin in the DB from the copy it
+  already holds. The copy is the source of truth, so **ZERO requests leave the door** —
+  ADR 0004's network door (`3`) is unreachable here and the doors are `0` and `4` only.
+  It writes only rows whose twin differs or is missing, rides tombstoned and manual rows
+  (ADR 0012's rule is that the twin matches what the DB SAYS), collects every row before
+  writing any (a sqlite row walk over the table it rewrites must not interleave), and is
+  idempotent: a second press answers `0 rewritten` and still exits `0`.
+- **The UI button `Reword the copies`** calls the SAME verb through the same one-command
+  path (ADR 0005), and prints the door's own numbers.
+- **CI smoke grew the door** (24 → 29 cargo steps + one plant line): first press answers
+  0 rewritten / 4 unchanged, the v0.9.0 glued shape is planted with python3's own sqlite3
+  (the same interpreter the fixture server needs — no new dependency), the phrase search
+  answers `0`, refresh answers `1 rewritten`, the same search answers `1`, a third press
+  answers `0`.
+
+Honest size of the gain, measured on the user's 4 602 copies
+
+- readable card row on every copy, and `twin == derivation(copy)` for the whole DB —
+  ADR 0012's gap and v0.9.1's residue both close here, without a re-fetch;
+- the description door is a substring door, so only phrases spanning an ELEMENT boundary
+  gain findability: `damage speed` +358 rows, `hand one` +90, `sword 1` +14, `1 main` +3;
+  `main hand` stays 75 before AND after and `sell price: 7` stays 291.
+
+Changed
+
+- `docs/DATABASE.md`'s honest-gap paragraph now names the door that closes it; the version
+  banner moves 0.9.0 → 0.9.2 (the v0.9.1 patch chain left it put). The schema does NOT
+  move: the refresh writes columns schema `5` already has.
+
+Refs: ADR 0013, ADR 0012, ADR 0010's merge rule, ADR 0004's exit-code contract,
+[docs/DEVLOG.md](./docs/DEVLOG.md), tag `v0.9.2`.
+
 ## v0.9.1 — the scope door answers and the twin keeps its spaces: v0.9.0's measured defects fixed forward · 2026-11-21 · tag `v0.9.1`
 
 Fixed

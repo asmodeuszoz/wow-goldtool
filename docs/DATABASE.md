@@ -156,10 +156,17 @@ scope to match: `search TEXT --where name|description|all` (default `name`, the 
 behaviour), `description` reads `tooltip_lc` behind `IS NOT NULL` (never-fetched and checked-gone
 records skip honestly), `all` is name OR description, and a bogus scope answers the usage door
 (`2`). Tombstoned rows stay invisible in EVERY scope (`visible_clause` is pushed first).
-Honest gap: a row that migrated from schema 4 with a copy already in it has NO twin until the
-next tooltip write — SQLite's `ALTER` cannot run Rust's reader, and duplicating it across
-languages is exactly the drift this file exists to forbid; the user's own file has ZERO copies,
-so every copy it will ever make carries a twin from birth.
+That gap is closed by ONE door (v0.9.2, ADR 0013): `refresh-twins` calls the SAME Rust
+reader over the whole DB and rewrites only the rows whose twin differs or is missing —
+ZERO requests leave it, so nothing is re-fetched. Measured on the user's own file the day
+that door was written: 4 602 copies, ZERO matching the corrected rule, and the stored twin
+equal to the recomputed v0.9.0 GLUED shape for ALL 4 602 — the corrected rule reaches NEW
+copies only, because the pending rules refuse a stamped copy (ADR 0007) and a `304` writes
+nothing. Tombstones and manual rows ride (ADR 0010's stated `tooltip_html` is what the DB
+SAYS for those rows), rows are COLLECTED before any write (a sqlite row walk over the table
+this door rewrites must not interleave with its own UPDATEs), and the door is idempotent:
+a second press answers 0 rewritten and still exits 0. No schema hop — it writes columns
+schema `5` already has.
 
 `write_tooltip` upserts and clears `tooltip_missing_at` (a copy is not a check);
 `mark_tooltip_missing_at` checks the row exists first (`SQL_ROW_OF_ID`, ADR 0006's guard).

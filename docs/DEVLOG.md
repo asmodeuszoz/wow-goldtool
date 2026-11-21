@@ -5,6 +5,44 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-21 · v0.9.2 — the refresh door: old copies get their twin re-derived, ZERO requests
+
+### What forced it — one measurement on the user's own file
+
+ADR 0012 made the twin DERIVED and v0.9.1 corrected the derivation, but the pending rules
+refuse a stamped copy (ADR 0007) and a `304` writes nothing — so the corrected rule only
+ever reaches NEW copies. Measured the day this door was written, on the one file that
+finished a crawl: **4 602 copies, ZERO matching the corrected rule, and the stored twin
+equal to the recomputed v0.9.0 GLUED shape for all 4 602** (`Worn ShortswordItem Level
+2Main HandOne-Handed Sword1 - 3 DamageSpeed 1.9(1.1 damage per second)Sell Price: 7c…`).
+ADR 0012's "honest gap" (a migrated row with a copy has no twin until a write touches it)
+has the SAME cause, and on this file the gap is every copy.
+
+### The decision, and what was rejected
+
+Re-asking upstream would spend 4 602 requests to re-fetch bytes the DB already holds — and
+the pending rules would not even schedule it. Re-deriving at read time would put two
+answers on one copy and let the column drift, against ADR 0012's invariant. Folding it
+into the next sync pass is measured dead (the queues answer ZERO pending for stamped copies).
+So: an explicit door the user presses — `refresh-twins`, no arguments, the whole DB, the
+SAME `readable_tooltip_text` every write path calls (no second derivation to disagree),
+only differing/missing rows written, rows collected before any write, tombstones and manual
+rows riding, idempotent, and exit `0` with a report for the nothing-to-do door (`4` would
+mean "the DB does not have it"). ZERO requests leave it, so ADR 0004's `3` is unreachable.
+
+### The honest size of the gain
+
+The card's words row becomes readable on every copy and the invariant `twin == derivation(copy)`
+holds for the whole DB — those are the real wins. The description door is a SUBSTRING door,
+so a phrase inside one span was always findable: measured on the user's 4 602 copies,
+`damage speed` +358, `hand one` +90, `sword 1` +14, `1 main` +3, while `main hand` is 75
+before AND after and `sell price: 7` is 291 both ways. The search gain is the phrases that
+span an element boundary, not a general rewriting of what search can do.
+
+Chain: `a5da052` feat(db) → `4cd95b3` feat(cli) → `d1703e4` feat(ui) → `cb8eee9` ci (24 → 29
+cargo steps + one plant line) → `bb9b2c2` chore (banner 0.9.0 → 0.9.2, schema stays 5) →
+this record carries the tag.
+
 ## 2026-11-21 · v0.9.1 — the v0.9.0 defects die here: the scope door answers, the twin keeps its spaces
 
 ### What forced it — two measurements, no theory
