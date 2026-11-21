@@ -1719,8 +1719,11 @@ pub fn manual_overrides_of(conn: &Connection, id: i64) -> AppResult<Option<Strin
 /// The READABLE derivation (v0.9.0, ADR 0012, house rule: measured, not invented).
 /// Measured: two live tooltip answers - one plain (forever/item/25) and one carrying
 /// flavor prose (forever/item/728) - hold div/span/img tags with class/src/width/height
-/// attributes and ZERO HTML entities. So the rule is exactly: drop <...> spans, collapse
-/// whitespace runs, trim. NO entity decoder is written because none was measured - if
+/// attributes and ZERO HTML entities. So the rule is exactly (v0.9.1 correction, measured):
+/// replace every <...> span with ONE space (measured: a bare span-DROP glued words across
+/// element boundaries - the user file's first twin read "Worn ShortswordItem Level 2Main
+/// Hand..." after 4 602 copies), then collapse whitespace runs, trim. NO entity decoder
+/// is written because none was measured - if
 /// upstream ever ships entities they show verbatim, and the words still search. This
 /// reads the MERGED copy (the manual layer's stated tooltip_html wins before the twin
 /// is computed), so a card and a search can never disagree with the DB.
@@ -1731,7 +1734,8 @@ pub fn readable_tooltip_text(html: String) -> String {
         match inside_tag {
             true => {
                 if ch == '>' {
-                    inside_tag = false
+                    inside_tag = false;
+                    stripped.push(' ')
                 }
             },
             false => {
@@ -1760,7 +1764,18 @@ pub fn readable_tooltip_text(html: String) -> String {
             },
         }
     }
-    return text;
+    let mut stop: usize = text.chars().count();
+    let all: Vec<char> = text.chars().collect();
+    while stop > 0 && all[stop - 1] == ' ' {
+        stop = stop - 1
+    }
+    let mut trimmed: String = "".to_string();
+    let mut seen_i: usize = 0;
+    while seen_i < stop {
+        trimmed.push(all[seen_i]);
+        seen_i = seen_i + 1
+    }
+    return trimmed;
 }
 
 /// The tooltip door's stamps and copy (v0.8.0, ADR 0010): the tooltip write is a
