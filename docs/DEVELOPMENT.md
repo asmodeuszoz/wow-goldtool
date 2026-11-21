@@ -96,6 +96,7 @@ git tag. The dated narrative lives in [docs/DEVLOG.md](./DEVLOG.md).
 - [x] `v0.6.0` — price history (a second table, `price_history`: one sample per **fresh** detail write, never a `304`, ADR 0007), local icon copies via a THIRD sync stage (`icon_blob` + `icon_at` + `icon_missing_at`, ADR 0008), the item card renders the `stats` pairs (the one unshaped field grounded live), the local icon as a `data:` URI and the price trend; schema `3`, migrating v1→v2→v3 in place
 - [x] `v0.7.0` — the live-search door (ADR 0009): CLI verb `live-search TEXT` — the whole verb tail as ONE query, ONE request to the grouped door, upstream's own answer printed as it came (`{status, retry_after, remaining, answer}`), names-only means all-empty groups still exit `0`; a UI panel asks ONCE per click with `view upstream` links; the door writes and reads NO DB (schema stays `3`), and it consumes `search_url`/`SearchResponse`/`ApiResponse.remaining` so the dead set shrinks to `catalogue`/`open_db`/`PendingSql`
 - [x] `v0.8.0` — the manual layer and the description copy (ADR 0010): a FOURTH sync stage `--stage tooltip` copies the tooltip door's own `html` (the `forever/item` body carries NO description — measured key list, docs/API.md), schema `4` with a chained v1→v2→v3→v4 migration; the manual layer is ONE rule (overrides merge LAST on every write path): CLI verbs `set-item` / `add-item` / `delete-item` / `undelete-item`, DELETE is a tombstone every query hides (`visible_clause`, pushed first), user-made rows live in the reserved block `900 000 000+` (`MANUAL_ID_BASE`, measured max upstream id `288 340`) and answer their card from the DB's own columns with ZERO requests, and all pending queues refuse tombstones and manual rows
+- [x] `v0.9.0` — the readable twin (ADR 0012): schema `5` adds `tooltip_text`/`tooltip_lc` derived IN THE SAME WRITE as the copy on EVERY write path (the tooltip stage derives from the MERGED copy — ADR 0010's overrides merge LAST, so the twin always matches what the DB SAYS; `set-item ID tooltip_html=…` derives beside the stated value; `add-item` births it — the name→`name_lc` pattern v0.1.x started), and the derivation is exactly the measured three moves (two live tooltip bodies read whole: div/span/img tags, ZERO entities — no decoder is invented, entities would show verbatim): drop `<…>` spans, collapse whitespace, trim. The LOCAL search door grew the scope — `search TEXT --where name|description|all` (default `name` keeps every existing search exactly what it was; `description` reads `tooltip_lc` behind `IS NOT NULL`; a bogus scope answers the usage door `2`; `visible_clause` stays FIRST in every scope), and the card carries BOTH tooltip shapes while the UI renders only the twin — the copy's `<img>`s were measured hotlinking pixels from `render.worldofwarcraft.com` and `thewowdb.com/assets`, so upstream markup never renders (the icon stage's rule), CI smoke 21→24 steps, and `check_schema` chains v1→v2→v3→v4→v5
 
 ## Build & run
 
@@ -141,6 +142,7 @@ cargo run -- sync --stage list            # resumes where a stopped run paused; 
 cargo run -- sync --stage detail --budget 500
 cargo run -- sync --stage detail --ids 25,40,60   # exactly these records (also --watch)
 cargo run -- search "Worn Shortsword"     # local DB query, prints JSON
+cargo run -- search sword --where description   # the readable twin (v0.9.0, ADR 0012); also `all`
 cargo run -- item 25                      # live lookup; 304 + stored raw_json when
                                           # the record is already in the DB
 cargo run -- item 25 --cached             # the same card with no request at all
@@ -189,9 +191,13 @@ Environment switches used by tests and CI:
   `{"error":"not_found","message":"No item 999999999999 in forever.","status":404}` — for ids it
   has no tooltip for, so one ANSWERED record has a real twin for the tooltip stage's third state
   (`12809`; the tooltip gate also names its stage, so the stage retries a `429` in place like the
-  other three). From v0.8.0 the sequence is TWENTY-ONE steps with the fourth stage and the four
-  manual doors inside (a budgeted tooltip pass, a drained one, then `set-item`/`add-item`/`delete-item`/`undelete-item`
-  on the same DB), and it also covers a watch
+  other three). From v0.9.0 the sequence is TWENTY-FOUR steps: the same 21 (the `add-item` step now
+  ALSO states a description, so its twin is born with it) plus the local door's scope pair
+  `search sword --where description` / `search sword --where all` (both DB-only — the fixture
+  log's GET tally cannot move) and the manual row's DB-only card `item 900000000 --cached`, which
+  shows the twin its stated fields earned at birth. From v0.8.0 the sequence is TWENTY-ONE steps with
+  the fourth stage and the four manual doors inside (a budgeted tooltip pass, a drained one, then
+  `set-item`/`add-item`/`delete-item`/`undelete-item` on the same DB), and it also covers a watch
   list, a targeted detail fetch, the same ids fetched again (which must answer `304` and write
   nothing) and the DB-only card read. Since v0.5.3 the local mirror adds the gone-id steps on
   the same DB: `item 127555` must answer **exit 4** (`not-found`) and re-stamp the mark, and
@@ -203,12 +209,16 @@ Environment switches used by tests and CI:
   v0.7.0, the tooltip stage's five (`0,0,0,2,3`), the manual layer's nine (`0,2,2,2,2,4,2,0,0`),
   three queue doors, the edit doors, the tombstone's five (`0,4,4,4,4`), the restore's four and
   one fresh-write door against a SECOND fixture process. No DB-only door ever reached `3`: the
-  manual verbs send no request, so they cannot be rate limited.
+  manual verbs send no request, so they cannot be rate limited. From v0.9.0 the audit grows the
+  two scope doors (both rc `0`) and a bogus `--where` landing at the usage door (`2`); each release's
+  OWN replay numbers land in the verification record committed AFTER the tag — the tag never moves
+  to carry them.
 - `tests/api.rs` / `tests/pipeline.rs` (unit tests next to the code they test) are the
   plan, not code: v0.2.0 has no `#[test]` functions yet, so `cargo test` only proves
   everything compiles.
 - CI (`.github/workflows/ci.yml`) runs `cargo build` (dev + release, on three platform
-  targets), `cargo test` and the 21-step CLI smoke sequence on a seeded fixture DB. It
+  targets), `cargo test` and the 24-step CLI smoke sequence (the three v0.9.0 additions: the local
+  door's two scope steps + the manual row's DB-only card) on a seeded fixture DB. It
   **checks the tree out** (`actions/checkout@v7`) and installs the toolchain
   (`dtolnay/rust-toolchain@stable`, rustup-based) plus the gtk/webkit2gtk dev libraries the
   Tauri shell links against on Linux, by plain `apt-get` — the earlier workflow named three

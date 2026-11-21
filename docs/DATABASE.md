@@ -15,15 +15,13 @@ or stale-schema file, or `execute_batch(SCHEMA_SQL)` writes it and stamps
 `schema_version` into `meta`. The schema is idempotent, so a fresh process (CLI or GUI)
 can always attach; `open_db` and `open_db_at` are the two doors into that helper.
 
-**Three stale shapes are migrated instead of refused** (v0.8.0): the file on disk saying
-`schema_version = 1` (the user's own catalogue, 19 258 rows, still never touched by a
-refusal), `2` or `3` differs from this build by additive steps only, so `check_schema` chains
-them: v1 gets v0.5.3's `ALTER TABLE item ADD COLUMN detail_missing_at INTEGER` first, then both
-v1 and v2 get the v0.6.0 batch (three icon `ALTER`s, the `price_history` `CREATE` and its index),
-and v1/v2/v3 all get the v0.8.0 batch — eight `ALTER`s, four tooltip
-(`tooltip_html`, `tooltip_etag`, `tooltip_at`, `tooltip_missing_at`) and four manual
-(`manual_at`, `manual_overrides`, `edited_at`, `deleted_at`) — with the `meta` stamp moving to
-`4` in the same call. Refusing any file would throw away a 19 258-row catalogue on the excuse of
+**Four stale shapes are migrated instead of refused** (v0.8.0 grew the chain to four again at
+v0.9.0): the file on disk saying `schema_version = 1` (the user's own catalogue, 19 258 rows,
+still never touched by a refusal), `2`, `3` or `4` differs from this build by additive steps
+only, so `check_schema` chains them: v1 gets v0.5.3's one `ALTER` first, v1/v2 get the v0.6.0
+batch, v1/v2/v3 the v0.8.0 batch of eight, and v1/v2/v3/v4 all get the v0.9.0 batch — two
+`ALTER`s, `tooltip_text TEXT` and `tooltip_lc TEXT`, the readable twin of the copy (ADR 0012) —
+with the `meta` stamp moving to `5` in the same call. Refusing any file would throw away a 19 258-row catalogue on the excuse of
 a schema bump. A migrated file's **column order differs from a fresh file's** (ALTER
 appends, SCHEMA_SQL lists the new columns mid-table) — every reader in the code names columns
 explicitly and nothing reads positions. A file **newer** than this build is still refused — that
@@ -33,7 +31,7 @@ See [ADR 0006](./DECISIONS/0006-checked-missing-third-state.md),
 [ADR 0008](./DECISIONS/0008-icon-storage-third-stage.md) and
 [ADR 0010](./DECISIONS/0010-manual-layer-and-tooltip-copy.md).
 
-## Schema (`schema_version = 4`)
+## Schema (`schema_version = 5`)
 
 ```sql
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
@@ -45,7 +43,7 @@ CREATE TABLE item (
   item_level INTEGER, required_level INTEGER,       --   and SCHEMA_SQL both say plain `TEXT` — the
   item_type TEXT, item_subtype TEXT, slot TEXT,     --   `NOT NULL` this file used to
   item_set TEXT, unique_flag TEXT, flavor TEXT,     --   claim was aspirational, never
-  tooltip_html TEXT,                                --   enforced; same for the FK-ish
+  tooltip_html TEXT, tooltip_text TEXT, tooltip_lc TEXT, -- the copy AND its readable twin (v0.9.0, ADR 0012)
   icon_url TEXT,                                    --   `id` wording)
   sockets TEXT, socket_bonus TEXT, classes TEXT, stats TEXT, effects TEXT,
   faction_prices TEXT,
@@ -141,6 +139,24 @@ that would double a chunk's requests and leave pre-v0.6.0 records un-copied fore
 | checked and gone | `tooltip_missing_at` | the door answered `404` with its own JSON (`No item … in forever.`) for a record whose DETAIL exists | one request, never asked again inside one crawl |
 | not pending, not copied | neither, and the record has no detail stamp | an id upstream does not have: asking this door costs a request AND would state a fact upstream never stated |
 | waiting | a detail stamp, no tooltip stamp | the only thing the tooltip stage sees as pending |
+
+### The readable twin (v0.9.0, ADR 0012)
+
+`tooltip_text`/`tooltip_lc` are DERIVED from the copy, written in the SAME upsert on every
+write path — the tooltip stage derives from the MERGED copy (manual overrides merge LAST,
+ADR 0010, so the twin always matches what the DB SAYS), `set-item ID tooltip_html=…` derives
+it in the same UPDATE as the stated value, and `add-item` births it beside the stated fields.
+The derivation is the measured three moves (upstream tooltip bodies were read whole: div/span/img
+tags, ZERO entities — no decoder exists because none was measured, and entities would show
+verbatim): drop `<...>` spans, collapse whitespace runs, trim. The local search door grew the
+scope to match: `search TEXT --where name|description|all` (default `name`, the UI's old
+behaviour), `description` reads `tooltip_lc` behind `IS NOT NULL` (never-fetched and checked-gone
+records skip honestly), `all` is name OR description, and a bogus scope answers the usage door
+(`2`). Tombstoned rows stay invisible in EVERY scope (`visible_clause` is pushed first).
+Honest gap: a row that migrated from schema 4 with a copy already in it has NO twin until the
+next tooltip write — SQLite's `ALTER` cannot run Rust's reader, and duplicating it across
+languages is exactly the drift this file exists to forbid; the user's own file has ZERO copies,
+so every copy it will ever make carries a twin from birth.
 
 `write_tooltip` upserts and clears `tooltip_missing_at` (a copy is not a check);
 `mark_tooltip_missing_at` checks the row exists first (`SQL_ROW_OF_ID`, ADR 0006's guard).

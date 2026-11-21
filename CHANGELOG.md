@@ -6,7 +6,54 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
-## v0.8.1 — CI now claims only what it can actually prove · 2026-11-20 · tag `v0.8.1`
+## v0.9.0 — the copies become READABLE and FINDABLE: every copied tooltip gets a readable twin · 2026-11-21 · tag `v0.9.0`
+
+Added
+
+- **The readable twin** (ADR 0012): schema `5` — `tooltip_text` / `tooltip_lc` derived from the
+  copy **in the SAME write** on EVERY write path: the tooltip stage derives from the MERGED copy
+  (ADR 0010's overrides merge LAST, so the twin always matches what the DB SAYS), `set-item ID
+  tooltip_html=…` derives beside the stated value, `add-item` births it with the stated fields —
+  the `name` → `name_lc` pair shape the name columns have ridden since v0.1.x. The derivation is
+  exactly the measured three moves (drop `<…>` spans, collapse whitespace runs, trim): TWO live
+  tooltip bodies read whole — the plain id 25 (1404 b of `html`) and id 728, picked off the USER's
+  own DB because its `raw_json` carries flavor (`"Teaches you how to cook Westfall Stew."` shows in
+  its `twdb-quote`) — hold div/span/img tags with class/src/width/height/alt/loading/decoding
+  attributes and **ZERO entities**, so NO decoder is invented (an entity would show verbatim; the
+  words still search). Why it had to exist: the copy's `<img>`s hotlink pixels from
+  `render.worldofwarcraft.com` and `thewowdb.com/assets` — pasting the copy into a card would
+  break the icon stage's rule (nothing hotlinks, the DB gets the bytes) — and grepping markup for
+  words finds tags, not meaning.
+- **The local search door grew a scope**: `search TEXT --where name|description|all` (the LOCAL
+  door — upstream's OWN was measured NAMES-only at v0.7.0, docs/API.md): default `name` keeps
+  every existing search exactly what it was, `description` reads `tooltip_lc` behind `IS NOT NULL`
+  (never-fetched and checked-gone records skip honestly), `all` is name OR description; a bogus
+  scope answers the usage door (`2`); tombstoned rows stay invisible in EVERY scope
+  (`visible_clause` stays first); the door stays DB-only — ZERO requests.
+- **The UI grew both sides**: the search panel's where select (names only | descriptions |
+  anywhere — ONE argv pair, the same door the CLI answers) and the card's `description (readable
+  copy)` row that RENDERS the twin as words, while the raw upstream markup row stays printed-as-
+  TEXT (v0.8.0's escape rule, unchanged: an upstream body cannot write our card).
+- **CI's smoke block grew 21 → 24 steps**: the `add-item` step now ALSO states a description (its
+  twin is born beside it), and the block ends with `search sword --where description`,
+  `search sword --where all` and the manual row's DB-only card (`item 900000000 --cached` —
+  `MANUAL_ID_BASE` on a fresh DB). The fixture grounds the counts with its OWN code: its detail
+  server assigns `body["name"] = "Fixture Detail <id>"` to every detailed row, so the LIST door's
+  row named "Worn Shortsword" gets its name OVERWRITTEN and NO final name carries "sword" while
+  the copied tooltip of 25 does — both search steps answer 2 (row 25 + the manual mug), a name
+  scope would answer 0: findable exactly where names cannot.
+- **`check_schema` now chains EVERY stale shape up to 5** (v1→v2→v3→v4→v5, all additive): the
+  user's own 19 258-row catalogue rides the chain the moment a 0.9.x build opens it.
+
+Changed
+
+- `SQL_SET_TOOLTIP` grew the two derived columns (value count `4 → 6`, `bind_sql`'s marker count
+  moves with it); the card now carries BOTH tooltip shapes (`tooltip_html` printed as text,
+  `tooltip_text` rendered); `docs/DATABASE.md` grew the readable-twin section with the honest
+  gap — a row migrated from schema 4 that ALREADY had a copy has no twin until its next tooltip
+  write (SQLite's `ALTER` cannot run Rust's reader; duplicating it across languages is exactly
+  the drift that file exists to forbid), and `docs/API.md` records the tooltip copy's measured
+  shape (ZERO entities in two live bodies, the two hotlink hosts) as ADR 0012's ground.
 
 Added
 

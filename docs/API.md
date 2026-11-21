@@ -166,6 +166,14 @@ come from, and it is why the crawl grew a FOURTH door at all ([ADR 0010](./DECIS
   `links.api` is the door itself; `links.html`
   (`https://thewowdb.com/wow-forever/item/worn-shortsword-25/`) is the record's own upstream
   page — the attribution target the terms require.
+* Inside the copy (measured again for ADR 0012, 2026-11-21): every tag is a `<div class="twdb-*">`
+  or `<span class="twdb-*">` (plus `<img … class/src/width/height/alt/loading/decoding>`), and
+  BOTH probed bodies — the plain item 25 and item 728, picked off the user's own DB as a record
+  whose `raw_json` carries `flavor` (`"Teaches you how to cook Westfall Stew."` shows in its
+  `twdb-quote`, 1281 b of html) — answer **ZERO** `&entity;` matches. The copy hotlinks pixels
+  from `render.worldofwarcraft.com` AND `thewowdb.com/assets`: which is exactly why the card
+  renders the derived `tooltip_text` twin (docs/DATABASE.md, ADR 0012) and prints raw markup
+  as escaped text, never as markup.
 * `html` (1404 b for id 25) is upstream's OWN card markup — `<div class="twdb-card twdb-k-item">`,
   its own `<img class="twdb-icon" src="https://render.worldofwarcraft.com/us/icons/56/inv_sword_04.jpg">`,
   its own wording (`Item Level 2`, `Sell Price: 7c`). The tool stores it as a value (`tooltip_html`)

@@ -5,6 +5,67 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-21 · v0.9.0 — the copies are READABLE and FINDABLE: the readable twin of every copied tooltip
+
+### What forced the milestone
+
+v0.8.0 stored each record's description copy as upstream's OWN tooltip `html`, and its own docs
+state the two honest gaps that came with it: the card prints that markup as escaped TEXT (and
+`search` would grep TAGS), and the local search door reads NAMES only — so the DB HOLDS
+descriptions it can never FIND, and the card shows markup where the words belong. The user chose
+BOTH together: one milestone ("the copies are readable and findable"), one ADR (0012), the code
+chain split into `feat` commits.
+
+### The measurements — every number probed, none invented
+
+| probe (2026-11-21) | measured answer |
+| ------------------ | --------------- |
+| `GET /api/v1/tooltip/forever/item/25` | 200 json 3060 b, `html` 1404 b, `ETag W/"2b111cbcd3bbb4d7078f6d05"`, `cache-control public, max-age=300, s-maxage=900, stale-while-revalidate=3600` |
+| tags inside that html | `<div class="twdb-…">`, `<span class="twdb-…">`, `<img class="twdb-icon" src=… width height alt loading decoding>` |
+| `<img>` hotlinks INSIDE the copy | `render.worldofwarcraft.com/us/icons/56/inv_sword_04.jpg` + `thewowdb.com/assets/pvp/faction/alliance.jpg` — TWO hosts, pixels: the card must NEVER render upstream markup (the icon stage's rule, aimed at the same pixels, says the DB gets the bytes) |
+| entities in TWO bodies | **ZERO** `&[A-Za-z#0-9]+;` matches in both — 25 (plain stats prose) AND 728, picked off the USER's DB as a row whose `raw_json` carries flavor (728/1132/1357 answer it; 728's `twdb-quote` shows `"Teaches you how to cook Westfall Stew."`, 1281 b of html) → the derivation is EXACTLY drop-spans/collapse/trim, and NO entity decoder exists — inventing one is not our call to make; if upstream ever ships entities they show VERBATIM and the words still search |
+| fixture detail server CODE (`tests/fixture_api.py`) | `body["name"] = "Fixture Detail {}".format(tail)` for EVERY detailed row → the list door's row named "Worn Shortsword" (id 25) is OVERWRITTEN before the smoke's search steps run; the only row keeping its list name is the checked-404 127555 → `search sword --where description` AND `--where all` BOTH answer 2 (row 25 + the manual row's stated "a plain CI sword mug"); the name scope answers 0 |
+| `next_manual_id` on a fresh DB | `MANUAL_ID_BASE` = 900000000 → the smoke's mug IS 900000000; and `cmd_item` answers manual-row cards from the DB's columns BEFORE the `--cached` branch → `item 900000000 --cached` sends ZERO requests, exits `0`, and prints the twin its fields earned at birth |
+| the user's own file, decision date | schema `4`, 19 258 rows, **ZERO** tooltip copies (`tooltip_at` count 0) → the honest twin gap (a migrated row that ALREADY had a copy shows no twin until its next tooltip write — SQLite `ALTER` cannot run Rust, and duplicating the reader across languages is the drift DATABASE.md exists to forbid) only bites DBs that copied at v0.8.x; for this file EVERY copy will be born with a twin, because its tooltip pass runs AFTER this release |
+
+### Own fixes, owned mid-chain (nothing swept under the rug)
+
+- a python-style `.format(` leaked onto a parser line — `cargo build` answered, `format!` landed;
+- the derivation arm missed a `;`, and the tooltip write double-wrapped an `Option` into
+  `optional_text` — E0308 + parse errors, three small honest fixes;
+- the `--where all` two-needle loop moved `needle` and rebound an immutable `seen` —
+  E0382/E0384 → `needle.clone()` + `let mut seen`;
+- the twin reader's regex function-clone failed twice (anchor drift) → exact-source insert
+  after `tooltip_html_of`'s block instead;
+- the smoke comment's FIRST draft claimed "all answers 3", grounded only on the LIST payload —
+  measured against the fixture's OWN server BEFORE the tag (fa4311f rewrote it): a comment is
+  trusted text for the next reader, so the lie died pre-tag, not post-record;
+- the rustc ICE + "hard linking … failed" pair on this FS again: the recorded workaround
+  (`rm -rf target/debug/incremental`) applied first, then `cargo build` rc 0 with the four
+  documented warnings.
+
+### The crawl sequencing — this release does NOT touch the running crawl
+
+The pinned v0.8.0 snapshot crawl keeps working the user's file (measured mid-milestone: the
+detail stage ≈ 63.5 % done — 12 235 of 19 258 rows PROCESSED, i.e. 3 580 answered + 8 655
+checked-404). A schema-5 build stamps that file the MOMENT it
+opens it, and the pinned snapshot would then REFUSE it (exit 4 — ADR 0004's honest refusal, and
+the file would still be intact). House rule for this milestone: while the pinned crawl runs,
+NO 0.9.x binary opens the user's DB; every audit of this release works on scratch DBs. When the
+crawl finishes, the tooltip pass rides a v0.9.0 snapshot — and every copy it ever makes is born
+with a twin, so the honest gap never shows on this file.
+
+### What shipped
+
+`89ff23d` schema 5 + the v4→v5 hop chained from EVERY stale shape → `cafe3af` `readable_tooltip_text`
++ `SQL_SET_TOOLTIP` grows both columns (value count 4→6) derived from the MERGED text, same write
+→ `5c1341b` the manual doors birth the twin (`set-item tooltip_html=`, `add-item`) → `96f9f7a`
+`Filter.scope` + `text_clauses`/`text_needles` (tombstone clause stays first) → `e3f7f8f` CLI
+`--where` + usage line + `Invocation.scope` default `name` → `dd1599d` `tooltip_text_of` reader +
+card fragment (BOTH shapes on the card) → `48b16a8` UI where select + rendered twin row →
+`0e0f0ac` CI smoke 21→24 → `dbb699a` banner 0.9.0 → `fa4311f` the smoke comment's measured truth
+→ docs record + ADR 0012 (this commit carries the tag).
+
 ## 2026-11-20 · v0.8.1 — CI says only what it can prove: the public project is green on three targets
 
 ### What forced the milestone

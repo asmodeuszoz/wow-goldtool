@@ -5,8 +5,16 @@ Forever** from the free [TheWoWDB](https://thewowdb.com/developers) JSON API and
 it in a local **SQLite** database, so browsing, filtering, searching and price-checking
 items works offline.
 
-Status: **v0.8.1 — CI is green on all three targets, and the workflow claims only what it
-can prove** (run #4: 5/5 jobs in 9 min 13 s): only actions that RESOLVE (`actions/checkout@v7`,
+Status: **v0.9.0 — the copies are READABLE and FINDABLE: every copied tooltip gets a derived
+readable twin** (ADR 0012): schema `5` writes `tooltip_text`/`tooltip_lc` **in the same write** as
+the copy on every write path (the tooltip stage derives from the MERGED copy — overrides merge
+LAST — `set-item tooltip_html=` derives beside the stated value, `add-item` births it), `search
+TEXT --where name|description|all` + a UI where select read it (default `name`; upstream's own
+door measured NAMES-only), and the card RENDERS the twin as a words row while the raw upstream
+markup stays printed-as-text — the measured copy hotlinks pixels from `render.worldofwarcraft.com`
+and `thewowdb.com/assets`, and rendering it would break the icon stage's rule. Before it:
+**v0.8.1 — CI is green on all three targets, and the workflow claims only what it can prove**
+(run #4: 5/5 jobs in 9 min 13 s): only actions that RESOLVE (`actions/checkout@v7`,
 `dtolnay/rust-toolchain@stable`), the dev-library set measured off our own binary's `ldd`
 (`libgtk-3-dev libwebkit2gtk-4.1-dev`), clippy informational and NO fmt gate — both because a
 gate that cannot pass would be a measured lie about our own tree (ADR 0011); the scratch DB
@@ -51,6 +59,7 @@ highest damage per second, most expensive vendor sell…).
 | `v0.7.0` | the live-search door: CLI verb `live-search TEXT` + UI panel (`Ask once`), one human ask = ONE request to the grouped search endpoint, upstream's own answer printed as it came with `view upstream` links — and it writes nothing: no row, no sample, no mark (ADR 0009) | done |
 | `v0.8.0` | the description copy + the manual layer: a FOURTH sync stage `--stage tooltip` holds each record's own tooltip `html` (three states, ETag, budget, resume — ≈ 19 258 requests ≈ 2.7 h), and CLI verbs `set-item` / `add-item` / `delete-item` / `undelete-item` plus a UI write panel let the user say it / make one / hide it / bring it back; overrides merge LAST on every crawl write, DELETE is a tombstone every query hides, user-made rows live at `900 000 000+` and answer their card from the DB with ZERO requests; schema `4` (ADR 0010) | done |
 | `v0.8.1` | CI discipline: the workflow states only measured truths — run #4 **5/5 jobs green in 9 min 13 s** on linux/windows/macos, resolvable actions (`actions/checkout@v7`, `dtolnay/rust-toolchain@stable`) + plain apt (the package set measured off `ldd`: `libgtk-3-dev libwebkit2gtk-4.1-dev`), clippy informational + no fmt gate (both gates would contradict measured facts about our tree), real `icons/icon.png` + `icons/icon.ico` (tauri-build names `icons/icon.ico`; `bundle.icon` had pointed at a file that never existed), and the measured runner facts (`WGT_DB` relative, macOS arm64) — ADR 0011 | done |
+| `v0.9.0` | the readable twin (ADR 0012): schema `5` adds `tooltip_text`/`tooltip_lc` derived from the copied tooltip IN THE SAME WRITE on EVERY write path (tooltip stage from the MERGED copy, `set-item tooltip_html=` beside the stated value, `add-item` at birth — the `name`→`name_lc` pair pattern v0.1.x started; the derivation is the measured three moves, ZERO entities seen in two live bodies so NO decoder is invented), `search TEXT --where name|description|all` (default `name`, bogus scope answers the usage door `2`, tombstones hidden in EVERY scope, DB-only ZERO requests) + a UI where select, and the card renders the twin as a words row and NEVER upstream's markup (its `<img>`s hotlink pixels from two measured hosts), CI smoke 21→24 steps, schema chain v1→v2→v3→v4→v5 | done |
 
 ## Design notes
 
