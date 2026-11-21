@@ -9,7 +9,7 @@ use crate::errors::AppError;
 use crate::errors::AppResult;
 use crate::errors::ErrorKind;
 
-use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_blob_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, next_manual_id, open_db_at, raw_json_of, refresh_twins, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, tooltip_text_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, RefreshTally, SyncState, unix_now};
+use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_b64_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, next_manual_id, open_db_at, raw_json_of, refresh_twins, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, tooltip_text_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, RefreshTally, SyncState, unix_now};
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
@@ -287,34 +287,6 @@ pub fn json_item(detail: ItemDetail) -> String {
 /// DB keeps every sample, the card shows the recent 40 (docs/DATABASE.md).
 pub const CARD_HISTORY_LIMIT: i64 = 40;
 
-/// Standard-alphabet base64 with padding (v0.6.0 card): the DB holds the icon BYTES
-/// and the one door to the webview is a JSON verb answer, which has no binary - so
-/// the icon travels as a base64 string and the card makes it a data URI. Our own
-/// twelve-line encoder rather than a new dependency: the pinned dep graph carries
-/// no direct base64 crate (docs/DEVELOPMENT.md pins by minor; the base64 entries in
-/// Cargo.lock belong to tauri's own subtree), and fixture audits decode what this
-/// emits, so the contract is proven, not asserted. '=' is byte 61.
-pub fn b64_text(data: Vec<u8>) -> String {
-    let table: Vec<u8> = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".as_bytes().to_vec();
-    let mut out: String = "".to_string();
-    let mut index: usize = 0;
-    while index < data.len() {
-        let left: usize = data.len() - index;
-        let b0: u32 = data[index] as u32;
-        let b1: u32 = if left > 1 { data[index + 1] as u32 } else { 0 };
-        let b2: u32 = if left > 2 { data[index + 2] as u32 } else { 0 };
-        let triple: u32 = (b0 << 16) + (b1 << 8) + b2;
-        let mut parts: Vec<u8> = [].to_vec();
-        parts.push(table[((triple >> 18) & 63) as usize]);
-        parts.push(table[((triple >> 12) & 63) as usize]);
-        if left > 1 { parts.push(table[((triple >> 6) & 63) as usize]); } else { parts.push(61); }
-        if left > 2 { parts.push(table[(triple & 63) as usize]); } else { parts.push(61); }
-        for one in parts { out.push(one as char); }
-        index = index + 3;
-    }
-    return out;
-}
-
 /// One sample list as JSON for the card: serde again, never hand-joined money.
 pub fn json_history(samples: Vec<PriceSample>) -> String {
     match to_string(&samples) {
@@ -330,7 +302,7 @@ pub fn json_history(samples: Vec<PriceSample>) -> String {
 /// its new sample in the history already: upsert_detail wrote it before this
 /// read ran (the sampling rule lives there, ADR 0007).
 pub fn card_icon_parts(conn: &Connection, id: i64) -> AppResult<Vec<String>> {
-    let copy: Option<Vec<u8>> = match icon_blob_of(conn, id) {
+    let copy: Option<String> = match icon_b64_of(conn, id) {
         Err(problem) => return Err(problem),
         Ok(found) => found,
     };
@@ -348,9 +320,9 @@ pub fn card_icon_parts(conn: &Connection, id: i64) -> AppResult<Vec<String>> {
     };
     let icon_json: String = match copy {
         None => "null".to_string(),
-        Some(bytes) => match to_string(&b64_text(bytes.clone())) {
+        Some(text) => match to_string(&text.clone()) {
             Err(_) => "null".to_string(),
-            Ok(text) => text,
+            Ok(made) => made,
         },
     };
     let mut parts: Vec<String> = [].to_vec();

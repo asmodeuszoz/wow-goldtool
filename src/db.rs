@@ -935,6 +935,51 @@ pub fn icon_blob_of(conn: &Connection, id: i64) -> AppResult<Option<Vec<u8>>> {
     }
 }
 
+/// The ONE base64 encoder (v0.6.0, moved beside the bytes it encodes when v0.9.3's
+/// lists started shipping icons, so the card and the lists cannot encode the same
+/// bytes two ways): the DB holds the icon BYTES and the one door to the webview is
+/// a JSON verb answer, which has no binary - so the icon travels as a base64 string
+/// and the card/lists turn it into a data URI. Our own twelve-line encoder rather
+/// than a new dependency: the pinned dep graph carries no direct base64 crate
+/// (docs/DEVELOPMENT.md pins by minor; the base64 entries in Cargo.lock belong to
+/// tauri's own subtree), and the fixture audits decode what this emits, so the
+/// contract is proven, not asserted. '=' is byte 61.
+pub fn b64_text(data: Vec<u8>) -> String {
+    let table: Vec<u8> = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".as_bytes().to_vec();
+    let mut out: String = "".to_string();
+    let mut index: usize = 0;
+    while index < data.len() {
+        let left: usize = data.len() - index;
+        let b0: u32 = data[index] as u32;
+        let b1: u32 = if left > 1 { data[index + 1] as u32 } else { 0 };
+        let b2: u32 = if left > 2 { data[index + 2] as u32 } else { 0 };
+        let triple: u32 = (b0 << 16) + (b1 << 8) + b2;
+        let mut parts: Vec<u8> = [].to_vec();
+        parts.push(table[((triple >> 18) & 63) as usize]);
+        parts.push(table[((triple >> 12) & 63) as usize]);
+        if left > 1 { parts.push(table[((triple >> 6) & 63) as usize]); } else { parts.push(61); }
+        if left > 2 { parts.push(table[(triple & 63) as usize]); } else { parts.push(61); }
+        for one in parts { out.push(one as char); }
+        index = index + 3;
+    }
+    return out;
+}
+
+/// The DB's own icon bytes as base64 - ONE helper for the card AND the lists
+/// (v0.9.3, ADR 0014), so no door invents its own encoding. The three states stay
+/// three states: bytes copied (`icon_b64` here), checked as gone upstream
+/// (`icon_missing_at_of`), or never fetched (both null).
+pub fn icon_b64_of(conn: &Connection, id: i64) -> AppResult<Option<String>> {
+    let copy: Option<Vec<u8>> = match icon_blob_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    return match copy {
+        None => Ok(None),
+        Some(bytes) => Ok(Some(b64_text(bytes.clone()))),
+    };
+}
+
 /// Read one field out of an optional struct: the API omits plenty of them, and an
 /// omitted field must land as SQL NULL rather than as an empty string.
 pub fn field_api(links: Option<Links>) -> Option<String> {
