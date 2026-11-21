@@ -6,6 +6,54 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.9.4 — prices read like the GAME writes them (`2g 50s`), copper stays the number · 2026-11-21 · tag `v0.9.4`
+
+Added
+
+- **Money words beside every copper number** (ADR 0015): one formatter in `src/db.rs`
+  (`money_text`, `money_of`, `money_of_avg`) writes the game's OWN wording — 100 copper is 1
+  silver, 100 silver is 1 gold, and the unit is proven from the **DB's own tooltip copies**,
+  because a copied tooltip already states its sell price in money words (`money_text(vendor_sell)`
+  equals the row's own copy for **4 230 of 4 231** rows). A zero denomination is DROPPED exactly
+  as the copies write it (`25000` ↔ `2g 50s`, `20000` ↔ `2g`, `20042` ↔ `2g 42c`), and the average
+  **floors** to whole copper (`AVG(price_min) 54 391.705896` → `5g 43s 91c`).
+- **The money siblings ride the answers, not the DB**: `Hit` grew `price_min_money`/`price_market_money`,
+  `Coverage` grew `min/max/avg_price_money`, `QualityStat` and `Extreme` grew their mean/row money,
+  `PriceSample` grew the sample pair (filled by `history_of` from the copper the read carries), and
+  the card answers `price_min_money`/`price_market_money`/`vendor_sell_money` as top-level sibling
+  fragments beside `item` — never inside it, the same ground `icon_b64` has: `ItemDetail` and `Price`
+  mirror the wire (docs/API.md), and money is OURS, upstream never answered that word. Money reads the
+  MERGED detail (ADR 0010's merge-last rule), so a money word cannot disagree with the number beside it.
+- **The UI shows money in the cell and the exact copper in the hover**: one `money_cell` renders
+  the words Rust wrote, so the webview does no copper maths and cannot drift. Money reaches the hits
+  table, both price lists, the card's price rows and its trend bars' hovers, the status grid's price
+  range and average, the by-quality bar labels and the stats note's spread; `ui/index.html` names money
+  in the three price theads and in the notes a card shows before its first click, and `ui/app.css` gives
+  `.moneycell` `tabular-nums` so a money column's digits align.
+
+Honest about what did NOT change
+
+- **the DB grew nothing**: money is derived at answer time, so there is no `*_money` column, no
+  schema hop (`schema_version` stays `5` on the mirror's and the user's DB after a replay that ran
+  every money door), nothing to migrate and **no refresh door** — `refresh-twins` over the mirror still
+  answers 4 copies / 0 rewritten / 4 matching / ZERO requests. The sorts and the scripts keep reading
+  INTEGER copper (docs/DATABASE.md's numeric contract survives unchanged), and `SQL_COVERAGE`/`SQL_QUALITY`/
+  `SQL_CHEAP`/`SQL_RICH`/`SQL_PRICE_SAMPLE`/`SQL_HISTORY_OF`/`HIT_COLUMNS` are untouched, so the read slots
+  stay `0..14`.
+- **`price_available` and `price_realms` never become money**: they are auction COUNTS (measured, row 25
+  answers `available 12` for 12 offers of 15 000 copper; `realms` spans `1..12`), and money riding a count
+  would be a lie — the card's `available` row stays a plain count.
+- **an unpriced row keeps answering `null` beside `null`** and the UI cell still says `no price`, never
+  `0c` (ADR 0004's rule against made-up zeros): measured, 0 rows in the user's DB sit at copper 0 in any
+  of the four copper columns, so `0c` is a RULE and not a measurement.
+- **money adds no CI step and no request**: the smoke block stays 31 `cargo run --` steps + one plant line,
+  every step keeps its own exit code, and the fixture's GET tallies cannot move (ADR 0011's rule again).
+- **money needs no flag**, unlike ADR 0014's icons: money costs about 56 bytes per priced row on the mirror
+  and the longest money string measured in the user's whole DB is 13 chars (`1334g 99s 49c` for `13 349 949`).
+
+Refs: ADR 0015, ADR 0010's merge-last rule, ADR 0004's exit-code contract, ADR 0011's CI rule,
+ADR 0014's sibling-fragment precedent; schema stays `5` — money writes nothing.
+
 ## v0.9.3 — the lists draw the DB's own icon: `--icons` on the list doors · 2026-11-21 · tag `v0.9.3`
 
 Added

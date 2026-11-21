@@ -268,6 +268,48 @@ The pending filter gained no index in v0.5.3 and none in v0.6.0 either: the stag
 that list once per run, and guessing at a two-column index SQLite may not even use is a
 plan, not a measurement.
 
+### Money (v0.9.4, [ADR 0015](./DECISIONS/0015-the-money-words.md)): the words ride the ANSWER, there is no money column
+
+Every price column above is and stays **INTEGER copper** — 100 copper is 1 silver and 100
+silver is 1 gold, and the base is not an assumption: the DB's own tooltip copies state it,
+because a copied tooltip already writes its sell price in money words. Measured on the user's
+file, `money_text(vendor_sell)` EQUALS that row's own copy words for **4 230 of 4 231** rows
+(810 `45267` ↔ `Sell Price: 4g 52s 67c`, 4499 `25000` ↔ `2g 50s`, 12720 `20000` ↔ `2g`, 733
+`100` ↔ `1s`, 36 `7` ↔ `7c`), and the ONE row that disagrees is upstream's own disagreement
+(item 25: column `500` beside its copy's `Sell Price: 7c`), reproduced by the committed
+fixture in the same shape. The copies give the zero rule too: a zero denomination is DROPPED
+(`20042` ↔ `2g 42c` on row 14138 — the only middle-zero row in 4 231, while `price_min` has
+19 and `price_market` 17 of that class), so `money_text` writes what the copies write.
+
+Money is DERIVED at answer time by the ONE formatter in `src/db.rs` (`money_text`, `money_of`,
+`money_of_avg`) from the copper the very same read already carries. Consequences that must stay
+true, because the numeric contract of this file is the contract everything else reads:
+
+* the schema does not grow and does not move: `schema_version` stays `5` (measured with
+  `SELECT key, value FROM meta WHERE key GLOB 'schema*'` on the mirror's and the user's DB
+  after a replay that ran every money door), and there is nothing to migrate;
+* there is **no refresh door for money** — unlike the twin, which v0.9.2 re-derives because a
+  twin is stored. A DB that never saw money still answers money on the next read, which is
+  exactly why `refresh-twins` over the mirror still answers 4 copies / 0 rewritten / 4 matching
+  / ZERO requests after this release;
+* `SQL_COVERAGE`, `SQL_QUALITY`, `SQL_CHEAP`, `SQL_RICH`, `SQL_PRICE_SAMPLE`, `SQL_HISTORY_OF`
+  and `HIT_COLUMNS` are UNCHANGED, so the read slots stay `0..14` and no aggregate or its CAST
+  guard can drift;
+* the sorts and the scripts keep the copper: `ORDER BY (price_min IS NULL) ASC, price_min ASC`
+  and every `*_money` sibling are separate values, and money costs about 56 bytes per priced
+  row on the mirror while the longest money string in the user's whole DB is 13 chars
+  (`1334g 99s 49c` for `13 349 949` copper), so money always rides and needs no flag — the
+  opposite of ADR 0014's 3.1 K chars per icon;
+* `price_available` and `price_realms` are **counts**, not money, and never get a money
+  sibling: measured, row 25 answers `available 12` for 12 offers of 15 000 copper, and `realms`
+  spans `1..12` across the user's DB;
+* an absent price answers `null` money beside `null`, never `0c` (ADR 0004's rule against made-up
+  zeros). A copper of `0` would answer `"0c"`, and that is a RULE, not a measurement: measured
+  MIN over every copper column is `1`, so 0 rows in the DB are at copper 0;
+* the average FLOORS: SQLite answers `AVG` as a float (measured `AVG(price_min) = 54 391.705896`
+  copper → `5g 43s 91c`), and rounding up would print `5g 43s 92c`, a price no observation
+  reached. The exact float still rides beside it.
+
 
 ## Query recipes
 

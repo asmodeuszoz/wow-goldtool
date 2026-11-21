@@ -5,7 +5,131 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
-## 2026-11-21 · v0.9.3 — the icon doors: the lists draw the DB's own bytes, `--icons` on the list doors
+## 2026-11-21 · v0.9.4 — the money words: prices read like the GAME writes them, and copper stays the number
+
+### What forced it — the unit was an open question, and the DB's OWN copies settle it
+
+Until today the app printed raw integers next to a column comment that says `-- copper`: the
+DB holds `20628`, the game writes `2g 6s 28c`. Nothing in this repo states the base, so the
+base got MEASURED before any code changed — and the DB already carries the answer, because a
+copied tooltip states its sell price in money words. One read of the user's own file:
+
+```
+rows                                                19 258
+rows with a vendor_sell INTEGER                      4 231
+rows whose copy states a "Sell Price:" line           4 231   the SAME rows
+money_text(vendor_sell) EQUALS the copy's own words   4 230   of 4 231
+rows that DISAGREE with their own copy                    1   → item 25: column 500 ("5s")
+                                                            beside its copy "Sell Price: 7c"
+rows at copper 0 in ANY copper column                     0   MIN over each column is 1
+```
+
+The copies also state the zero rule, so the shape is upstream's, not our invention:
+
+```
+  810  vendor_sell  45 267  copy "Sell Price: 4g 52s 67c"   all three parts
+ 2528  vendor_sell  10 367  copy "Sell Price: 1g 3s 67c"    100 c = 1 s, 100 s = 1 g
+ 4499  vendor_sell  25 000  copy "Sell Price: 2g 50s"       zero copper DROPPED
+12720  vendor_sell  20 000  copy "Sell Price: 2g"           zero silver AND copper
+  733  vendor_sell     100  copy "Sell Price: 1s"
+   36  vendor_sell       7  copy "Sell Price: 7c"
+14138  vendor_sell  20 042  copy "Sell Price: 2g 42c"       the MIDDLE zero: silver dropped
+                                                            between gold and copper
+```
+
+Money classes over `vendor_sell`: 1 413 rows are copper-only, 810 whole silver with zero
+copper, 219 carry all three parts, 73 whole gold, and exactly **1** is middle-zero — while
+`price_min` has 19 middle-zero rows and `price_market` 17, so the rule is per value, not an
+accident of one column. Spans and the money each column reaches:
+
+```
+price_min      n 4 291   1 .. 14 006 500   →  "1c" .. "1400g 65s"  longest 12 chars "799g 99s 98c"
+price_market   n 4 291   1 .. 5 000 001 000 → "1c" .. "500000g 1s" longest 13 chars "1334g 99s 49c"
+vendor_sell    n 4 231   1 .. 1 000 000    →  "1c" .. "100g"       longest 10 chars "8g 42s 91c"
+AVG(price_min) = 54 391.705896 copper      →  floored "5g 43s 91c", rounded would print "5g 43s 92c"
+```
+
+### The decision, and what was rejected
+
+Storing money in the DB was rejected before it was considered seriously: money is a rendering
+of a number that already exists, and a `*_money` column would split one truth in two, break
+the numeric contract docs/DATABASE.md names (the price sorts read INTEGER copper, and so do
+scripts), and would drag a refresh door — which is exactly the shape v0.9.2's `refresh-twins`
+had to be because a twin is STORED. Formatting money in JavaScript was rejected for the house
+rule ADR 0014 restates with `b64_text`: the CLI and the GUI would then hold two formatters of
+the same words and could drift. Always-visible three parts (`2g 0s 0c`) was rejected BY THE
+COPIES: upstream drops a zero denomination, so printing `0s` puts words in its copy. Money
+only in the UI was rejected because ADR 0004 made the CLI and the GUI one code path down to
+the same JSON; a hidden money in the CLI would mean the two doors answer different shapes.
+So: ONE Rust formatter, `money_text` in `src/db.rs` beside the price accessors, riding as a
+**sibling fragment beside every copper number**, derived at answer time, with `money_of`
+keeping an absent price absent (ADR 0004's made-up-zeros rule again: `null` beside `null`,
+never `0c`) and `money_of_avg` FLOORING (money has no fraction of a copper, and rounding up
+would print `5g 43s 92c` for a mean that never reached it). Money sits OUTSIDE the `item`
+object on the card because `ItemDetail` and `Price` mirror the wire (docs/API.md): a field
+inside them would claim upstream answered a word it never answered — the same ground ADR 0014
+gave `icon_b64`. And money reads the MERGED detail, ADR 0010's merge-last rule applied to
+money, which the fixture proves is not a harmless choice: row 25's `vendor_sell` was STATED by
+a user at `606`, and the card prints `6s 6c` next to it, not the payload's own number.
+
+Money needs NO flag, and that is the honest contrast with ADR 0014: an icon costs ≈ 3.1 K chars
+once base64'd, money costs about 56 bytes per priced row on the mirror and the longest money
+string in the user's whole DB is 13 chars. So money rides every answer, always.
+
+### Honest non-gains and print glitches, recorded not swept
+
+* **the money disagreement is upstream's and stays upstream's**: item 25 is the ONE row of 4 231
+  whose column (`500`) disagrees with its own copy (`Sell Price: 7c`). The committed fixture
+  carries the same shape (`"vendor_sell": 500` beside a copy saying `7c`), and after the CI's own
+  `set-item 25 vendor_sell=606` plus the block's plant line, ALL THREE mirror rows that state
+  Sell Price words disagree with their own column (`606 → 6s 6c` and `500 → 5s` beside `7c`).
+  Money is money OF THE COLUMN, never a copy of a tooltip's words; nothing in this release
+  reconciles the two, and no commit tries to — recording the disagreement is the honest answer.
+* **the chain printed FIVE dead-code warnings for a window, then FOUR**: `money_of_avg` had no
+  consumer between feat(db) and feat(stats), so the builds in that window said 5; feat(stats)
+  landed its consumers and the set came back to the four names docs/DEVELOPMENT.md keeps. The
+  feat(db) body says so; nothing swept the note.
+* **the feat(stats) body printed `status 1 078 -> 1 125`; the measured pair is 1 035 → 1 125.**
+  The commit bodies cannot move and the tag never moves, so the correction lives HERE, as the
+  measurement, and every audit below re-reads 1 035 → 1 125.
+* two fixes landed BEFORE any commit, so nothing shipped with them: the formatter's `parts.join(" ".to_string())`
+  answered E0308 (Rust wants a `&str` separator), and one edit to `cli.rs`'s import line duplicated
+  five names (E0252). Both were fixed and re-built before the commits that carry them.
+* the money rows read `no price` on a row the user MADE (its `column_card` has no price to money) —
+  honest, and it is the same wording ADR 0014's glyph carries: the card also says the row was made.
+
+### Chain
+
+`2cfb977` feat(db) (the formatter + `PriceSample`'s money pair, `history_of` fills it) →
+`edbdfc5` feat(query) (`Hit`'s money pair, `HIT_COLUMNS` grows NOTHING) → `680e3e1` feat(stats)
+(`Coverage`/`QualityStat`/`Extreme` money, `money_of_avg` consumed) → `21b316b` feat(cli)
+(`card_money_parts` at all four card sites) → `8ae2939` feat(ui) (`money_cell`, the money rows,
+trend hovers, the grid, the bars, the note, `.moneycell`, the three theads) → `f87e98f` ci (money
+rides the block, NO new step, 31 stays 31) → `261b2d9` chore (banner 0.9.3 → 0.9.4, Cargo.lock rides,
+schema stays `5`) → this record carries the tag.
+
+### Verification, pre-tag — the money doors, ZERO requests
+
+No network was touched by any money probe: every door below is `--cached` or DB-only, so the
+mirror's fixture never saw an ask. Measured against the mirror DB and the user's own DB:
+
+| door | answer |
+| ---- | ------ |
+| `item 3850 --cached` (user's DB) | `price_min 10075` beside `1g 75c` (the middle-zero class), `price_market 12500` beside `1g 25s`, `vendor_sell 7304` beside `73s 4c`; `available 8`, `realms 9` — no money sibling |
+| `item 14138 --cached` | `vendor_sell 20042` beside `2g 42c` — and its OWN copy says `Sell Price: 2g 42c`, so formatter and copy agree with no code comparing them |
+| `item 25 --cached` (mirror) | `20628 → 2g 6s 28c`, `17628 → 1g 76s 28c`, stated `606 → 6s 6c`, its ONE history sample `20628 → 2g 6s 28c` |
+| `item 900000000 --cached` (the row the user made) | `price null` and money `null` beside `null` — the card answers from the DB's own columns |
+| `search --limit 6` (mirror) | four priced rows `20628 → 2g 6s 28c` / `17628 → 1g 76s 28c`; the two unpriced rows (900000000, 127555) answer `null` beside `null`, NOT `0c` |
+| `stats --limit 3` (mirror) | coverage `min/max/avg 20628 / 20628 / 20628.0` beside three `2g 6s 28c`; the Rare facet with ZERO priced items keeps `avg_price null` beside `avg_price_money null` |
+| the UI cells (node runs the REAL `ui/app.js` over the REAL door JSON) | hits cells print `<span class="moneycell" title="20,628 copper exact">2g 6s 28c</span>`, unpriced rows print `no price`; the card prints `min price 2g 6s 28c` / `market price 1g 76s 28c` / `vendor sell 6s 6c` and keeps `available 12` un-moneied; a trend bar's hover reads `2g 6s 28c · 20,628 copper` |
+| `schema_version` after money | `5` on BOTH the mirror's DB and the user's file; `refresh-twins` answers 4 copies / 0 rewritten / 4 matching / ZERO requests — money needed no door |
+
+The v0.9.3 window's own verdict, recorded here so the record holds the whole ladder: the v0.9.3
+record's push `e2db5a9..1b56f45` started GitHub run **44946961792: success, 5/5 jobs in 10 min 15 s**
+(20:34:06Z → 20:44:21Z — quality 2 m 11 s · test 5 m 02 s · linux 5 m 27 s · windows 10 m 13 s ·
+macos 6 m 36 s), and the tags stayed put (`v0.9.3` → `78426d1`, `v0.9.2` → `46ee524`, `v0.9.1` →
+`5631168`, `v0.9.0` → `174460f`). This release's own push verdicts land in the post-tag section below.
+
 
 ### What forced it — one read of the user's own DB
 
