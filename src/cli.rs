@@ -9,7 +9,7 @@ use crate::errors::AppError;
 use crate::errors::AppResult;
 use crate::errors::ErrorKind;
 
-use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_b64_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, next_manual_id, open_db_at, raw_json_of, refresh_twins, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, tooltip_text_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, RefreshTally, SyncState, unix_now};
+use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_b64_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, money_of, next_manual_id, open_db_at, price_min, price_market, raw_json_of, refresh_twins, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, tooltip_text_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, RefreshTally, SyncState, unix_now};
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
@@ -342,6 +342,41 @@ pub fn card_icon_parts(conn: &Connection, id: i64) -> AppResult<Vec<String>> {
     return Ok(parts);
 }
 
+/// v0.9.4 (ADR 0015): the money words of the copper this card is about to print, as
+/// top-level SIBLING fragments beside the `item` object. Outside it for the same
+/// reason `icon_b64` is outside: `ItemDetail` and `Price` are upstream's mirror
+/// shapes (docs/API.md), so a field added inside them would claim upstream speaks
+/// a word it never answered. Money reads off the MERGED detail - the very value the
+/// fragment above prints - so a money word can never disagree with the number
+/// beside it, which also covers a `vendor_sell` the user stated by hand (editable_kind
+/// lists vendor_sell as an editable INTEGER field: the card shows the user's number,
+/// so it shows the money of the user's number). An absent price answers `null`
+/// beside `null`, never `0c`. Measured with ZERO requests on the user's own DB:
+/// `item 3850 --cached` answers `price_min 10075` beside `1g 75c` (the middle-zero
+/// class the copies settle, ADR 0015) and `vendor_sell 100` beside `1s`.
+/// `price_available` and `price_realms` get NO money sibling anywhere: they are
+/// auction COUNTS (measured on the user's row 25, `available 12` for 12 auctions
+/// of 15 000 copper), and ADR 0015's rule says money never rides a count.
+pub fn card_money_parts(detail: ItemDetail) -> Vec<String> {
+    let sell_json: String = match money_of(detail.vendor_sell.clone()) {
+        None => "null".to_string(),
+        Some(words) => json_text(words.clone()),
+    };
+    let min_json: String = match money_of(price_min(detail.price.clone())) {
+        None => "null".to_string(),
+        Some(words) => json_text(words.clone()),
+    };
+    let market_json: String = match money_of(price_market(detail.price.clone())) {
+        None => "null".to_string(),
+        Some(words) => json_text(words.clone()),
+    };
+    let mut parts: Vec<String> = [].to_vec();
+    parts.push(fragment("price_min_money".to_string(), min_json));
+    parts.push(fragment("price_market_money".to_string(), market_json));
+    parts.push(fragment("vendor_sell_money".to_string(), sell_json));
+    return parts;
+}
+
 /// The manual layer and the tooltip copy on the card (v0.8.0, ADR 0010): the
 /// card carries EVERY door's three states, so "the crawl has not reached it" and
 /// "a user already said something about it" stay different answers. manual_overrides
@@ -497,6 +532,10 @@ pub fn cached_card(conn: &Connection, id: i64) -> AppResult<String> {
                 parts.push(fragment("reused".to_string(), "false".to_string()));
                 parts.push(fragment("detail_synced_at".to_string(), json_opt_int(None)));
                 parts.push(fragment("item".to_string(), json_item(detail.clone())));
+                let money: Vec<String> = card_money_parts(detail.clone());
+                for one in money {
+                    parts.push(one.clone());
+                }
                 let extras: Vec<String> = match card_icon_parts(conn, id) {
                     Err(problem) => return Err(problem),
                     Ok(found) => found,
@@ -539,6 +578,10 @@ pub fn cached_card(conn: &Connection, id: i64) -> AppResult<String> {
             parts.push(fragment("reused".to_string(), "true".to_string()));
             parts.push(fragment("detail_synced_at".to_string(), json_opt_int(fetched)));
             parts.push(fragment("item".to_string(), json_item(detail.clone())));
+            let money: Vec<String> = card_money_parts(detail.clone());
+            for one in money {
+                parts.push(one.clone());
+            }
             let extras: Vec<String> = match card_icon_parts(conn, id) {
                 Err(problem) => return Err(problem),
                 Ok(found) => found,
@@ -880,6 +923,10 @@ pub fn cmd_item(inv: &Invocation) -> AppResult<String> {
                     parts.push(fragment("reused".to_string(), "false".to_string()));
                     parts.push(fragment("detail_synced_at".to_string(), json_opt_int(None)));
                     parts.push(fragment("item".to_string(), json_item(detail.clone())));
+                    let money: Vec<String> = card_money_parts(detail.clone());
+                    for one in money {
+                        parts.push(one.clone());
+                    }
                     let extras: Vec<String> = match card_icon_parts(&conn, number) {
                         Err(problem) => return Err(problem),
                         Ok(found) => found,
@@ -966,6 +1013,10 @@ pub fn cmd_item(inv: &Invocation) -> AppResult<String> {
             parts.push(fragment("reused".to_string(), match reused { true => "true".to_string(), false => "false".to_string() }));
             parts.push(fragment("cached".to_string(), "false".to_string()));
             parts.push(fragment("item".to_string(), json_item(detail.clone())));
+            let money: Vec<String> = card_money_parts(detail.clone());
+            for one in money {
+                parts.push(one.clone());
+            }
             let extras: Vec<String> = match card_icon_parts(&conn, number) {
                 Err(problem) => return Err(problem),
                 Ok(found) => found,
