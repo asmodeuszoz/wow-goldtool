@@ -56,6 +56,31 @@ those rows genuinely hold no bytes.
 `7db9502` feat(ui) (the icon columns + the glyph) → `41cc1f0` ci (smoke 29 → 31 cargo steps) →
 `7fcd90c` chore (banner 0.9.2 → 0.9.3, schema stays `5`, Cargo.lock rides) → this record carries the tag.
 
+### Verification, post-tag — fresh ports 9165 / 9166..9174 / 9176 (2026-11-21), nothing moved the tag
+
+The tag stays exactly where it was: `v0.9.3` → `78426d1` (the record commit that carries it),
+`v0.9.2` → `46ee524`, `v0.9.1` → `5631168`, `v0.9.0` → `174460f`. 9144..9164 were burned by
+earlier windows, so every fixture below sits on a port that was verified free first (a python
+socket bind) - 9165, 9166..9173, 9174 and 9176.
+
+| probe (post-tag, v0.9.3) | measured answer |
+| ------------------------ | --------------- |
+| mirror replay on **9165**, driver generated FROM the committed ci.yml smoke block (31 cargo steps + the plant line) | **31/31 rc 0** (`MIRROR: 31 steps, 0 non-zero`), `plant rc=0`; the icon doors land LAST in the block: `search sword --where description --icons` → row 25 **2 596 chars + icon_at**, the manual row **none of the three** · `stats --icons` → both lists filled and row 60 answers **no bytes with `icon_missing_at` set** · `stats` without the flag → the trio present, payload null. Fixture tallies **GETs 31 = 200×15 / 304×9 / 404×3 / 429×4**, byte-identical to the v0.9.2 replay, so the icon doors asked it NOTHING. Mirror DB tail: rows 6 · detailed 4 · copies 4 · checked-gone 1 · manual 1 · **icons 3 copied + 1 gone** · twins 4\|4\|4\|0 · schema **5** (`900000000` asks ZERO, committed fixture untouched) |
+| the ONE encoder across the card AND the doors (same replay) | every `icon_b64` any step emitted collapses to **one shape**: 2 596 chars → 1 945 bytes → **EQUALS the mirror DB's own blob** (`distinct shapes: 1`) - the card's row and the list doors cannot encode one copy two ways |
+| exit-code audit on **9166..9173 + 9174** | **86 doors**: 01–77 keep the identical rc map (usage `2` ×11, network `3` ×6, not-found `4` ×11, rest `0`) incl. the pinned migration trio 65/66/67 = 0/0/4; the icon doors 78–86 answer **0/0/0/0/2/0/4/0/0** - `search sword --iconsx` the usage `2`, a missing DB the honest `4` - and with a fixture URL both doors still answer 0 with **A GETs 29 before = 29 after**: the flag asks nothing |
+| the three icon states as three answers (door 80, `search --icons --limit 6`) | 12809/40/25 → **2 596 chars + `icon_at`** · 60 → **no bytes, `icon_missing_at` 1795292160** · 900000000/127555 → **neither stamp** ("no copy and never asked for one") - so the glyph's two states are distinguishable, not guessed |
+| a DB whose icon stage never ran (door 83, a scratch copy with the blobs blanked) | states `{(None,None,None)}` plus the gone row's `{(None,None,stamp)}` - exactly what the glyph means on the user's 15 228 never-asked rows |
+| **the icon doors over a DB BORN under the pinned v0.8.1 snapshot** (fresh port 9176, the pinned binary rebuilt from `a160ffa`) | the pinned era crawls list+detail+**icons** and leaves `schema_version 4` with 3 icon blobs and NO v5 columns; the current build opens it (`3\|1\|5` after the v4→v5 hop) and **both icon doors read those pinned-era bytes**: 3 rows × 2 596 chars + `icon_at`, row 60 gone-stamped, 127555 neither; every emission **decodes EQUAL** to the DB's own 1 945-byte blob (3/3, one shape); the fixture saw **15 GETs, all from the pinned crawl - ZERO from the doors** |
+| GitHub | run **44944988663: success, 5/5 jobs in 10 min 42 s** (20:11Z → 20:22Z) for the chain push `ff1d174..78426d1` + the tag push - so this tag HAS a green run on its own tree (the v0.9.0 tag never did); this record's own push run gets its verdict recorded as soon as it lands |
+
+Two honest print glitches in MY OWN drivers, recorded not swept: the audit's decode line fell
+into its own "no bytes for row 25" fallback (my `sqlite3.connect` read of the audit DB returned
+nothing while the door's answer clearly carried 2 596 chars - the clean decode proofs are the
+mirror replay's `distinct shapes: 1 / EQUALS the DB's own blob: True` and the gap probe's 3/3
+EQUAL against the pinned blob); and the gap probe's regex-based emission counter printed 0 while
+the same answers parsed as objects show 3 emissions of 2 596 chars each. Both were re-measured
+with the parsed JSON (the numbers above are the re-measurements), and neither touches the product.
+
 ## 2026-11-21 · v0.9.2 — the refresh door: old copies get their twin re-derived, ZERO requests
 
 ### What forced it — one measurement on the user's own file
