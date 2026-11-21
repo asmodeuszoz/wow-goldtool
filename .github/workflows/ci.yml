@@ -44,7 +44,10 @@ jobs:
             os: ubuntu-24.04
           - target: x86_64-pc-windows-msvc
             os: windows-2025
-          - target: x86_64-apple-darwin
+          # each target rides the triple its image actually builds: macos-latest IS
+          # arm64 - the toolchain step of the failing run answered host: aarch64-
+          # apple-darwin, and the x86 mac std is not installed there.
+          - target: aarch64-apple-darwin
             os: macos-latest
     runs-on: ${{ matrix.platform.os }}
     env:
@@ -112,8 +115,13 @@ jobs:
       # card read after it shows the local copy and the trend, and stats prints the ledger
       # count, which is what proves the one-sample-per-fresh-write rule end to end.
       - name: CLI smoke test on a seeded fixture DB
+        # the DB path is a plain RELATIVE path, not an expression: `runner.tmpDir` is
+        # not a context property, measured on run #3 it evaluated to the empty string,
+        # which made the first smoke step open `/fixture.sqlite` and answer 4 (docs/
+        # DECISIONS/0011). The checkout root ignores *.sqlite, so the scratch DB can
+        # neither miss a directory nor pollute a push.
         env:
-          WGT_DB: ${{ runner.tmpDir }}/fixture.sqlite
+          WGT_DB: fixture.sqlite
           WGT_LIMIT_BUDGET: '8'
         run: |
           python3 tests/fixture_api.py > /dev/null 2>&1 &
