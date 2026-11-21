@@ -180,4 +180,20 @@ jobs:
           # the manual row's card, DB-only: it shows the twin its fields earned at
           # birth - name, quality and the stated description - with ZERO requests
           cargo run -- item 900000000 --cached
+          # the refresh door (v0.9.2, ADR 0013): the twin is DERIVED, so a DB whose
+          # copies predate the corrected span rule gets them re-derived from the copy
+          # it already holds - ZERO requests leave this door, so the fixture sees no
+          # extra ask. The mirror's own twins were written by the corrected rule, so
+          # the first press answers 0 rewritten / 4 unchanged; the v0.9.0 GLUED shape
+          # (what 4 602 copies on the user's own file still are) is then PLANTED by
+          # hand with python3's own sqlite3 - the same interpreter the fixture server
+          # above already needs - and the phrase spanning an element boundary shows
+          # the door's real gain: 0 hits before, refresh answers 1 rewritten, 1 hit
+          # after, and a third press answers 0 again (idempotent, and still exit 0).
+          cargo run -- refresh-twins
+          python3 -c 'import sqlite3;s=sqlite3.connect("fixture.sqlite");s.execute("UPDATE item SET tooltip_text=?, tooltip_lc=? WHERE id=25",("Fixture Detail 25Item Level 1Main HandOne-Handed Sword1 - 3 DamageSpeed 1.9 Sell Price: 7c","fixture detail 25item level 1main handone-handed sword1 - 3 damagespeed 1.9 sell price: 7c"));s.commit()'
+          cargo run -- search "damage speed" --where description
+          cargo run -- refresh-twins
+          cargo run -- search "damage speed" --where description
+          cargo run -- refresh-twins
           cargo run -- stats
