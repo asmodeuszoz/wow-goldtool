@@ -29,6 +29,21 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 stay until a copy's content changes (pending rule + 304-writes-nothing) — a refresh door is a
 named plan.
 
+### Verification, post-tag — fresh ports, the tag stays put (2026-11-21)
+
+Nothing in this section moved the tag (`v0.9.1` = the record commit that carries it, `v0.9.0`
+still `174460f`). Every number below was measured after the tag, on FRESH fixture ports — the
+ports the earlier windows burned (9124..9143) stay BUSY/defunct and no replay reuses them.
+
+| probe (post-tag) | measured answer |
+| ---------------- | --------------- |
+| mirror replay, fresh port 9144 | **24/24 steps rc 0** (`MIRROR: 24 steps, 0 non-zero`) — the three v0.9.0-added steps land: `search sword --where description` → rc 0, `"total": 2`, `--where all` → rc 0, `"total": 2`, and `item 900000000 --cached` answers the made row from the DB (`"cached": true, "reused": false`, twin `a plain CI sword mug`); fixture tallies **GETs 31 = 200×15 / 304×9 / 404×3 / 429×4**, stages detail 18 / icon 5 / tooltip 5 / search 3; rows 6, twins **4\|4\|4\|0** (`html-without-twin` = 0), schema stamp **5**, `900000000` asks **ZERO** |
+| exit-code audit, fresh ports 9145..9152 | **67 doors**: the v0.8.1 map is byte-identical (05/06 = 4, 08 = 2, 10/11 = 2, 12–14 = 3, 19 = 2, 20/25/30 = 3, 29 = 2, 32–34 + 36 = 2, 35 = 4, 48–51 + 54 = 4), the v0.9.0 doors hold (58/59/60 = 0/0/0 with hits **1/1/0**, bogus scope 61 = **2**, twin doors 62/63/64 = 0/0/0 with the stated `<b>Probe Sword stated</b>` → twin `Probe Sword stated` in the SAME write, counts **3\|3\|3**), and `900000000` asks stayed **ZERO** across the stages |
+| the schema chain, REAL now (fresh port 9143 + a scratch DB, the user's file never opened) | 65 rc **0**: the pinned v0.8.1 snapshot rebuilt from `a160ffa` BIRTHS its own shape → `schema_version\|4`, 5 rows; 66 rc **0**: the current build opens that schema-4 file and the `v4→v5` hop rides → `schema_version\|5`; 67 rc **4**: the pinned snapshot on the bumped file answers `database on disk uses schema 5, this build wants 4; delete the file to rebuild it` and leaves the file untouched (meta still 5, rows 5\|0) — the pre-tag run had to SKIP these doors (its scratch copy had been wiped by the harness restart); this one answers them |
+| GitHub runs | the fix-chain push `174460f..5a36d19` = run **44934053776: success, 5/5 jobs in 8 min 11 s**; the record + tag push = run **44934961058: success, 5/5 jobs in 7 min 17 s** on the tagged tree — so this tag HAS a green run, which the v0.9.0 tag never did; the hung run **44863357406** stays `completed/cancelled` at 18:07Z, exactly as recorded under v0.9.0 |
+| the user's own file opened by the v0.9.1 build | rc 0, `19 258 rows · 4 602 detailed · 14 656 checked-removed · tooltips 4 602 · twins 4 602 · twin_lc 4 602 · schema 5` — rows intact through the additive migration, and the 4 602 twins keep their glued v0.9.0 shape (the pending rule never re-asks a stamped copy, and a 304 writes nothing): the refresh door is still a named plan, not code |
+| the committed fixture | `git status --porcelain tests/fixture_api.py` empty — the drivers generate their own scratch copies, `tests/fixture_api.py` untouched |
+
 ## 2026-11-21 · v0.9.0 — the copies are READABLE and FINDABLE: the readable twin of every copied tooltip
 
 ### What forced the milestone
