@@ -177,11 +177,16 @@ macos 6 m 36 s), and the tags stayed put (`v0.9.3` → `78426d1`, `v0.9.2` → `
 * **Money over the pinned-era DB** (the schema-4→5 migration hop, 5 rows / 0 detailed / 0
   priced): every money answer is `null` beside `null`, ZERO requests — money invents no zero
   on a migrated file, ADR 0004's rule survives the hop.
-* **CI**: the chain+tag push `1b56f45..4875222` started GitHub run **44954802500** (created
-  2026-11-21T22:04:26Z) — **in progress when this section was written**, its verdict lands
-  forward in this record the moment it completes, together with this verification record's own
-  push verdict; the tags stayed put at the tag time (`v0.9.4` → `4875222`, joining `v0.9.3` →
-  `78426d1`, `v0.9.2` → `46ee524`, `v0.9.1` → `5631168`, `v0.9.0` → `174460f`).
+* **CI**: the chain+tag push `1b56f45..4875222` started GitHub run **44954802500: success,
+  5/5 jobs in 10 min 36 s** (22:04:26Z → 22:15:02Z — quality 2 m 15 s · test 4 m 23 s · linux
+  4 m 33 s · macos 7 m 16 s · windows 10 m 32 s), and it ran on the TAGGED tree
+  (`head_sha 4875222…` — exactly what the tag holds). The verification record's own push
+  `4875222..90cb963` started **run 44956129051: success, 5/5 jobs in 10 min 44 s**
+  (22:19:17Z → 22:30:01Z — quality 2 m 16 s · test 4 m 40 s · linux 5 m 33 s · macos 6 m 19 s ·
+  windows 10 m 41 s) on head `90cb963…`, the verification tree. This verdict commit starts its
+  own run the same way — the ladder's rule keeps it honest: verdicts land FORWARD, the tags
+  never move (`v0.9.4` → `4875222`, joining `v0.9.3` → `78426d1`, `v0.9.2` → `46ee524`, `v0.9.1` →
+  `5631168`, `v0.9.0` → `174460f`).
 
 
 ### What forced it — one read of the user's own DB
