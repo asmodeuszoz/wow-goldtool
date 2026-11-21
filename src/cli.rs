@@ -144,10 +144,10 @@ pub fn parse_invocation(args: Vec<String>) -> Invocation {
             if token == "--where" {
                 if value == "name" || value == "description" || value == "all" {
                     out.scope = value.clone();
-                    continue
+                } else {
+                    out.bad = format!("search --where wants name, description or all, got {}", value);
+                    return out;
                 }
-                out.bad = format!("search --where wants name, description or all, got {}", value);
-                return out;
             }
             if token == "--quality" {
                 out.quality = Some(value.clone());
