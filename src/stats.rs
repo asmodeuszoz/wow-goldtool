@@ -7,6 +7,8 @@
 use crate::errors::AppError;
 use crate::errors::AppResult;
 
+use crate::db::{icon_at_of, icon_b64_of, icon_missing_at_of};
+
 use rusqlite::Connection;
 use rusqlite::params_from_iter;
 use rusqlite::types::Value;
@@ -52,6 +54,13 @@ pub struct Extreme {
     pub name: String,
     pub quality: Option<String>,
     pub price_min: Option<i64>,
+    /// v0.9.3 (ADR 0014): the same icon trio the search hits carry, so the two
+    /// price lists render the DB's OWN icon bytes (ADR 0008's rule: upstream's
+    /// `icon_url` is never hotlinked) and a row with no bytes still says WHICH
+    /// state it is in - `--icons` fills the payload, the stamps always ride.
+    pub icon_b64: Option<String>,
+    pub icon_at: Option<i64>,
+    pub icon_missing_at: Option<i64>,
 }
 
 /// One aggregate row over the whole catalogue. `AVG`/`MIN`/`MAX` over an empty
@@ -240,16 +249,16 @@ pub fn by_quality(conn: &Connection) -> AppResult<Vec<QualityStat>> {
 }
 
 /// The `limit` cheapest priced items.
-pub fn cheapest(conn: &Connection, limit: i64) -> AppResult<Vec<Extreme>> {
-    return extremes(conn, SQL_CHEAP.to_string(), limit);
+pub fn cheapest(conn: &Connection, limit: i64, with_icons: bool) -> AppResult<Vec<Extreme>> {
+    return extremes(conn, SQL_CHEAP.to_string(), limit, with_icons);
 }
 
 /// The `limit` priciest priced items.
-pub fn priciest(conn: &Connection, limit: i64) -> AppResult<Vec<Extreme>> {
-    return extremes(conn, SQL_RICH.to_string(), limit);
+pub fn priciest(conn: &Connection, limit: i64, with_icons: bool) -> AppResult<Vec<Extreme>> {
+    return extremes(conn, SQL_RICH.to_string(), limit, with_icons);
 }
 
-pub fn extremes(conn: &Connection, sql: String, limit: i64) -> AppResult<Vec<Extreme>> {
+pub fn extremes(conn: &Connection, sql: String, limit: i64, with_icons: bool) -> AppResult<Vec<Extreme>> {
     let mut params: Vec<Value> = [].to_vec();
     params.push(Value::Integer(limit));
     let mut stmt = match conn.prepare(&sql) {
@@ -262,6 +271,9 @@ pub fn extremes(conn: &Connection, sql: String, limit: i64) -> AppResult<Vec<Ext
             name: row.get(1)?,
             quality: row.get(2)?,
             price_min: row.get(3)?,
+            icon_b64: None,
+            icon_at: None,
+            icon_missing_at: None,
         })
     }) {
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
@@ -273,6 +285,28 @@ pub fn extremes(conn: &Connection, sql: String, limit: i64) -> AppResult<Vec<Ext
             Err(problem) => return Err(AppError::db(format!("{}", problem))),
             Ok(value) => out.push(value),
         }
+    }
+    match with_icons {
+        false => {},
+        true => {
+            let mut index: usize = 0;
+            while index < out.len() {
+                let one_id: i64 = out[index].id;
+                out[index].icon_b64 = match icon_b64_of(conn, one_id) {
+                    Err(problem) => return Err(problem),
+                    Ok(found) => found,
+                };
+                out[index].icon_at = match icon_at_of(conn, one_id) {
+                    Err(problem) => return Err(problem),
+                    Ok(found) => found,
+                };
+                out[index].icon_missing_at = match icon_missing_at_of(conn, one_id) {
+                    Err(problem) => return Err(problem),
+                    Ok(found) => found,
+                };
+                index = index + 1;
+            }
+        },
     }
     return Ok(out);
 }

@@ -805,11 +805,11 @@ pub fn cmd_stats(inv: &Invocation) -> AppResult<String> {
         None => 10,
         Some(value) => value,
     };
-    let cheap: Vec<Extreme> = match cheapest(&conn, limit) {
+    let cheap: Vec<Extreme> = match cheapest(&conn, limit, false) {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };
-    let rich: Vec<Extreme> = match priciest(&conn, limit) {
+    let rich: Vec<Extreme> = match priciest(&conn, limit, false) {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };
