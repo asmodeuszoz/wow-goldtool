@@ -27,7 +27,7 @@ use std::env::set_var;
 /// What the CLI can answer. Keeping the list here means an unknown verb becomes a
 /// usage error that names what the user actually typed.
 pub fn usage_text() -> String {
-    return "usage: status | sync --stage list|detail|icons|tooltip [--budget N] [--ids A,B,C] [--watch] | search TEXT [--quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | status [--db PATH] [--fixture URL]".to_string();
+    return "usage: status | sync --stage list|detail|icons|tooltip [--budget N] [--ids A,B,C] [--watch] | search TEXT [--where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | status [--db PATH] [--fixture URL]".to_string();
 }
 
 /// The verbs of one invocation plus its flags. Unknown flags are kept rather than
@@ -37,6 +37,7 @@ pub struct Invocation {
     pub words: Vec<String>,
     pub stage: String,
     pub sort: String,
+    pub scope: String,
     pub quality: Option<String>,
     pub type_name: Option<String>,
     pub max_level: Option<i64>,
@@ -63,6 +64,7 @@ pub fn takes_value(flag: String) -> bool {
     if flag == "--sort" { return true }
     if flag == "--quality" { return true }
     if flag == "--type" { return true }
+    if flag == "--where" { return true }
     if flag == "--max-level" { return true }
     if flag == "--ids" { return true }
     return false;
@@ -92,6 +94,7 @@ pub fn parse_invocation(args: Vec<String>) -> Invocation {
         words: [].to_vec(),
         stage: "list".to_string(),
         sort: "price".to_string(),
+        scope: "name".to_string(),
         quality: None,
         type_name: None,
         max_level: None,
@@ -137,6 +140,14 @@ pub fn parse_invocation(args: Vec<String>) -> Invocation {
             }
             if token == "--sort" {
                 out.sort = value.clone();
+            }
+            if token == "--where" {
+                if value == "name" || value == "description" || value == "all" {
+                    out.scope = value.clone();
+                    continue
+                }
+                out.bad = format!("search --where wants name, description or all, got {}", value);
+                return out;
             }
             if token == "--quality" {
                 out.quality = Some(value.clone());
@@ -761,6 +772,7 @@ pub fn filter_for(inv: &Invocation) -> Filter {
     out.max_required_level = inv.max_level;
     out.priced_only = inv.priced;
     out.sort = inv.sort.clone();
+    out.scope = inv.scope.clone();
     out.limit = inv.limit;
     out.offset = inv.offset;
     return out;
