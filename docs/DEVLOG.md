@@ -73,6 +73,11 @@ socket bind) - 9165, 9166..9173, 9174 and 9176.
 | **the icon doors over a DB BORN under the pinned v0.8.1 snapshot** (fresh port 9176, the pinned binary rebuilt from `a160ffa`) | the pinned era crawls list+detail+**icons** and leaves `schema_version 4` with 3 icon blobs and NO v5 columns; the current build opens it (`3\|1\|5` after the v4→v5 hop) and **both icon doors read those pinned-era bytes**: 3 rows × 2 596 chars + `icon_at`, row 60 gone-stamped, 127555 neither; every emission **decodes EQUAL** to the DB's own 1 945-byte blob (3/3, one shape); the fixture saw **15 GETs, all from the pinned crawl - ZERO from the doors** |
 | GitHub | run **44944988663: success, 5/5 jobs in 10 min 42 s** (20:11Z → 20:22Z) for the chain push `ff1d174..78426d1` + the tag push - so this tag HAS a green run on its own tree (the v0.9.0 tag never did); this record's own push run gets its verdict recorded as soon as it lands |
 
+The push of THIS record (`78426d1..e2db5a9`) started run **44946023051: success, 5/5 jobs in
+9 min 44 s** (20:23Z → 20:33Z) — green on the record's own tree too, joining the chain push
+`44944988663` (5/5 in 10 min 42 s) on the tagged tree. The tags stayed put throughout
+(`v0.9.3` → `78426d1`, `v0.9.2` → `46ee524`, `v0.9.1` → `5631168`, `v0.9.0` → `174460f`).
+
 Two honest print glitches in MY OWN drivers, recorded not swept: the audit's decode line fell
 into its own "no bytes for row 25" fallback (my `sqlite3.connect` read of the audit DB returned
 nothing while the door's answer clearly carried 2 596 chars - the clean decode proofs are the
