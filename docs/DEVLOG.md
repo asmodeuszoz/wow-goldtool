@@ -43,6 +43,25 @@ Chain: `a5da052` feat(db) → `4cd95b3` feat(cli) → `d1703e4` feat(ui) → `cb
 cargo steps + one plant line) → `bb9b2c2` chore (banner 0.9.0 → 0.9.2, schema stays 5) →
 this record carries the tag.
 
+### Verification, post-tag — fresh ports 9161/9153..9160+9162/9163, and the door run over the user's own file (2026-11-21)
+
+Nothing here moved the tag (`v0.9.2` stays on the record commit that carries it; `v0.9.1` →
+`5631168`, `v0.9.0` → `174460f`). Every number was measured after the tag on FRESH ports —
+9144..9152 and 9145..9160 were burned by the v0.9.1 window and no replay reuses them.
+
+| probe (post-tag, v0.9.2) | measured answer |
+| ------------------------ | --------------- |
+| mirror replay, fresh port **9161**, driver generated from the committed ci.yml smoke block | **29/29 cargo steps rc 0** (`MIRROR: 29 steps, 0 non-zero`) + the plant line (`plant rc=0`); the refresh doors land IN ORDER: 0 rewritten / 4 unchanged → `search "damage speed" --where description` **total 0** → refresh **1 rewritten** → same door **total 1** → third press 0 rewritten; fixture tallies **GETs 31 = 200×15 / 304×9 / 404×3 / 429×4**, byte-identical to the v0.9.1 replay, so the refresh asked the fixture NOTHING; DB tail rows 6 · detailed 4 · copies **4** · checked-gone 1 · manual 1 · twins **4\|4\|4\|0** · schema **5** · `900000000` asks **ZERO** · committed fixture untouched |
+| exit-code audit, fresh ports 9153..9160 + 9162 | **77 doors**: 01–67 rc map identical to the v0.9.1 run (usage 2 ×10, network 3 ×6, DB/not-found 4 ×10, rest 0), the migration trio still 0/0/4; the refresh doors 68–77 answer 0/0/0/0/0/0/0/**4**/**2**/0 — a missing DB is the honest 4 and `refresh-twins extra` the usage 2 — and **A GETs 29 before / 29 after** the refresh doors: the door asks nothing |
+| ADR 0012's honest gap, measured the way it really happens (fresh port 9163, the pinned v0.8.1 snapshot rebuilt from `a160ffa`) | the pinned era crawls list+detail+tooltip and leaves `schema_version 4` with **3 copies and NO twin columns at all** (`.schema item` counts 0 of them); the current build opens that file (the `v4→v5` hop rides, rc 0) and reports `3\|0`; **refresh-twins answers `filled 3`** → `3\|3`; the card then reads the twin with ZERO requests (`item 25 --cached` → `Fixture Detail 25 Item Level 1 Main Hand One-Handed Sword 1 - 3 Damage Speed 1.9 Sell Price: 7c`); press 2 answers 0 rewritten; the fixture's 15 GETs all belong to the pinned crawl |
+| **the door over the user's own file** — the residue v0.9.1 named, closed | BEFORE: 19 258 rows, 4 602 copies, the FIRST twin `Worn ShortswordItem Level 2Main HandOne-Handed Sword1 - 3 DamageSpeed 1.9(1.1 damage per second)Sell Price: 7cLowest buyoutsAlliance…`; the phrase doors answer `damage speed` 0 · `hand one` 0 · `sword 1` 0 · `1 main` 0 · `main hand` 75 · `sell price: 7` 291. **Press 1: rc 0 in 114 s, `copies 4602, rewritten 4602, filled 0, requests 0`** — the FIRST twin now reads `Worn Shortsword Item Level 2 Main Hand One-Handed Sword 1 - 3 Damage Speed 1.9 (1.1 damage per second) Sell Price: 7c Lowest buyouts Alliance …`; the same phrase doors answer **358 · 90 · 14 · 3 · 75 · 291** — the predicted gains exactly, and `main hand`/`sell price: 7` unchanged exactly as the substring rule says. **Press 2: rc 0, 0 rewritten / 4 602 unchanged.** File tail after: 19 258 rows · 4 602 copies · 4 602 twins · 4 602 `tooltip_lc` · schema **5** · icons 4 030 + 1 checked-gone · 4 284 price samples · manual 0 · deleted 0 · html-without-twin **0** — the file is intact and the ONLY thing that changed is the twin's wording |
+| GitHub | the chain push `51a8d24..46ee524` + the tag push = run **44939561521: success, 5/5 jobs in 9 min 17 s** on the tagged tree, so this tag HAS a green run (the v0.9.0 tag never did); this record's own push run gets its verdict recorded as soon as it lands |
+
+Two honest print glitches in MY drivers, not in the product: `mirror092.sh`'s rows query named
+a column this DB does not have (`detail_at`) and `refresh-user.sh`'s tail query named
+`price_samples` — both tallies were re-measured with the real column names above, and the
+drivers keep the glitch in their text so the record says which lines were re-measured.
+
 ## 2026-11-21 · v0.9.1 — the v0.9.0 defects die here: the scope door answers, the twin keeps its spaces
 
 ### What forced it — two measurements, no theory
