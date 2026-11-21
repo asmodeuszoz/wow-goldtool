@@ -139,6 +139,7 @@ async function runSearch() {
   argv.push("--where", where);
   argv.push("--sort", sort);
   if (priced) { argv.push("--priced"); }
+  argv.push("--icons");
   argv.push("--limit", "40");
   try {
     var found = await cli_ok(argv);
@@ -150,13 +151,31 @@ async function runSearch() {
     }
     document.querySelector("#hits tbody").innerHTML = rows;
     var shown = found.hits.length;
-    var note = "showing " + shown + " of " + num(found.total) + " — details of " + num(found.total) + " items cost one request each, and the sync stage caches them";
+    var note = "showing " + shown + " of " + num(found.total) + " — details of " + num(found.total) + " items cost one request each, and the sync stage caches them; the icon column shows the DB's OWN copy where the icons stage wrote one (\u25c7 means no bytes: never fetched, or checked as gone upstream \u2014 the hover says which, and nothing is hotlinked)";
     if (found.total === 0) { note = "no item matches — the search runs against the local DB only"; }
     set_note(document.getElementById("search-note"), note, false);
     document.getElementById("btn-search").classList.remove("running");
   } catch (problem) {
     set_note(document.getElementById("search-note"), problem.message, true);
   }
+}
+
+// The list icon cell (v0.9.3, ADR 0014): the DB's OWN icon bytes as a data URI, the
+// same rule the card has ridden since v0.6.0 - upstream's icon_url rides the row
+// shape but is NEVER hotlinked (ADR 0008's rule), so a row with no bytes has nothing
+// to draw and shows a placeholder glyph. WHICH no-icon state a row is in is still the
+// row's own stamps: the doors send icon_at (copied) and icon_missing_at (checked as
+// gone upstream) always, and the base64 payload only when asked with --icons - which
+// every list door on this page asks for.
+function icon_cell(one) {
+  if (one.icon_b64) {
+    return '<img class="listicon" src="data:image/jpeg;base64,' + esc(one.icon_b64) + '" alt="' + esc(one.name) + ' icon">';
+  }
+  var why = "icon never fetched (the icons stage will copy it)";
+  if (one.icon_missing_at !== null && one.icon_missing_at !== undefined) {
+    why = "icon checked as not there upstream " + when(one.icon_missing_at);
+  }
+  return '<span class="noicon" title="' + esc(why) + '">\u25c7</span>';
 }
 
 function hit_row(hit) {
@@ -174,6 +193,7 @@ function hit_row(hit) {
   return "<tr>"
     + '<td class="col-id">' + esc(String(hit.id)) + "</td>"
     + '<td class="namecell">' + esc(hit.name) + " " + link + " " + toggle + "</td>"
+    + '<td class="iconcell">' + icon_cell(hit) + "</td>"
     + '<td class="qualitycell"><span class="chip c-' + esc(quality) + '">' + esc(quality) + "</span></td>"
     + '<td class="pricecell">' + price_cell + "</td>"
     + "</tr>";
@@ -734,7 +754,7 @@ async function runTwinRefresh() {
 // ---- price analytics -------------------------------------------------------
 async function runStats() {
   try {
-    var found = await cli_ok(["stats", "--limit", "6"]);
+    var found = await cli_ok(["stats", "--icons", "--limit", "6"]);
     var byq = found.by_quality;
     var biggest = 1;
     for (var i = 0; i < byq.length; i = i + 1) {
@@ -756,7 +776,8 @@ async function runStats() {
     var cov = found.coverage;
     set_note(document.getElementById("stats-note"),
       "one read answered " + num(cov.items) + " items, " + num(cov.priced) + " priced, " + num(cov.detailed) + " with details; the price spread is "
-      + (num(cov.min_price) === null ? "unknown" : num(cov.min_price) + " .. " + num(cov.max_price)), false);
+      + (num(cov.min_price) === null ? "unknown" : num(cov.min_price) + " .. " + num(cov.max_price))
+      + " — the icon column is the DB's own copy where the icons stage wrote one (\u25c7: no bytes)", false);
     document.getElementById("btn-stats").classList.remove("running");
   } catch (problem) {
     set_note(document.getElementById("stats-note"), problem.message, true);
@@ -771,6 +792,7 @@ function extreme_rows(rows) {
     var price = num(one.price_min);
     if (price === null) { price = "no price"; }
     html = html + '<tr><td class="namecell">' + esc(one.name) + '<span class="chip c-' + esc(quality) + '">' + esc(quality) + "</span></td>"
+      + '<td class="iconcell">' + icon_cell(one) + "</td>"
       + '<td class="pricecell">' + esc(String(price)) + "</td></tr>";
   }
   return html;

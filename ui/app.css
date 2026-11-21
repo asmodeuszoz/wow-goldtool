@@ -126,7 +126,7 @@ table.hits {
   font-size: 13px;
   margin: 0;
 }
-th.col-id, th.col-name, th.col-quality, th.col-price {
+th.col-id, th.col-name, th.col-icon, th.col-quality, th.col-price {
   color: var(--text);
   border-bottom: 1px solid var(--edge);
   padding: 6px 9px;
@@ -142,6 +142,16 @@ td.namecell { color: var(--text); }
 td.namecell a { color: var(--gold); text-decoration: none; font-size: 11px; margin: 0 0 0 6px; }
 #hits tr td { color: var(--muted); }
 #hits tr:hover td { background: var(--panel-2); }
+
+/* v0.9.3 (ADR 0014): the list icon cell. The image is the DB's OWN bytes as a data
+   URI - never a hotlink (ADR 0008's rule), which is why an icon-less row shows a
+   placeholder glyph instead of a broken-image box. 24 px in the hits table, 20 px in
+   the mini analytics rows: the measured icon copies average 2 327 bytes (min 1 385,
+   max 3 268), so a row costs about 3.1 K chars once encoded, and the doors bound how
+   many ride (the UI asks 40 hits and 6 extremes). */
+td.iconcell { width: 34px; padding: 3px 6px; text-align: center; }
+.listicon { width: 24px; height: 24px; object-fit: contain; image-rendering: pixelated; vertical-align: middle; }
+.noicon { color: var(--muted); font-size: 13px; }
 
 .chip {
   display: inline-block;
@@ -223,6 +233,9 @@ table.mini th { color: var(--muted); border-bottom: 1px solid var(--edge); paddi
 table.mini th.col-price { text-align: right; }
 table.mini td { border-bottom: 1px solid var(--edge); padding: 5px 8px; }
 table.mini td.namecell span { margin: 0 0 0 6px; }
+table.mini td.iconcell { width: 26px; padding: 2px 5px; text-align: center; }
+table.mini .listicon { width: 20px; height: 20px; }
+table.mini .noicon { font-size: 12px; }
 table.mini td.pricecell { text-align: right; color: var(--gold); }
 #btn-stats { margin: 8px 0 0; }
 
