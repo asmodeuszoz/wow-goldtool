@@ -117,9 +117,15 @@ jobs:
       # From v0.9.0 on the sequence also proves the LOCAL search door's scope (ADR
       # 0012): --where description reads the readable twin (tooltip_text/tooltip_lc,
       # schema 5) and --where all is name OR description - the fixture grounds both:
-      # item 25's COPIED tooltip says "One-Handed Sword" while its name does not, and
-      # one listed row really is named "Worn Shortsword" (measured fixture payload),
-      # so description answers 2 (25 + the manual row) and all answers 3; the manual
+      # item 25's COPIED tooltip says "One-Handed Sword" while its final NAME does
+      # not - the fixture's OWN detail server assigns body["name"] = "Fixture Detail
+      # <id>" to EVERY detailed row (measured in tests/fixture_api.py: the list door's
+      # row named "Worn Shortsword" gets its name OVERWRITTEN at detail-write time,
+      # and the only row keeping its list name is the checked-404 127555), so a name
+      # scope "sword" would answer 0 and BOTH steps here answer 2 (row 25 + the
+      # manual row's stated description): the copy makes the word findable where
+      # names cannot. The all step also runs the OR clause's TWO-needle binding
+      # whose marker count bind_sql checks. The manual row's card then shows the
       # row's card then shows the twin its stated fields earned at birth, DB-only.
       - name: CLI smoke test on a seeded fixture DB
         # the DB path is a plain RELATIVE path, not an expression: `runner.tmpDir` is
