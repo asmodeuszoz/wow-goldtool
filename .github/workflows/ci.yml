@@ -116,7 +116,8 @@ jobs:
       # count, which is what proves the one-sample-per-fresh-write rule end to end.
       # From v0.9.0 on the sequence also proves the LOCAL search door's scope (ADR
       # 0012): --where description reads the readable twin (tooltip_text/tooltip_lc,
-      # schema 5) and --where all is name OR description - the fixture grounds both:
+      # v0.9.0's schema 4 -> 5 pair; CI's fresh file is BORN at 6 now, ADR 0016's hop)
+      # and --where all is name OR description - the fixture grounds both:
       # item 25's COPIED tooltip says "One-Handed Sword" while its final NAME does
       # not - the fixture's OWN detail server assigns body["name"] = "Fixture Detail
       # <id>" to EVERY detailed row (measured in tests/fixture_api.py: the list door's
@@ -232,3 +233,21 @@ jobs:
           # single disagreement the user's own DB shows on item 25 (500 copper beside
           # `Sell Price: 7c`, 1 of 4 231). Upstream left it; recording it is the
           # honest answer, pasting the copy's words into a column is not.
+          # price homes (v0.9.5, ADR 0016): this release adds NO step and NO request
+          # again - the trio (vendor_buy / price_min_now / price_trend_normal) has NO
+          # producer and NO reader yet, on user's instruction ("the columns should be
+          # allocated now; how we'll get to those values can be ignored for now"). Measured
+          # with BOTH the v0.9.4 binary (tree at 4875222) and this one over two copies of
+          # the SAME fixture DB: 12 of the 13 doors BYTE-IDENTICAL - search --limit 6
+          # 1 941 bytes, stats --limit 3 1 533, stats 1 850, stats --icons 17 462, item
+          # 25 --cached 4 336, the made card 1 103, 12809/40 --cached 3 868 / 4 022,
+          # the three --where search steps 763 / 755 / 3 363, refresh-twins 223 - and
+          # `status` echoes its own db.path, so with that string pinned its JSON is
+          # IDENTICAL too: the reservation moves ZERO bytes everywhere. The fresh smoke
+          # DB is now BORN at schema 6 (the trio sits before raw_json in CREATE); the
+          # 5 -> 6 ALTER chain does NOT run in CI - CI has no schema-5 file - and the
+          # post-tag audit measures the migration on scratch copies instead (honest
+          # split, ADR 0011's rule). Step count stays 31 `cargo run --`, plant line one,
+          # and the GET tallies cannot move: the trio sends no ask. Note the paragraph
+          # above speaks for v0.9.4, whose schema stay AT 5 was that release's claim;
+          # v0.9.5 moved to 6, and money still writes nothing.
