@@ -1195,6 +1195,13 @@ pub fn set_item_field(conn: &Connection, id: i64, field: String, value: String, 
             clauses.push("quality_rank = ?".to_string());
             head.push(int_value(rank_of(Some(value.clone()))));
         },
+        "tooltip_html" => {
+            let readable: String = readable_tooltip_text(value.clone());
+            clauses.push("tooltip_text = ?".to_string());
+            head.push(Value::Text(readable.clone()));
+            clauses.push("tooltip_lc = ?".to_string());
+            head.push(Value::Text(readable.to_lowercase()));
+        },
         _ => {},
     }
     clauses.push("edited_at = ?".to_string());
@@ -1245,6 +1252,7 @@ pub fn add_item_manual(conn: &Connection, id: i64, at: i64, fields: Vec<(String,
     head.push(Value::Integer(at));
     let mut name_text: String = "".to_string();
     let mut quality_text: Option<String> = None;
+    let mut stated_tooltip: Option<String> = None;
     let mut index: usize = 0;
     while index < fields.len() {
         let field: String = fields[index].0.clone();
@@ -1266,6 +1274,7 @@ pub fn add_item_manual(conn: &Connection, id: i64, at: i64, fields: Vec<(String,
                 match field.as_str() {
                     "name" => name_text = value,
                     "quality" => quality_text = Some(value),
+                    "tooltip_html" => stated_tooltip = Some(value),
                     _ => {},
                 }
             },
@@ -1296,6 +1305,16 @@ pub fn add_item_manual(conn: &Connection, id: i64, at: i64, fields: Vec<(String,
         Some(quality) => {
             cols.push("quality_rank".to_string());
             head.push(int_value(rank_of(Some(quality))));
+        },
+    }
+    match stated_tooltip {
+        None => {},
+        Some(html) => {
+            let readable: String = readable_tooltip_text(html.clone());
+            cols.push("tooltip_text".to_string());
+            head.push(Value::Text(readable.clone()));
+            cols.push("tooltip_lc".to_string());
+            head.push(Value::Text(readable.to_lowercase()));
         },
     }
     let stored: String = match to_string(&edits) {
