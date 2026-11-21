@@ -44,6 +44,10 @@ ports the earlier windows burned (9124..9143) stay BUSY/defunct and no replay re
 | the user's own file opened by the v0.9.1 build | rc 0, `19 258 rows · 4 602 detailed · 14 656 checked-removed · tooltips 4 602 · twins 4 602 · twin_lc 4 602 · schema 5` — rows intact through the additive migration, and the 4 602 twins keep their glued v0.9.0 shape (the pending rule never re-asks a stamped copy, and a 304 writes nothing): the refresh door is still a named plan, not code |
 | the committed fixture | `git status --porcelain tests/fixture_api.py` empty — the drivers generate their own scratch copies, `tests/fixture_api.py` untouched |
 
+The push of THIS record (`5631168..b6d19d1`) started run **44935854879: success, 5/5 jobs in
+10 min 9 s** (18:30Z → 18:40Z) — green on the record's own tree as well, and the tag stayed
+exactly where it was (`v0.9.1` → `5631168`, `v0.9.0` → `174460f`).
+
 ## 2026-11-21 · v0.9.0 — the copies are READABLE and FINDABLE: the readable twin of every copied tooltip
 
 ### What forced the milestone
