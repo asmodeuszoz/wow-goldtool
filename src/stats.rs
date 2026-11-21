@@ -7,7 +7,7 @@
 use crate::errors::AppError;
 use crate::errors::AppResult;
 
-use crate::db::{icon_at_of, icon_b64_of, icon_missing_at_of};
+use crate::db::{icon_at_of, icon_b64_of, icon_missing_at_of, money_of, money_of_avg};
 
 use rusqlite::Connection;
 use rusqlite::params_from_iter;
@@ -35,6 +35,14 @@ pub struct Coverage {
     pub min_price: Option<i64>,
     pub max_price: Option<i64>,
     pub avg_price: Option<f64>,
+    /// v0.9.4 (ADR 0015): the money words of the three numbers above, from the ONE
+    /// formatter in `db.rs`. The average FLOORS to whole copper (measured on the
+    /// user's DB: `AVG(price_min)` is `54391.705896` copper -> `5g 43s 91c`, where
+    /// rounding up would have read `5g 43s 92c` - a price no sample reached), and
+    /// `min`/`max` are already whole copper, so their money is exact.
+    pub min_price_money: Option<String>,
+    pub max_price_money: Option<String>,
+    pub avg_price_money: Option<String>,
 }
 
 /// Price statistics per quality label, the facets the UI charts.
@@ -45,6 +53,10 @@ pub struct QualityStat {
     pub items: i64,
     pub priced: i64,
     pub avg_price: Option<f64>,
+    /// v0.9.4 (ADR 0015): the money words of the average above, floored to whole
+    /// copper by the same helper the coverage answer uses, so a bar label and the
+    /// status grid cannot read one mean as two different prices.
+    pub avg_price_money: Option<String>,
 }
 
 /// One entry of the extremes table: the cheapest and priciest things worth hunting.
@@ -54,6 +66,9 @@ pub struct Extreme {
     pub name: String,
     pub quality: Option<String>,
     pub price_min: Option<i64>,
+    /// v0.9.4 (ADR 0015): the money words of this row's own `price_min`, so the
+    /// two price lists read the same money the search hits and the card show.
+    pub price_min_money: Option<String>,
     /// v0.9.3 (ADR 0014): the same icon trio the search hits carry, so the two
     /// price lists render the DB's OWN icon bytes (ADR 0008's rule: upstream's
     /// `icon_url` is never hotlinked) and a row with no bytes still says WHICH
@@ -64,7 +79,8 @@ pub struct Extreme {
 }
 
 /// One aggregate row over the whole catalogue. `AVG`/`MIN`/`MAX` over an empty
-/// column is NULL, which is why those three fields are optional.
+/// column is NULL, which is why those three fields are optional - and why their
+/// money siblings are optional too: an unpriced DB answers `null` beside `null`.
 pub const SQL_COVERAGE: &str = concat!(
     "SELECT COUNT(1), ",
     "CAST(IFNULL(SUM(name IS NOT NULL), 0) AS INTEGER), ",
@@ -186,7 +202,9 @@ pub fn pending_plan(sql: String, limit: Option<i64>) -> PendingSql {
 /// user MADE, deleted = the tombstones the queries hide) plus the tooltip door's two
 /// states, so a completeness answer shows what a pull-all reached AND what a user did
 /// on top of it; the price columns moved from read slots 7-9 to 12-14, which is exactly
-/// the drift the expected-count guard catches.
+/// the drift the expected-count guard catches. v0.9.4 (ADR 0015) adds NO SQL aggregate at
+/// all: money is written by the ONE formatter in `db.rs` from the very MIN/MAX/AVG this
+/// read already answers, so the read slots stay 0-14 and the aggregate cannot drift.
 pub fn coverage(conn: &Connection) -> AppResult<Coverage> {
     let found: Coverage = match conn.query_row(SQL_COVERAGE, [], |row| {
         Ok(Coverage {
@@ -206,6 +224,9 @@ pub fn coverage(conn: &Connection) -> AppResult<Coverage> {
             min_price: row.get(12)?,
             max_price: row.get(13)?,
             avg_price: row.get(14)?,
+            min_price_money: money_of(row.get(12)?),
+            max_price_money: money_of(row.get(13)?),
+            avg_price_money: money_of_avg(row.get(14)?),
         })
     }) {
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
@@ -233,6 +254,7 @@ pub fn by_quality(conn: &Connection) -> AppResult<Vec<QualityStat>> {
             items: row.get(2)?,
             priced: row.get(3)?,
             avg_price: row.get(4)?,
+            avg_price_money: money_of_avg(row.get(4)?),
         })
     }) {
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
@@ -271,6 +293,7 @@ pub fn extremes(conn: &Connection, sql: String, limit: i64, with_icons: bool) ->
             name: row.get(1)?,
             quality: row.get(2)?,
             price_min: row.get(3)?,
+            price_min_money: money_of(row.get(3)?),
             icon_b64: None,
             icon_at: None,
             icon_missing_at: None,
