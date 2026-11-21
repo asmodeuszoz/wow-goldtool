@@ -57,6 +57,10 @@ Nothing here moved the tag (`v0.9.2` stays on the record commit that carries it;
 | **the door over the user's own file** — the residue v0.9.1 named, closed | BEFORE: 19 258 rows, 4 602 copies, the FIRST twin `Worn ShortswordItem Level 2Main HandOne-Handed Sword1 - 3 DamageSpeed 1.9(1.1 damage per second)Sell Price: 7cLowest buyoutsAlliance…`; the phrase doors answer `damage speed` 0 · `hand one` 0 · `sword 1` 0 · `1 main` 0 · `main hand` 75 · `sell price: 7` 291. **Press 1: rc 0 in 114 s, `copies 4602, rewritten 4602, filled 0, requests 0`** — the FIRST twin now reads `Worn Shortsword Item Level 2 Main Hand One-Handed Sword 1 - 3 Damage Speed 1.9 (1.1 damage per second) Sell Price: 7c Lowest buyouts Alliance …`; the same phrase doors answer **358 · 90 · 14 · 3 · 75 · 291** — the predicted gains exactly, and `main hand`/`sell price: 7` unchanged exactly as the substring rule says. **Press 2: rc 0, 0 rewritten / 4 602 unchanged.** File tail after: 19 258 rows · 4 602 copies · 4 602 twins · 4 602 `tooltip_lc` · schema **5** · icons 4 030 + 1 checked-gone · 4 284 price samples · manual 0 · deleted 0 · html-without-twin **0** — the file is intact and the ONLY thing that changed is the twin's wording |
 | GitHub | the chain push `51a8d24..46ee524` + the tag push = run **44939561521: success, 5/5 jobs in 9 min 17 s** on the tagged tree, so this tag HAS a green run (the v0.9.0 tag never did); this record's own push run gets its verdict recorded as soon as it lands |
 
+The push of THIS record (`46ee524..e746c4a`) started run **44940485574: success, 5/5 jobs in
+10 min 36 s** (19:21Z → 19:32Z) — green on the record's own tree as well, and the tag stayed
+exactly where it was (`v0.9.2` → `46ee524`, `v0.9.1` → `5631168`, `v0.9.0` → `174460f`).
+
 Two honest print glitches in MY drivers, not in the product: `mirror092.sh`'s rows query named
 a column this DB does not have (`detail_at`) and `refresh-user.sh`'s tail query named
 `price_samples` — both tallies were re-measured with the real column names above, and the
