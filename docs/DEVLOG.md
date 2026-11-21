@@ -130,6 +130,59 @@ record's push `e2db5a9..1b56f45` started GitHub run **44946961792: success, 5/5 
 macos 6 m 36 s), and the tags stayed put (`v0.9.3` → `78426d1`, `v0.9.2` → `46ee524`, `v0.9.1` →
 `5631168`, `v0.9.0` → `174460f`). This release's own push verdicts land in the post-tag section below.
 
+### Verification, post-tag — fresh fixture ports 9177 / 9178..9185 + 9186 / 9187
+
+* **Mirror replay from the committed block** (the sed-generated driver, fresh port
+  9177 — verified free by a python socket bind — fresh scratch DB): BEFORE running, the
+  driver's step list was compared to the committed smoke block — the SAME 31 steps, the
+  only diffs being the fixture-port substitution. Result **31/31 steps rc 0, plant line
+  rc=0**; fixture tally **31 GETs = 200×15 / 304×9 / 404×3 / 429×4**, byte-identical to
+  the v0.9.3 replay — money sent no ask, so the tally could not move. DB tail `6|4|4|1|1|0`
+  (rows|detailed|tooltips|tooltip_missing|manual|deleted), icons `3|1`, twins `4|4|4|0`,
+  schema `schema_version|5`, the made row 900000000 saw **ZERO** asks, the icon encoder still
+  answers **1** distinct shape. This replay's OWN copper differs from the v0.9.3 replay's
+  (the fixture re-randomizes prices each run): `20527 → 2g 5s 27c`, market `17527 → 1g 75s 27c`
+  — every money number in this section is read off the replay that produced it.
+* **Money audit over the replay's 31 step JSONs**: **53 money keys** — `price_min_money` 28,
+  `price_market_money` 12, `avg_price_money` 6, `min_price_money` 2, `max_price_money` 2,
+  `vendor_sell_money` 3 — with **zero drift**: each money equals money of the very copper in
+  the SAME answer (the float `avg 20527.0` answers `2g 5s 27c` — the floor holds), and **zero
+  money keys inside any `item` object**. Honest probe glitch, recorded: the audit driver's FIRST
+  pass stripped 5 characters (`money`) instead of 6 (`_money`) when looking up the money's
+  sibling, which printed every sibling as "absent"; fixed and re-measured — the product never
+  changed, the driver did.
+* **Money against the fixture's OWN copies**: **3 of 3** rows that state Sell Price words
+  disagree with money OF THE COLUMN (25: stated `606 → 6s 6c`; 40 and 60: `500 → 5s` beside
+  `7c`), and 12809 carries 500 while its copy states no Sell Price line. Same shape the user's
+  DB shows on exactly 1 of 4 231 rows — money reads the column and the record names the
+  disagreement, nothing reconciles a column against a copy.
+* **The full exit-code audit re-run post-tag** on fresh ports 9178..9185 + 9186 and fresh DBs:
+  **90 doors**, and the v0.9.3 map's **86 pairs BYTE-FOR-BYTE identical**, zero changed. Money
+  adds only four doors: an invented flag answers usage — `search sword --where description
+  --moneyx` → **2**, `stats --money` → **2** (money has NO flag, ADR 0015) — while the money-
+  bearing fixture door `search sword --where description --fixture` → **0** and `status` →
+  **0**. New totals `0` ×59 · `2` ×14 · `3` ×6 · `4` ×11; the pinned migration trio 65/66/67
+  stays `0/0/4`. Fixture A tallied **29 GETs = 200×16 / 304×3 / 404×6 / 429×4**, fixture B
+  **2**, fixture C (the pinned window) **4 = 200×2 / 404×1 / 429×1** — money doors sent
+  nothing, the tallies moved exactly as far as the doors ABOVE money did, nowhere further.
+* **Money over a DB that never saw money**: the whole 31-step block replayed with the PRE-money
+  v0.9.3 binary (built in a detached v0.9.3 worktree, since removed) on fresh port 9187 — 31/31
+  green, same tally 200×15 / 304×9 / 404×3 / 429×4 — then the money binary read that DB:
+  `schema_version` reads **5 before and after** (money wrote nothing to it), `search --limit 6`
+  answers `16702 → 1g 67s 2c` / `13702 → 1g 37s 2c`, coverage `16702 / 16702 / 16702.0` beside
+  three `1g 67s 2c`, the card prints its stated `vendor_sell 606 → 6s 6c` and the sample rides
+  money, and the DB still has **zero** `*_money` columns. This is the opposite of the twin: the
+  twin needed v0.9.2's `refresh-twins` because it is STORED; money answers on the next read of
+  a file the OLD binary wrote, so there is nothing to refresh.
+* **Money over the pinned-era DB** (the schema-4→5 migration hop, 5 rows / 0 detailed / 0
+  priced): every money answer is `null` beside `null`, ZERO requests — money invents no zero
+  on a migrated file, ADR 0004's rule survives the hop.
+* **CI**: the chain+tag push `1b56f45..4875222` started GitHub run **44954802500** (created
+  2026-11-21T22:04:26Z) — **in progress when this section was written**, its verdict lands
+  forward in this record the moment it completes, together with this verification record's own
+  push verdict; the tags stayed put at the tag time (`v0.9.4` → `4875222`, joining `v0.9.3` →
+  `78426d1`, `v0.9.2` → `46ee524`, `v0.9.1` → `5631168`, `v0.9.0` → `174460f`).
+
 
 ### What forced it — one read of the user's own DB
 
