@@ -37,7 +37,7 @@ use std::time::UNIX_EPOCH;
 /// files chain through v2 to this shape - because the user's own catalogue sits on
 /// disk at v1 and refusing it would throw away 19 258 rows. A file NEWER than this
 /// build is still refused: we cannot know what it holds.
-pub const SCHEMA_VERSION: i64 = 4;
+pub const SCHEMA_VERSION: i64 = 5;
 
 /// Default DB file name, used when WGT_DB does not point somewhere else.
 pub const DB_FILE_NAME: &str = "wow-goldtool.sqlite";
@@ -73,6 +73,7 @@ pub const SCHEMA_SQL: &str = concat!(
     "list_etag TEXT, detail_etag TEXT,",
     "list_synced_at INTEGER, detail_synced_at INTEGER, tooltip_at INTEGER,",
     "detail_missing_at INTEGER, tooltip_missing_at INTEGER,",
+    "tooltip_text TEXT, tooltip_lc TEXT,",
     "icon_blob BLOB, icon_at INTEGER, icon_missing_at INTEGER,",
     "manual_at INTEGER, manual_overrides TEXT, edited_at INTEGER, deleted_at INTEGER,",
     "raw_json TEXT",
@@ -171,6 +172,19 @@ pub const SQL_MIGRATE_TO_V4: &str = concat!(
     "ALTER TABLE item ADD COLUMN manual_overrides TEXT;",
     "ALTER TABLE item ADD COLUMN edited_at INTEGER;",
     "ALTER TABLE item ADD COLUMN deleted_at INTEGER;",
+);
+
+/// The v4 -> v5 steps (v0.9.0, ADR 0012): the READABLE copy behind every copied
+/// tooltip. The card box must not paste upstream's own html (it hotlinks its icons
+/// - `render.worldofwarcraft.com` and `thewowdb.com/assets` img tags were measured
+/// inside two live tooltip answers - and the house rule says the DB gets the bytes,
+/// nothing hotlinks), and `search` cannot grep markup for words. So the milestone
+/// DERIVES plain text from the copy: tooltip_text is what a card renders, tooltip_lc
+/// is its lowercase twin - the same pair-shape the name columns already ride
+/// (name/name_lc, measured in SCHEMA_SQL since v0.1.x). Additive again: ALTER appends.
+pub const SQL_MIGRATE_TO_V5: &str = concat!(
+    "ALTER TABLE item ADD COLUMN tooltip_text TEXT;",
+    "ALTER TABLE item ADD COLUMN tooltip_lc TEXT;",
 );
 
 /// Marking an id as "the upstream has no forever record for it" (v0.5.3). The row
@@ -484,14 +498,15 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
             if version == SCHEMA_VERSION {
                 return Ok(());
             }
-            // v0.8.0 chains EVERY stale shape up to v4: the user's own file sat at v1
-            // for six milestones and migrated to v3 the moment a real run opened it
+            // v0.9.0 chains EVERY stale shape up to v5: the user's own file sat at v1
+            // for six milestones and migrated the moment a real run opened it
             // (2026-11-20, measured: schema_version meta now says 3, rows 19 258
             // intact), so refusing ANY older stamp would throw away a full catalogue
             // on the excuse of a schema bump. v1 -> v2 is v0.5.3's ALTER, v2 -> v3 is
-            // the v0.6.0 batch, v3 -> v4 is this build's ALTERs - all additive, so
-            // existing rows and stamps stay intact and the cursor in sync_state keeps
-            // its meaning. Anything newer or foreign keeps the honest refusal below.
+            // the v0.6.0 batch, v3 -> v4 is v0.8.0's ALTERs, v4 -> v5 is this build's
+            // pair - all additive, so existing rows and stamps stay intact and the
+            // cursor in sync_state keeps its meaning. Anything newer or foreign keeps
+            // the honest refusal below.
             match version {
                 1 => {
                     match bind_sql(conn, SQL_ADD_MISSING_COLUMN, [].to_vec(), 0) {
@@ -503,6 +518,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                         Ok(_) => {},
                     }
                     match conn.execute_batch(SQL_MIGRATE_TO_V4) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V5) {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
@@ -520,6 +539,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V5) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
                     match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
                         Err(problem) => return Err(problem),
                         Ok(_) => return Ok(()),
@@ -527,6 +550,20 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                 },
                 3 => {
                     match conn.execute_batch(SQL_MIGRATE_TO_V4) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V5) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
+                    match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
+                        Err(problem) => return Err(problem),
+                        Ok(_) => return Ok(()),
+                    }
+                },
+                4 => {
+                    match conn.execute_batch(SQL_MIGRATE_TO_V5) {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
