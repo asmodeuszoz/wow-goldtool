@@ -33,6 +33,7 @@ pub struct Hit {
 #[derive(Clone, Serialize)]
 pub struct Filter {
     pub text: Option<String>,
+    pub scope: String,
     pub quality: Option<String>,
     pub item_type: Option<String>,
     pub max_required_level: Option<i64>,
@@ -46,6 +47,7 @@ pub struct Filter {
 pub fn empty_filter() -> Filter {
     return Filter {
         text: None,
+        scope: "name".to_string(),
         quality: None,
         item_type: None,
         max_required_level: None,
@@ -118,8 +120,33 @@ pub fn order_for(sort: String) -> String {
 
 /// SQL fragments for each filter part. The bound values are pushed by `where_parts`
 /// in the same order these clauses appear.
-pub fn text_clause() -> String {
+/// Where a text search looks (v0.9.0, ADR 0012): the upstream search door was
+/// measured NAMES-ONLY (docs/API.md: "tooltip" answers empty groups even though
+/// the tooltip carries the word), so the local door grew the honest superset -
+/// names (the default: what the UI always did), descriptions (the readable twin
+/// of the copied tooltips) or anywhere. Tombstoned rows stay invisible either
+/// way: `visible_clause` is pushed FIRST, before any scope clause.
+pub fn text_clauses(scope: String) -> String {
+    match scope.as_str() {
+        "description" => {
+            return format!("(tooltip_lc IS NOT NULL AND tooltip_lc LIKE ? ESCAPE '{}')", LIKE_ESCAPE);
+        },
+        "all" => {
+            let like: String = format!("LIKE ? ESCAPE '{}'", LIKE_ESCAPE);
+            return format!("(name_lc {} OR (tooltip_lc IS NOT NULL AND tooltip_lc {}))", like, like);
+        },
+        _ => {},
+    }
     return format!("name_lc LIKE ? ESCAPE '{}'", LIKE_ESCAPE);
+}
+
+/// How many needles the scope clause of `text_clauses` binds (one, one, two).
+pub fn text_needles(scope: String) -> usize {
+    match scope.as_str() {
+        "all" => return 2,
+        _ => {},
+    }
+    return 1;
 }
 
 pub fn quality_clause() -> String {
@@ -151,9 +178,14 @@ pub fn where_parts(filter: Filter) -> Plan {
     clauses.push(visible_clause());
     match filter.text {
         Some(text) => {
-            clauses.push(text_clause());
+            clauses.push(text_clauses(filter.scope.clone()));
             let needle: String = format!("%{}%", escape_like(text.to_lowercase()));
-            params.push(Value::Text(needle));
+            let want: usize = text_needles(filter.scope.clone());
+            let mut seen: usize = 0;
+            while seen < want {
+                params.push(Value::Text(needle.clone()));
+                seen = seen + 1
+            }
         },
         None => {},
     }
