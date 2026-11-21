@@ -712,6 +712,25 @@ async function runUnhide() {
   }
 }
 
+// ---- the twin refresh (v0.9.2, ADR 0013) ------------------------------------
+// ONE ask refreshes EVERY copy in the DB, and the verb makes ZERO requests: the
+// twin is derived from the copy the DB already holds, so this panel re-derives
+// instead of re-fetching. Tombstones and manual rows ride (ADR 0012's rule: the
+// twin always matches what the DB SAYS). A refreshed DB answers 0 rewritten.
+async function runTwinRefresh() {
+  var note = document.getElementById("twin-note");
+  try {
+    var answer = await cli_ok(["refresh-twins"]);
+    set_note(note,
+      "reworded: " + answer.rewritten + " of " + answer.copies + " copies got their twin re-derived from the copy they already hold (" +
+      answer.unchanged + " already matched, " + answer.filled + " had no twin at birth and got one now) — ZERO requests left here, " +
+      "nothing was re-fetched, and the card's words row plus the description search read what it wrote", false);
+    await refreshStatus();
+  } catch (problem) {
+    set_note(note, problem.message, true);
+  }
+}
+
 // ---- price analytics -------------------------------------------------------
 async function runStats() {
   try {
@@ -831,6 +850,7 @@ document.getElementById("btn-edit").addEventListener("click", function () { runE
 document.getElementById("btn-create").addEventListener("click", function () { runCreate(); });
 document.getElementById("btn-delete").addEventListener("click", function () { runHide(); });
 document.getElementById("btn-undelete").addEventListener("click", function () { runUnhide(); });
+document.getElementById("btn-twin-refresh").addEventListener("click", function () { runTwinRefresh(); });
 
 // One delegated handler for the whole hits table: the toggle button carries the
 // item id it belongs to, so rows do not need per-row listeners.

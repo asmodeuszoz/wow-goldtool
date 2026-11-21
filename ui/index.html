@@ -125,6 +125,19 @@
         (the row keeps its bytes so bringing it back restores everything)</div>
     </section>
 
+    <section class="card" id="twin-card">
+      <h2>Copies: reword the twins (sends no request)</h2>
+      <div class="fields" id="twin-fields">
+        <button class="act" id="btn-twin-refresh" type="button">Reword the copies</button>
+      </div>
+      <div class="note" id="twin-note">ADR 0013's refresh: every copy the DB already holds gets its twin re-derived
+        from the copy ITSELF — ZERO requests leave here, so this button asks the API nothing. It fixes the shape the
+        v0.9.0 derivation left (glued words: `Worn ShortswordItem Level 2Main Hand...`) on DBs whose copies predate
+        the corrected span rule, gives a copy whose twin was never born (a DB that copied at v0.8.x) its twin at
+        birth, and re-running it answers 0 rewritten and changes nothing. The card's words row and the description
+        search both read what it wrote.</div>
+    </section>
+
     <section class="card wide" id="live-card">
       <h2>Live search: ask the API once</h2>
       <div class="fields" id="live-fields">
