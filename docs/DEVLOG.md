@@ -63,6 +63,49 @@ This release's own push verdicts land in the post-tag section below, joining the
 (`v0.9.4` → `4875222`, `v0.9.3` → `78426d1`, `v0.9.2` → `46ee524`, `v0.9.1` → `5631168`,
 `v0.9.0` → `174460f`).
 
+### Verification, post-tag — fresh fixture ports 9190 / 9191 / 9192..9199 + 9200
+
+* **Mirror replay from the committed block** (the sed-generated driver, fresh port 9190 —
+  verified free by a python socket bind — fresh scratch DB): BEFORE running, the driver's step
+  list was compared to the committed block after stripping the `cargo run --` prefix —
+  **EQUAL, 31 steps, zero diffs** (an early comparator pass printed noise from its own prefix
+  slicing; the honest filter was the one used). Result **31/31 steps rc 0, plant line rc=0**,
+  fixture tally **31 GETs = 200×15 / 304×9 / 404×3 / 429×4** — identical to the v0.9.4 and
+  v0.9.3 replays: the hop asks nothing. DB tail `6|4|4|1|1|0`, icons `3|1`, twins `4|4|4|0`,
+  made row **ZERO** asks, committed fixture untouched — and schema reads **`schema_version|6`**
+  now: the fresh file is BORN at 6 (the replay driver's own summary header still says "must
+  stay 5" — that header line is the v0.9.4 claim the sed driver carried along; the ANSWER the
+  replay prints is 6, and the comment in the committed ci.yml names the truth). Trio
+  `COUNT(...) IS NOT NULL` = **0** on the mirror: reserved homes, NULL everywhere.
+* **Pre-hop replay**: the whole 31-step block run with the **v0.9.4-era binary** (tree `4875222`,
+  scratch worktree) on fresh port 9191 — 31/31 green, same GET tallies — then the v0.9.5 build
+  READ that schema-5 file: 9 doors over two copies, **8 BYTE-IDENTICAL** at equal byte counts
+  (`status` aside, whose 1-byte delta is its own `db.path` echo — with that string pinned the
+  JSON is IDENTICAL), `item 25 --cached` answers on the MIGRATED file exactly as on the old one
+  (`4 336` bytes, money pair `vendor_sell 606 → 6s 6c` rides), stamps equal row-by-row, trio NULL
+  on all — **no refresh door**: the reservation reaches old files on the next read.
+* **The full exit-code audit re-run** on fresh ports 9192..9199 + 9200 and fresh DBs: **90 doors**,
+  the v0.9.4 map's **90/90 rc pairs IDENTICAL, zero changed** — money doors 87/88 still answer
+  usage `2` (still NO flag for money or the trio), 89/90 still `0`; totals `0` ×59 · `2` ×14 ·
+  `3` ×6 · `4` ×11 — byte-for-byte the v0.9.4 distribution. Fixture A **29 GETs = 200×16 /
+  304×3 / 404×6 / 429×4**, B **2**, C **4 = 200×2 / 404×1 / 429×1** — identical to the v0.9.4
+  audit: the trio sent no ask anywhere.
+* **One driver glitch found and fixed, honestly recorded**: the audit's FIRST pass let door 65
+  open a scratch DB the pinning was NOT supposed to see — `migr095b.sqlite` sat there from an
+  earlier pre-tag measurement, already migrated to 6 — so door 65 printed rc **4** (the pinned
+  binary's HONEST refusal of a schema-6 file, product behaving perfectly) while its "FRESH
+  file" precondition was quietly broken. The DRIVER lied, not the product; `rm -f` for the pinned
+  scratch DB (and its WAL sidecars) restored the precondition, and the re-run measured door
+  65 rc=0 (pinned crawl WRITES schema 4: 3 requests — 2 pages + one 429 — matching C's 4-GET
+  tally with the liveness probe), door 66 rc=0 with the CURRENT build migrating **4 → 5 → 6**
+  in one open (5 items intact, meta `schema_version|6`), and door 67 rc=4 honest refusal on the
+  migrated file (`database on disk uses schema 6, this build wants 4`), file untouched. The
+  stale-chain hop chain is proven from the PINNED era all the way to 6.
+* **CI**: chain+tag push `1bc4e50..23ceb4e` started GitHub run — verdict recorded below the
+  moment it completes, joining this verification record's own push verdict the same way
+  (ladder rule: verdicts land FORWARD, tags never move — `v0.9.5` stays on `23ceb4e`).
+
+
 ## 2026-11-21 · v0.9.4 — the money words: prices read like the GAME writes them, and copper stays the number
 
 ### What forced it — the unit was an open question, and the DB's OWN copies settle it
