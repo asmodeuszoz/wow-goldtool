@@ -54,7 +54,7 @@ those rows genuinely hold no bytes.
 `770b5bf` refactor(db) (the encoder moves) → `4de3b0d` feat(query) (the `Hit` trio) →
 `d03e2f2` feat(stats) (the `Extreme` trio) → `618fae3` feat(cli) (`--icons`) →
 `7db9502` feat(ui) (the icon columns + the glyph) → `41cc1f0` ci (smoke 29 → 31 cargo steps) →
-`87f97ea` chore (banner 0.9.2 → 0.9.3, schema stays `5`) → this record carries the tag.
+`7fcd90c` chore (banner 0.9.2 → 0.9.3, schema stays `5`, Cargo.lock rides) → this record carries the tag.
 
 ## 2026-11-21 · v0.9.2 — the refresh door: old copies get their twin re-derived, ZERO requests
 
