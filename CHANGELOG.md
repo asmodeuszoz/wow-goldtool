@@ -6,6 +6,58 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.8.1 — CI now claims only what it can actually prove · 2026-11-20 · tag `v0.8.1`
+
+Added
+
+- **The repo's own icon assets**: `icons/icon.png` (512 px) and `icons/icon.ico` (seven
+  entries, 16–256 px) — our own art, drawn by hand in PIL (a dark navy card, a gold coin, an
+  "W" made of four strokes, never a font), verified real by `file` (`PNG image data 512 x 512`,
+  `MS Windows icon resource - 7 icons`). They are product work, not a CI side effect:
+  `tauri.conf.json`'s `bundle.icon` ALREADY named `icons/icon.png` for a file that never
+  existed, and the windows-2025 build answered `` `...icons/icon.ico` not found; required for
+  generating a Windows Resource file during tauri-build`` (run #3, measured).
+
+Changed
+
+- **The workflow is rewritten at the measured truths** ([ADR 0011](./DECISIONS/0011-ci-asserts-only-what-is-true.md),
+  commits `c29e45c` → `5c888b9` → `f29a2b2` → `59b8379`): every `uses:` names a resolvable
+  action (`actions/checkout@v7` — the step the old file lacked — and `dtolnay/rust-toolchain@stable`),
+  the Linux dev libraries ride the sonames our OWN binary answers (`ldd target/debug/wow-goldtool` →
+  `libwebkit2gtk-4.1.so.0 libgtk-3.so.0 libgobject-2.0.so.0 libsoup-3.0.so.0 libpango-1.0.so.0`,
+  i.e. apt `libgtk-3-dev libwebkit2gtk-4.1-dev`, NOT the template's gtk-2 + webkit-4.0 pair),
+  `cargo clippy --all-targets` stays INFORMATIONAL (measured: rc 0, 0 errors, 600 warnings —
+  this build's four dead-code warnings ARE the plan `docs/DEVELOPMENT.md` names, so `-D warnings`
+  would lie about it) and there is deliberately **no `cargo fmt --check` gate** (measured: it
+  answers a diff on our hand-written style; a rustfmt-clean tree would be its own milestone).
+  The workflow's header comment states both limits, so the file documents itself.
+- **The scratch DB rides a real path and the macOS row rides the real arch** — the second
+  measurement round (run #3) caught three more lies: `${{ runner.tmpDir }}` is NOT a context
+  property, it evaluated to the EMPTY string so the smoke sequence died at its FIRST step with
+  `cannot open /fixture.sqlite` → exit 4 (the local mirror could not see this because it hardcodes
+  its own DB path — only a runner evaluates the env map); and macos-latest IS arm64 — the same
+  run's toolchain step answers `host: aarch64-apple-darwin` — so `x86_64-apple-darwin` std was
+  never installed and the build died with `can't find crate for std` (exit 101). Fix:
+  `WGT_DB: fixture.sqlite` (relative, the checkout root, `*.sqlite` gitignored) and the matrix
+  row `aarch64-apple-darwin`. Three promises still ride — linux, windows, macos.
+
+Removed
+
+- The three action names that never resolved (`actions/rust-action`,
+  `ubuntu-setup-action/install-ubuntu-system-dependencies`,
+  `windows-setup-action/install-windows-system-dependencies` — `gh api orgs/…` answers HTTP 404
+  for the two orgs), and the two gate claims that were never true: a `cargo fmt` step (rewrites,
+  never gates) and a `cargo lint` step (`error: no such command: lint` in cargo 1.94.0).
+
+Nothing about the RELEASE moved: v0.8.1 is the discipline of the repository's own
+infrastructure (ADR 0011), no `src/` line changed, the 21-step smoke block survives
+byte-identical, and `cargo build` answers rc 0 with exactly the four documented warnings.
+The banner rides 0.8.1 (`chore` `fe691c9`), so the USER_AGENT line built from
+`CARGO_PKG_VERSION` now says `wow-goldtool 0.8.1` on every upstream ask.
+**GitHub run #4 (`59b8379`): 5/5 jobs green in 9 min 13 s** — quality 2 min 04 s ·
+build (macos) 2 min 27 s · test 4 min 19 s · build (linux) 5 min 46 s · build (windows) 9 min 12 s.
+The whole story — four runs, every error quoted — is in [docs/DEVLOG.md](./docs/DEVLOG.md).
+
 ## v0.8.0 — every forever item's description copy lands, and the DB takes edits by hand · 2026-11-20 · tag `v0.8.0`
 
 Added

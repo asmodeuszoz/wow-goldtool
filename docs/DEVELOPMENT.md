@@ -207,12 +207,31 @@ Environment switches used by tests and CI:
 - `tests/api.rs` / `tests/pipeline.rs` (unit tests next to the code they test) are the
   plan, not code: v0.2.0 has no `#[test]` functions yet, so `cargo test` only proves
   everything compiles.
-- CI (`.github/workflows/ci.yml`) runs `cargo build`, `cargo test`, `cargo run -- stats`
-  on a seeded fixture DB and `cargo fmt`/`cargo lint` gates. The GUI is **compiled** by CI
-  (one build unit) but not exercised: CI has no display server. The webview's only access to
-  the app is the CLI's argv, so the CLI smoke sequence *is* the app's integration test
-  (ADR 0004, ADR 0005); the GUI launch audit runs on a real desktop and is recorded in
-  [docs/DEVLOG.md](./DEVLOG.md).
+- CI (`.github/workflows/ci.yml`) runs `cargo build` (dev + release, on three platform
+  targets), `cargo test` and the 21-step CLI smoke sequence on a seeded fixture DB. It
+  **checks the tree out** (`actions/checkout@v7`) and installs the toolchain
+  (`dtolnay/rust-toolchain@stable`, rustup-based) plus the gtk/webkit2gtk dev libraries the
+  Tauri shell links against on Linux, by plain `apt-get` — the earlier workflow named three
+  actions that do not exist (`gh api orgs/…` answers HTTP 404 for two of the orgs) and never
+  checked anything out, which is why the first public run died in 7 s with
+  "Unable to resolve action". A SECOND measurement round (GitHub run #3) caught three more
+  lies with its own lines: `runner.tmpDir` is not a context property — it evaluated to the
+  empty string, so the smoke sequence died at its FIRST step opening `/fixture.sqlite` (exit
+  4); `macos-latest` IS arm64 (the run's toolchain step answers `host: aarch64-apple-darwin`),
+  so the x86 mac std was never installed there; and the Windows build demanded `icons/icon.ico`
+  by name — which is REPO work: `icons/icon.png` + `icons/icon.ico` landed as real assets drawn
+  by hand (the `bundle.icon` line in tauri.conf.json already pointed at the png, a file that
+  never existed). See [ADR 0011](./DECISIONS/0011-ci-asserts-only-what-is-true.md). GitHub run
+  #4 (`59b8379`): **5/5 jobs green in 9 min 13 s** (quality 2 m 04 s · build macos 2 m 27 s ·
+  test 4 m 19 s · build linux 5 m 46 s · build windows 9 m 12 s).
+  What CI does NOT do, and why: no `cargo fmt --check` gate (measured on this tree: it answers a
+  diff, because the house style is hand-written — a fmt-clean tree would be its own deliberate
+  milestone) and no `-D warnings` lint gate (this build's four dead-code warnings ARE the plan
+  this file names; `cargo clippy --all-targets` is measured at 0 errors / 600 warnings, so it runs
+  as an informational step). The GUI is **compiled** by CI but not exercised: CI has no display
+  server, so the webview's only access to the app is the CLI's argv, which makes the smoke
+  sequence the app's integration test (ADR 0004, ADR 0005); the GUI launch audit runs on a real
+  desktop and is recorded in [docs/DEVLOG.md](./DEVLOG.md).
 
 ## House rules
 

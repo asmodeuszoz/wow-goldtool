@@ -5,13 +5,17 @@ Forever** from the free [TheWoWDB](https://thewowdb.com/developers) JSON API and
 it in a local **SQLite** database, so browsing, filtering, searching and price-checking
 items works offline.
 
-Status: **v0.8.0 — the DB holds every forever item's description copy, and takes edits by hand**
-(a FOURTH sync stage copies the tooltip door's own `html` — the `forever/item` body carries no
-description at all, docs/API.md measures the key list — with its own three states, ETag, budget,
-resume and cancel; the manual layer is ONE rule, overrides merge LAST on every write path, so
-`set-item`/`add-item`/`delete-item`/`undelete-item` survive the next crawl, DELETE is a tombstone
-every query hides, and user-made rows live in the reserved block at `900 000 000` with ZERO
-requests to upstream; schema `4`, migrating v1→v2→v3→v4 in place). Before it:
+Status: **v0.8.1 — CI is green on all three targets, and the workflow claims only what it
+can prove** (run #4: 5/5 jobs in 9 min 13 s): only actions that RESOLVE (`actions/checkout@v7`,
+`dtolnay/rust-toolchain@stable`), the dev-library set measured off our own binary's `ldd`
+(`libgtk-3-dev libwebkit2gtk-4.1-dev`), clippy informational and NO fmt gate — both because a
+gate that cannot pass would be a measured lie about our own tree (ADR 0011); the scratch DB
+path and the macOS matrix row (`aarch64-apple-darwin`) are measured runner facts too, and the
+repo now has real `icons/icon.png` + `icons/icon.ico` because Windows builds name them. Before
+it: v0.8.0 — the DB holds every forever item's description copy (FOURTH sync stage `--stage
+tooltip`, its own three states/ETag/budget) and takes edits by hand (the manual layer's ONE
+rule — overrides merge LAST — `set-item`/`add-item`/`delete-item`/`undelete-item`, tombstones,
+reserved ids at `900 000 000+`, schema `4`),
 the live-search door (v0.7.0), price history and local icon copies (v0.6.0), the checked-gone
 state (v0.5.3), the one-click pull itself (v0.5.2), the crawl no longer freezing the page (v0.5.1),
 and the GUI itself (v0.4.0).
@@ -46,6 +50,7 @@ highest damage per second, most expensive vendor sell…).
 | `v0.6.0` | price history (a second table: one price per item cannot show a trend), local icon copies, the item card rendering `stats` (the only unshaped field grounded live so far) | done |
 | `v0.7.0` | the live-search door: CLI verb `live-search TEXT` + UI panel (`Ask once`), one human ask = ONE request to the grouped search endpoint, upstream's own answer printed as it came with `view upstream` links — and it writes nothing: no row, no sample, no mark (ADR 0009) | done |
 | `v0.8.0` | the description copy + the manual layer: a FOURTH sync stage `--stage tooltip` holds each record's own tooltip `html` (three states, ETag, budget, resume — ≈ 19 258 requests ≈ 2.7 h), and CLI verbs `set-item` / `add-item` / `delete-item` / `undelete-item` plus a UI write panel let the user say it / make one / hide it / bring it back; overrides merge LAST on every crawl write, DELETE is a tombstone every query hides, user-made rows live at `900 000 000+` and answer their card from the DB with ZERO requests; schema `4` (ADR 0010) | done |
+| `v0.8.1` | CI discipline: the workflow states only measured truths — run #4 **5/5 jobs green in 9 min 13 s** on linux/windows/macos, resolvable actions (`actions/checkout@v7`, `dtolnay/rust-toolchain@stable`) + plain apt (the package set measured off `ldd`: `libgtk-3-dev libwebkit2gtk-4.1-dev`), clippy informational + no fmt gate (both gates would contradict measured facts about our tree), real `icons/icon.png` + `icons/icon.ico` (tauri-build names `icons/icon.ico`; `bundle.icon` had pointed at a file that never existed), and the measured runner facts (`WGT_DB` relative, macOS arm64) — ADR 0011 | done |
 
 ## Design notes
 

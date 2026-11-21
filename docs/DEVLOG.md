@@ -5,6 +5,75 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-20 · v0.8.1 — CI says only what it can prove: the public project is green on three targets
+
+### What forced the milestone
+
+The repo got published — public `wow-goldtool`, `main` at `ebee66b` plus 11 annotated
+tags, all verified on the remote (`git ls-remote` answers 24 refs, every tag object
+`^{}` resolves to its commit). Publishing a "documented milestone project" carries one
+promise it had NEVER made good: its CI. GitHub started its own run and it went red —
+and the release discipline forbids leaving it red with a lie on top, so v0.8.1 is the
+milestone that makes the workflow assert only what was measured. No `src/` line moves;
+the discipline of the repo's OWN infrastructure earns its own ADR (0011).
+
+### The measurement rounds — four runs, every error quoted
+
+GitHub's runs are the witness. The local CI mirror replays the smoke block green (it
+did since v0.8.0, 21/21), which proves WHAT THE SMOKE BLOCK DOES — it cannot prove the
+WORKFLOW IS TRUE: it hardcodes its own DB path, it runs on one Linux box, and it never
+evaluates env expressions or resolves action names. Only GitHub can say those things,
+so every round of this milestone is "ask the runner, read the annotation, fix exactly
+that line".
+
+| run | commit | measured result |
+| --- | ------ | --------------- |
+| #1 | `ebee66b` | **failure after 7 s**, 5 annotations, ALL of them `Unable to resolve action`: `actions/rust-action`, `ubuntu-setup-action/install-ubuntu-system-dependencies`, `windows-setup-action/install-windows-system-dependencies` — `gh api orgs/…` answers **HTTP 404** for the two orgs; and the committed file has **no `checkout` step at all**, so even a resolvable action would have handed `cargo build` an empty directory |
+| — | local | the same file's two gates measured on this tree: `cargo lint --help` answers `error: no such command: lint` (cargo 1.94.0) — the command does not exist; `cargo fmt --check` answers a **diff** on our own files (hand-written house style: long `use` lists, explicit `return`); `cargo clippy --all-targets` rc 0, **0 errors / 600 warnings** |
+| #2 | `c29e45c` | **cancelled** — the workflow's own `concurrency` block cancelled it when #3 landed (fix round 1: `actions/checkout@v7` + `dtolnay/rust-toolchain@stable`, apt for the dev libs, clippy informational, header comment states the two limits) |
+| #3 | `5c888b9` (fix round 2: apt set = `libgtk-3-dev libwebkit2gtk-4.1-dev`, the majors measured off `ldd target/debug/wow-goldtool` — the template pair was wrong on TWO majors: gtk 2 vs gtk 3, webkit-4.0 vs 4.1) | **failure**: build (linux) + quality **success**, three NEW lines answered: test died at the FIRST smoke step `cannot open /fixture.sqlite: unable to open database file` → rc 4, because `runner.tmpDir` is NOT a context property and evaluated to the EMPTY string; build (macos) rc 101 `error[E0463]: can't find crate for std` + `the x86_64-apple-darwin target may not be installed` while the SAME run's toolchain step answers `host: aarch64-apple-darwin` — macos-latest IS arm64; build (windows) rc 1 `` `D:\a\wow-goldtool\wow-goldtool\icons/icon.ico` not found; required for generating a Windows Resource file during tauri-build`` — the repo's `icons/` was EMPTY, and `tauri.conf.json`'s `bundle.icon` already named `icons/icon.png` for a file that never existed |
+| #4 | `59b8379` (fix round 3: icon assets landed as `f29a2b2`, then `WGT_DB: fixture.sqlite` + matrix row `aarch64-apple-darwin` as `59b8379`) | **SUCCESS, 5/5 jobs in 9 min 13 s**: quality 2 m 04 s · build (macos, aarch64) 2 m 27 s · test 4 m 19 s · build (linux) 5 m 46 s · build (windows) 9 m 12 s — the whole sequence green on the public account |
+
+### Decisions (one line each, full text in ADR 0011)
+
+* Only resolvable action names — the two orgs answer 404, inventing similar names is
+  not our call to make; `actions/checkout` and `dtolnay/rust-toolchain` are the
+  documented, marketplace-real ones, and the checkout step is ALSO the fix for the
+  structural half of run #1 (a cargo build with no checked-out tree).
+* apt, not third-party setup actions: the package SET is measured off our own binary's
+  NEEDED lines, so the workflow stops owing correctness to an unpublished org.
+* clippy informational, no fmt gate: the gates would contradict measured truth (fmt
+  answers a diff; the four dead-code warnings ARE the plan this very file names).
+* No matrix narrowing: three targets still ride, but each now names the triple its
+  image actually builds — macos-latest is arm64, measured.
+* The icon assets are product work: `bundle.icon` already lied once (it names a file
+  that never existed); the honest fix is to HAVE them — drawn by hand in PIL, our own
+  card/coin/W, `file` confirms PNG 512x512 and a real 7-entry ICO.
+* The smoke block stays verbatim through every round: its 21 `cargo run --` lines diff
+  EMPTY against the audited sequence each time (asserted before each commit).
+
+### The audit (executed, not asserted)
+
+| probe | expectation | observed |
+| ----- | ----------- | -------- |
+| the old workflow's claims | resolvable + true, or the run is red | run #1 red in 7 s, quoted above |
+| `cargo lint` / `cargo fmt --check` / `cargo clippy` on this tree | the gates that survive | lint DOES NOT EXIST / fmt answers a diff / clippy 0 errors + 600 warnings |
+| `ldd target/debug/wow-goldtool` | which dev packages Linux needs | `libwebkit2gtk-4.1.so.0 libgtk-3.so.0 libgobject-2.0.so.0 libsoup-3.0.so.0 libpango-1.0.so.0` → apt `libgtk-3-dev libwebkit2gtk-4.1-dev` |
+| the icon assets | real files, not ignored, our own | `file`: PNG 512x512 + ICO 7 entries; drawn by hand; `git check-ignore` says no |
+| every ci.yml rewrite | smoke block preserved | parsed `cargo run --` list diffs EMPTY, 21 steps; YAML: build 5 / quality 4 / test 5 |
+| `cargo build` after the banner bump (`fe691c9`) | everything still compiles | rc 0, 8.94 s incremental, exactly the four documented warnings, 0 errors |
+| GitHub's verdict | green | **run #4: 5/5 jobs, 9 m 13 s** — and run #2 cancelled by the concurrency block, honestly |
+
+The post-tag replays (CI mirror on fresh port 9114, the 57-door exit audit on 9115..9122
++ 9123, fresh DBs) follow in the verification record under this tag, same as at v0.8.0.
+
+### What this milestone is NOT
+
+It is not a code release: no door, no schema, no UI element moved. It IS the release
+banner (Cargo.toml `0.8.1` at `fe691c9`) because the promise it fixes is the repo's own,
+and the USER_AGENT line built from `CARGO_PKG_VERSION` now says `wow-goldtool 0.8.1` —
+every upstream ask announces which build of the discipline it rode.
+
 ## 2026-11-20 · v0.8.0 — the DB holds every forever item's description copy, and takes edits by hand
 
 ### What forced the milestone
