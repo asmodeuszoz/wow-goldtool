@@ -211,3 +211,24 @@ jobs:
           cargo run -- search sword --where description --icons
           cargo run -- stats --icons
           cargo run -- stats
+          # money (v0.9.4, ADR 0015): this release adds NO step and NO request. Money
+          # is DERIVED at answer time from the copper the doors above already carry
+          # (schema stays 5, so there is nothing to refresh and nothing to migrate),
+          # and it rides the answers these SAME steps read - the money of the two
+          # search steps, of stats/stats --icons, of the crawl card and of the manual
+          # card. Measured on a scratch copy of this fixture with BOTH the v0.9.3 and
+          # the v0.9.4 binary over the same file: `item 25 --cached` 4 174 -> 4 336
+          # bytes answers `price_min 20628` beside `2g 6s 28c` and the user-stated
+          # `vendor_sell 606` beside `6s 6c`; the manual card 1 023 -> 1 103 answers
+          # money `null` beside `null`; `stats` 1 467 -> 1 850, `stats --icons` 17 079
+          # -> 17 462, `search sword --where description` 650 -> 763, `status` 1 035
+          # -> 1 125. EVERY one of these keeps its own exit code (0 where it was 0,
+          # 2/3/4 unchanged where the gated steps put them) - money is a value, never
+          # a control path - and ADR 0011's rule holds: the step count stays 31, the
+          # plant line stays one, and the fixture's GET tallies cannot move, because
+          # money sends no ask. The money words come from the COLUMN, not from a copy:
+          # the plant above gives row 25 a copy saying `Sell Price: 7c` while the CI's
+          # own set-item left its column at 606, so money reads `6s 6c` - the same
+          # single disagreement the user's own DB shows on item 25 (500 copper beside
+          # `Sell Price: 7c`, 1 of 4 231). Upstream left it; recording it is the
+          # honest answer, pasting the copy's words into a column is not.
