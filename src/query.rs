@@ -8,7 +8,7 @@
 use crate::errors::AppError;
 use crate::errors::AppResult;
 
-use crate::db::{icon_at_of, icon_b64_of, icon_missing_at_of};
+use crate::db::{icon_at_of, icon_b64_of, icon_missing_at_of, money_of};
 
 use serde::Serialize;
 
@@ -26,6 +26,14 @@ pub struct Hit {
     pub price_min: Option<i64>,
     pub price_market: Option<i64>,
     pub price_available: Option<i64>,
+    /// v0.9.4 (ADR 0015): the money words of the TWO copper numbers above, written
+    /// by the ONE formatter in `db.rs` at ANSWER TIME - the copper stays the number
+    /// scripts and price sorts read, and `price_available` stays a COUNT (measured:
+    /// row 25 answers `price_available 12` for 12 auctions at 15000 copper, and a
+    /// count is not money). A row the AH has no price for answers `null` beside
+    /// `null` - never `0c`, which would read as "this item costs nothing".
+    pub price_min_money: Option<String>,
+    pub price_market_money: Option<String>,
     pub html_url: Option<String>,
     pub icon_url: Option<String>,
     /// v0.9.3 (ADR 0014): the DB's OWN icon bytes as base64, filled ONLY when the
@@ -274,6 +282,9 @@ pub fn count_plan(filter: Filter) -> Plan {
 /// (v0.9.3, ADR 0014): it asks for the DB's own icon bytes per hit and sends
 /// NOTHING to the network - the rows are COLLECTED first, then each row's three
 /// icon columns are read beside it, so a hit list cannot straddle a write.
+/// `HIT_COLUMNS` grows NOTHING for the money pair (v0.9.4, ADR 0015): money is
+/// DERIVED from the copper this read already carries, so there is no money column
+/// to keep in step and the sort keys stay the copper columns.
 pub fn search(conn: &Connection, filter: Filter, with_icons: bool) -> AppResult<Vec<Hit>> {
     let plan: Plan = search_plan(filter);
     let mut stmt = match conn.prepare(&plan.sql) {
@@ -289,6 +300,8 @@ pub fn search(conn: &Connection, filter: Filter, with_icons: bool) -> AppResult<
             price_min: row.get(4)?,
             price_market: row.get(5)?,
             price_available: row.get(6)?,
+            price_min_money: money_of(row.get(4)?),
+            price_market_money: money_of(row.get(5)?),
             html_url: row.get(7)?,
             icon_url: row.get(8)?,
             icon_b64: None,
