@@ -145,6 +145,58 @@ come from, and these two shapes are the ONLY two seen on answered records:
   excludes copied icons, see `docs/DATABASE.md`), so there is no revalidation path
   whose promise we would need to keep.
 
+## Tooltip copy (the door the description lives behind)
+
+Measured 2026-11-20 against the live catalogue — this is where v0.8.0's description copies
+come from, and it is why the crawl grew a FOURTH door at all ([ADR 0010](./DECISIONS/0010-manual-layer-and-tooltip-copy.md)):
+
+* The `forever/item` record carries **no description of any kind**. Measured top-level keys of
+  the detail payloads the user's own walk stored (`raw_json` of id `25`, read back off their
+  file): `attribution, icon_url, id, item_level, item_subtype, item_type, links, name, price,
+  quality, required_level, unique, vendor_sell, weapon` — no `html`, no `fields`, no prose field.
+  Inventing a description column for the detail door would have invented a field upstream never
+  answers.
+* The text lives behind `GET /api/v1/tooltip/<version>/item/<id>`, measured:
+  `https://thewowdb.com/api/v1/tooltip/forever/item/25` → **200 `application/json` 3060 b** with
+  top keys `attribution, build, fields, html, icon_url, id, kind, links, name, quality,
+  version`, ETag `W/"2b111cbcd3bbb4d7078f6d05"`,
+  `cache-control: public, max-age=300, s-maxage=900, stale-while-revalidate=3600` (tooltips are
+  the ~5-min answers the caching section already names), `x-ratelimit-limit: 120`,
+  `x-ratelimit-remaining: 62` mid-burst, `x-wgf-build: wow_classic_beta-1.60.1.70532`.
+  `links.api` is the door itself; `links.html`
+  (`https://thewowdb.com/wow-forever/item/worn-shortsword-25/`) is the record's own upstream
+  page — the attribution target the terms require.
+* `html` (1404 b for id 25) is upstream's OWN card markup — `<div class="twdb-card twdb-k-item">`,
+  its own `<img class="twdb-icon" src="https://render.worldofwarcraft.com/us/icons/56/inv_sword_04.jpg">`,
+  its own wording (`Item Level 2`, `Sell Price: 7c`). The tool stores it as a value (`tooltip_html`)
+  and the card prints it as **escaped text**: pasting an upstream body into the page would let
+  upstream write the card.
+* An id the door has not answers **404 with upstream's own JSON body**, not an HTML page:
+
+  ```json
+  {"error":"not_found","message":"No item 999999999999 in forever.","status":404}
+  ```
+
+  measured 79 b, `cache-control: public, max-age=300`, no ETag offered, `x-ratelimit-remaining: 119`.
+  The body is upstream's own words, not ours; the tooltip stage reads the STATUS and gives that
+  record its own checked third state (`tooltip_missing_at`), exactly as the detail door's 404 did
+  in v0.5.3 — one request per record per crawl, and the crawl keeps walking.
+* The door revalidates, so the stage stores its own `tooltip_etag`: measured `ETag` +
+  `max-age=300`, a targeted re-ask with `If-None-Match` costs a `304` and writes nothing — the
+  same reuse discipline the detail door already promises. The fixture answers the door the same
+  way, with its own records and a small stand-in `html` in upstream's class names (we never copy
+  upstream's prose), and answers `404` with the JSON shape above for ids it has no tooltip for.
+* `fields` (measured 26 keys: `armor, binding, build, classes, effects, faction_prices, flavor,
+  icon_url, id, item_level, item_set, item_subtype, item_type, kind, name, price, quality,
+  required_level, slot, socket_bonus, sockets, stats, unique, vendor_sell, version, version_label,
+  weapon`) mirrors the detail record's own column set, so the tool keeps it as an unparsed `Value`
+  and reads ONLY `html` — a key upstream adds cannot break a build, and nothing here claims a
+  second source of truth for a column the detail row already owns.
+* Cost: **≈ one request per record whose detail answered** (≈ 19 258 tooltip requests ≈ 2.7 h
+  at the measured 2/s), staged, resumable, cancellable like the detail and icon stages. The
+  pending rule requires a detail stamp, because asking this door for an id upstream lacks costs
+  a request AND would stamp a state about a fact upstream never stated.
+
 ## Rate limits
 
 * **Per IP:** a burst of 120 requests, refilled at **2 requests/second**. Beyond that the
@@ -158,7 +210,10 @@ come from, and these two shapes are the ONLY two seen on answered records:
     misbehaving client can be contacted,
   - never parallelise more than 2 workers against one host.
 * Cost of a full sync: 193 list requests ≈ 2 minutes. Detail sync of all ≈ 19.3 k
-  requests ≈ 2.7 h, which is why it is staged, resumable, cancellable and opt-in.
+  requests ≈ 2.7 h, which is why it is staged, resumable, cancellable and opt-in. From v0.6.0
+  the icon pass is the same order (≈ one request per answered record), and from v0.8.0 so is the
+  tooltip-copy pass (≈ 19 258 requests ≈ 2.7 h) — a full "Pull all info" is therefore four legs,
+  ≈ 58 k requests, and every one of them resumes where `sync_state` says it stopped.
 
 ## Terms (we comply)
 

@@ -15,33 +15,38 @@ or stale-schema file, or `execute_batch(SCHEMA_SQL)` writes it and stamps
 `schema_version` into `meta`. The schema is idempotent, so a fresh process (CLI or GUI)
 can always attach; `open_db` and `open_db_at` are the two doors into that helper.
 
-**Two stale shapes are migrated instead of refused** (v0.6.0): the file on disk saying
+**Three stale shapes are migrated instead of refused** (v0.8.0): the file on disk saying
 `schema_version = 1` (the user's own catalogue, 19 258 rows, still never touched by a
-refusal) or `2` differs from this build by additive steps only, so `check_schema` chains
-them: v1 gets v0.5.3's `ALTER TABLE item ADD COLUMN detail_missing_at INTEGER` first,
-then both v1 and v2 get the v0.6.0 batch — three `ALTER`s appending the icon columns and
-a `CREATE` for `price_history` plus its index — and the `meta` stamp moves to `3` in the
-same call. Refusing either file would throw away a 19 258-row catalogue on the excuse of
+refusal), `2` or `3` differs from this build by additive steps only, so `check_schema` chains
+them: v1 gets v0.5.3's `ALTER TABLE item ADD COLUMN detail_missing_at INTEGER` first, then both
+v1 and v2 get the v0.6.0 batch (three icon `ALTER`s, the `price_history` `CREATE` and its index),
+and v1/v2/v3 all get the v0.8.0 batch — eight `ALTER`s, four tooltip
+(`tooltip_html`, `tooltip_etag`, `tooltip_at`, `tooltip_missing_at`) and four manual
+(`manual_at`, `manual_overrides`, `edited_at`, `deleted_at`) — with the `meta` stamp moving to
+`4` in the same call. Refusing any file would throw away a 19 258-row catalogue on the excuse of
 a schema bump. A migrated file's **column order differs from a fresh file's** (ALTER
-appends, SCHEMA_SQL lists the new columns mid-table) — every reader in the code names
-columns explicitly and nothing reads positions. A file **newer** than this build is still
-refused — that direction cannot be guessed at. See
-[ADR 0006](./DECISIONS/0006-checked-missing-third-state.md) and
-[ADR 0008](./DECISIONS/0008-icon-storage-third-stage.md).
+appends, SCHEMA_SQL lists the new columns mid-table) — every reader in the code names columns
+explicitly and nothing reads positions. A file **newer** than this build is still refused — that
+direction cannot be guessed at (measured consequence: a pinned v0.7.0 binary refuses a file that
+already reached `schema_version = 4` with `database on disk uses schema 4, this build wants 3`).
+See [ADR 0006](./DECISIONS/0006-checked-missing-third-state.md),
+[ADR 0008](./DECISIONS/0008-icon-storage-third-stage.md) and
+[ADR 0010](./DECISIONS/0010-manual-layer-and-tooltip-copy.md).
 
-## Schema (`schema_version = 3`)
+## Schema (`schema_version = 4`)
 
 ```sql
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
 
 CREATE TABLE item (
-  id INTEGER PRIMARY KEY,            -- TheWoWDB item id (sparse: 25 .. 288340)
-  name TEXT, name_lc TEXT,           -- (drift corrected 2026-11-20: the file on disk
-  quality TEXT, quality_rank INTEGER,--   and SCHEMA_SQL both say plain `TEXT` — the
-  item_level INTEGER, required_level INTEGER,       -- `NOT NULL` this file used to
-  item_type TEXT, item_subtype TEXT, slot TEXT,     --   claim was aspirational, never
-  item_set TEXT, unique_flag TEXT, flavor TEXT,     --   enforced; same for the FK-ish
-  icon_url TEXT,                                     --   `id` wording)
+  id INTEGER PRIMARY KEY,            -- TheWoWDB item id (sparse: 25 .. 288340 upstream,
+  name TEXT, name_lc TEXT,           --   and 900000000+ for rows the user MADE)
+  quality TEXT, quality_rank INTEGER,-- (drift corrected 2026-11-20: the file on disk
+  item_level INTEGER, required_level INTEGER,       --   and SCHEMA_SQL both say plain `TEXT` — the
+  item_type TEXT, item_subtype TEXT, slot TEXT,     --   `NOT NULL` this file used to
+  item_set TEXT, unique_flag TEXT, flavor TEXT,     --   claim was aspirational, never
+  tooltip_html TEXT,                                --   enforced; same for the FK-ish
+  icon_url TEXT,                                    --   `id` wording)
   sockets TEXT, socket_bonus TEXT, classes TEXT, stats TEXT, effects TEXT,
   faction_prices TEXT,
   dmg_min INTEGER, dmg_max INTEGER, dps REAL, speed REAL,   -- weapon block
@@ -51,18 +56,22 @@ CREATE TABLE item (
   price_available INTEGER,          -- offers on the AH
   price_realms INTEGER,             -- realms watched for the price
   price_region TEXT, price_scope TEXT, price_updated_at TEXT,
-  api_url TEXT, html_url TEXT, tooltip_url TEXT,
+  api_url TEXT, html_url TEXT, tooltip_url TEXT, tooltip_etag TEXT,
   list_etag TEXT, detail_etag TEXT, -- conditional GET bookkeeping
-  list_synced_at INTEGER, detail_synced_at INTEGER,   -- unix seconds
-  detail_missing_at INTEGER,          -- unix seconds when upstream answered 404 (v0.5.3)
+  list_synced_at INTEGER, detail_synced_at INTEGER, tooltip_at INTEGER,   -- unix seconds
+  detail_missing_at INTEGER, tooltip_missing_at INTEGER,   -- the doors' checked third states
   icon_blob BLOB, icon_at INTEGER, icon_missing_at INTEGER, -- the icon's three states (v0.6.0)
+  manual_at INTEGER,                -- the row was MADE by a user (reserved block, v0.8.0)
+  manual_overrides TEXT,            -- one JSON ARRAY {field,value,at} - merged LAST on every write
+  edited_at INTEGER,                -- the last field a user stated
+  deleted_at INTEGER,               -- the tombstone every query hides
   raw_json TEXT                     -- verbatim detail payload, forward-compatible
 );
 
 CREATE TABLE watch (id INTEGER PRIMARY KEY, added_at INTEGER, note TEXT);
 
 CREATE TABLE sync_state (
-  kind TEXT PRIMARY KEY,            -- "list" | "detail" | "icons"
+  kind TEXT PRIMARY KEY,            -- "list" | "detail" | "icons" | "tooltip"
   status TEXT,                      -- idle | complete | stopped | ceiling | partial | cancelled
   page INTEGER,                     -- absolute page cursor (list); 0 for the id-queue stages
   done INTEGER,                     -- records handled during the most recent run
@@ -85,9 +94,13 @@ CREATE INDEX item__price ON item (price_min);
 ```
 
 Stage-1 (the `?page=` list crawl) fills the summary columns and `list_etag`; stage-2 (`/item/<id>`)
-fills the price/stat columns, `icon_url`, `raw_json`, `detail_etag`. A NULL price column means
-"not fetched yet", which is distinct from "fetched and not on the AH" — the difference is visible
-in the UI and in `cargo run -- stats`.
+fills the price/stat columns, `icon_url`, `raw_json`, `detail_etag`; stage-3 (the record's own
+icon FILE) fills `icon_blob`/`icon_at`; stage-4 (`/api/v1/tooltip/forever/item/<id>`) fills
+`tooltip_html`/`tooltip_at`/`tooltip_etag`. A NULL price column means "not fetched yet", which is
+distinct from "fetched and not on the AH" — the difference is visible in the UI and in
+`cargo run -- stats`. On top of every stage's write sits the manual layer: `manual_overrides`
+merges LAST (ADR 0010), so a field the user stated survives the next crawl while the columns the
+crawl owns keep refreshing.
 
 **A detail record has three states** (v0.5.3, [ADR 0006](./DECISIONS/0006-checked-missing-third-state.md)):
 
@@ -118,6 +131,44 @@ invents a row). No icon ETag exists anywhere: the pending rule excludes copied i
 copy path is asked exactly once per icon and there is no revalidation whose promise would need
 one ([ADR 0008](./DECISIONS/0008-icon-storage-third-stage.md) rejects the inline alternative
 that would double a chunk's requests and leave pre-v0.6.0 records un-copied forever).
+
+**The description copy of an answered record has the same three states** (v0.8.0,
+[ADR 0010](./DECISIONS/0010-manual-layer-and-tooltip-copy.md)):
+
+| state | columns | meaning |
+| ----- | ------- | ------- |
+| copied | `tooltip_html` + `tooltip_at` (+ `tooltip_etag`) | the tooltip door answered with the card's own markup — upstream's own `html`, kept as a VALUE and printed as escaped text, never rendered |
+| checked and gone | `tooltip_missing_at` | the door answered `404` with its own JSON (`No item … in forever.`) for a record whose DETAIL exists | one request, never asked again inside one crawl |
+| not pending, not copied | neither, and the record has no detail stamp | an id upstream does not have: asking this door costs a request AND would state a fact upstream never stated |
+| waiting | a detail stamp, no tooltip stamp | the only thing the tooltip stage sees as pending |
+
+`write_tooltip` upserts and clears `tooltip_missing_at` (a copy is not a check);
+`mark_tooltip_missing_at` checks the row exists first (`SQL_ROW_OF_ID`, ADR 0006's guard).
+Unlike the icon door this one DOES keep an ETag (`tooltip_etag`): measured 2026-11-20 the tooltip
+body answers with `ETag W/"2b111cbcd3bbb4d7078f6d05"` and `cache-control public, max-age=300`,
+so a targeted re-ask costs a `304` and writes nothing — probe: `sync --stage tooltip --ids 25`
+again in one fixture process answers `requests 1, items 1, written 0, unchanged 1`.
+`tooltip_html` is the description copy the milestone asked for: the forever/item body carries
+no description field at all (measured key list, docs/API.md).
+
+**The manual layer — four columns, one rule** (v0.8.0, [ADR 0010](./DECISIONS/0010-manual-layer-and-tooltip-copy.md)):
+
+| column | written by | meaning |
+| ------ | ---------- | ------- |
+| `manual_overrides` | `set-item`, `add-item` | ONE JSON ARRAY per row of `{field, value, at}` entries — what a user said and when. Every write path applies it AFTER the payload binds (list upsert, detail upsert, tooltip write), so the user's words merge LAST |
+| `edited_at` | `set-item`, `add-item` | the last field a user stated on this row |
+| `manual_at` | `add-item` only | the row was MADE by the user and lives in the reserved block (`MANUAL_ID_BASE = 900000000`; measured max upstream id on the user's own file: `288 340`, so the block is provably clear). A crawl never walks it, and its card answers from the DB's own columns (`SQL_COLUMNS_CARD`) with ZERO requests |
+| `deleted_at` | `delete-item` (cleared by `undelete-item`) | the tombstone: DELETE is a mark, not an erase, because the list stage UPSERTs every id upstream still lists — a HARD delete would be resurrected by the next pass |
+
+The whitelist the edit doors accept is `name, quality, item_level, required_level, item_type,
+item_subtype, flavor, vendor_sell, tooltip_html` — TEXT or INTEGER columns this DB can bind
+verbatim. The auction columns stay out on purpose (they are live data the crawl refreshes, and an
+override "fixing" one would be a permanent lie about CURRENT prices); so do `id`, the icon
+columns and the JSON-shaped columns (`sockets`, `classes`, `stats`, `effects`, `faction_prices`),
+which a hand-typed blob would otherwise invent a shape inside. `set-item` rides the derived
+search columns in the SAME write (`name_lc` for a `name`, `quality_rank` for a `quality`), so a
+rename is findable by `search` on the same breath — probe: `set-item 40 name=ProbeRenamed` then
+`search ProbeRenamed` answers `total 1` immediately.
 
 **One price sample per fresh write** (v0.6.0, [ADR 0007](./DECISIONS/0007-price-sampling.md)):
 `upsert_detail` appends a `price_history` row ONLY after a fresh (200) detail write, and only
@@ -191,7 +242,11 @@ SELECT COUNT(1) FROM item WHERE name_lc LIKE ? ESCAPE '#' AND ...;
 -- the SUM() columns are CAST (rusqlite reads rows by declared column type, and a bare
 -- expression column has none, so an unCAST aggregate is a type error, not a NULL) and
 -- IFNULL (an empty table makes SUM() NULL, which a INTEGER column cannot bind).
--- The icon pair is the v0.6.0 addition: copied + checked-as-gone, same read.
+-- The icon pair is the v0.6.0 addition; v0.8.0 grows five more counts — the tooltip
+-- door's two states and the manual layer's three (edited = rows the user stated something
+-- about, manual = rows the user MADE, deleted = the tombstones the queries hide). The
+-- price columns then moved from read slots 7-9 to 12-14: the expected-count guard in the
+-- audits is what catches that drift, and the CLI, the UI and the audits read ONE answer.
 SELECT COUNT(1),
        CAST(IFNULL(SUM(name IS NOT NULL), 0) AS INTEGER),
        CAST(IFNULL(SUM(price_min IS NOT NULL), 0) AS INTEGER),
@@ -199,6 +254,11 @@ SELECT COUNT(1),
        CAST(IFNULL(SUM(detail_missing_at IS NOT NULL), 0) AS INTEGER),
        CAST(IFNULL(SUM(icon_at IS NOT NULL), 0) AS INTEGER),
        CAST(IFNULL(SUM(icon_missing_at IS NOT NULL), 0) AS INTEGER),
+       CAST(IFNULL(SUM(tooltip_at IS NOT NULL), 0) AS INTEGER),
+       CAST(IFNULL(SUM(tooltip_missing_at IS NOT NULL), 0) AS INTEGER),
+       CAST(IFNULL(SUM(edited_at IS NOT NULL), 0) AS INTEGER),
+       CAST(IFNULL(SUM(manual_at IS NOT NULL), 0) AS INTEGER),
+       CAST(IFNULL(SUM(deleted_at IS NOT NULL), 0) AS INTEGER),
        MIN(price_min), MAX(price_min), AVG(price_min) FROM item;
 ```
 

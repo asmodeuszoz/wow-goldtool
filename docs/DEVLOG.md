@@ -5,6 +5,154 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-20 · v0.8.0 — the DB holds every forever item's description copy, and takes edits by hand
+
+### What forced the milestone
+
+The user's milestone asks for something the last seven releases never promised: a DB that holds
+**every forever item with its vendor price, its icon and its description copy**, and that can be
+**edited by hand**. Two of the three were already reachable — the vendor price rides the detail
+record, the icon bytes live in the DB since v0.6.0 — and the third is not behind the door the
+crawl already reads. That is not a nicety to design around: it is a fact about the wire, and it
+decides the shape of the release. And the manual half is forced by the crawl's own shape: the list
+stage UPSERTs every id upstream still lists, so a row a user HARD-deleted would be resurrected by
+the next list pass. Both halves were measured before anything was written
+([ADR 0010](./DECISIONS/0010-manual-layer-and-tooltip-copy.md) carries the full record).
+
+### The grounding, measured 2026-11-20 (live probes, then read back off the user's own file)
+
+```
+# the record the crawl ALREADY reads (raw_json of id 25, read back off the user's own file):
+attribution, icon_url, id, item_level, item_subtype, item_type, links, name,
+price, quality, required_level, unique, vendor_sell, weapon
+    -> NO description, NO html, NO `fields`: a description column on the detail door
+       would have invented a field upstream never answers
+
+# the door the description lives behind (one live request, UA wow-goldtool 0.8.0):
+GET https://thewowdb.com/api/v1/tooltip/forever/item/25
+  -> 200 application/json 3060 b
+  etag W/"2b111cbcd3bbb4d7078f6d05"
+  cache-control: public, max-age=300, s-maxage=900, stale-while-revalidate=3600
+  x-ratelimit-limit: 120   x-ratelimit-remaining: 62
+  x-wgf-build: wow_classic_beta-1.60.1.70532
+  top keys: attribution, build, fields, html, icon_url, id, kind, links, name, quality, version
+  `html` = 1404 b of upstream's OWN card markup: <div class="twdb-card twdb-k-item">… its own
+           <img class="twdb-icon" src="https://render.worldofwarcraft.com/us/icons/56/inv_sword_04.jpg">,
+           its own wording ("Item Level 2", "Sell Price: 7c")
+  `fields` = 26 keys mirroring the detail record's own column set (armor, binding, build, classes,
+             effects, faction_prices, flavor, … sockets, socket_bonus, stats, unique, vendor_sell,
+             version, version_label, weapon)
+  links.api = the door itself, links.html = https://thewowdb.com/wow-forever/item/worn-shortsword-25/
+
+# an id the door has not (one live request):
+GET https://thewowdb.com/api/v1/tooltip/forever/item/999999999999
+  -> 404 application/json 79 b, no ETag offered, x-ratelimit-remaining: 119
+  body: {"error":"not_found","message":"No item 999999999999 in forever.","status":404}
+        (upstream's OWN words — the stage reads the STATUS and gives that record its own
+         checked third state, exactly as v0.5.3 gave a dropped detail record)
+
+# the user's own file, read-only: 19 258 rows, MAX(id) below the manual block = 288 340
+```
+
+Three measured facts decide the shape, none of them invented: the description is not on the record
+the crawl reads, so a FOURTH door is a fact (≈ 19 258 tooltip requests ≈ 2.7 h at the measured 2/s
+— the same order as the detail and icon stages, so it belongs to the crawl, budgeted/resumable/
+cancellable, and not to a live ask); the door revalidates (`ETag` + `max-age=300`), so the stage
+stores its own `tooltip_etag` and a targeted re-ask costs a `304` and writes nothing; and its `404`
+answers upstream's own JSON, so the third state gets ADR 0006's treatment. The reserved manual id
+block at `900 000 000` is provably clear of every id the walk can bring back (measured max upstream
+id on the user's file: `288 340`), and a tombstone — not a hard delete — is the only shape that
+survives the next list pass.
+
+### The decision
+
+[ADR 0010](./DECISIONS/0010-manual-layer-and-tooltip-copy.md) puts the description copy in as **stage
+4 of a pull** with the plumbing every stage already has (its own pending rule, its own `sync_state`
+row, the shared `RateBudget`, cancel at chunk granularity, `429` retried IN PLACE so a rate limit
+never aborts a stage) and puts the user's edits in as **one rule: overrides merge LAST**. The
+rejected alternatives are recorded there in full — inline-in-stage-2 (the reuse path would leave
+the `2 919` records the user already fetched permanently description-less, a stage whose output
+depends on which build fetched the record), copying the whole tooltip body (two sources of truth
+for one record), rendering upstream's markup (that lets upstream write the card), a hard delete
+(resurrected by the next UPSERT), a user-picked id (it can collide with a FUTURE forever record),
+a separate `manual` table (a second place "the user already said" could hide), editing the auction
+columns (a permanent lie about CURRENT prices, for a gold tool), and making a manual row crawlable
+(upstream has no such id: the queue would ask a record that cannot exist and stamp "gone" on the
+user's own row).
+
+### Schema 4, and the migration that had to chain
+
+`SCHEMA_VERSION 3 → 4`, eight additive columns (`tooltip_html`, `tooltip_etag`, `tooltip_at`,
+`tooltip_missing_at` + `manual_at`, `manual_overrides`, `edited_at`, `deleted_at`), and `SQL_MIGRATE_TO_V4`
+is eight `ALTER`s so the chain is now v1→v2→v3→v4 — the user's own 19 258-row catalogue comes up
+in ONE call, and ALTER appends, so a migrated file's column order differs from a fresh file's and
+every reader names columns explicitly.
+
+The direction that cannot be guessed at was MEASURED at this release: the moment a v0.8.0 build
+first opened the user's file it moved 3→4, and the pinned v0.7.0 crawl that was still walking it
+died with `database on disk uses schema 4, this build wants 3` — which is why the real pull-all had
+to be re-pinned on a v0.8.0 snapshot mid-release. A file newer than this build is still refused;
+that is the honest answer, not a guess.
+
+### What the audits caught in the code
+
+* **a fresh DB was writing the wrong shape.** `SCHEMA_SQL` lost a comma INSIDE the Rust string —
+  `"… detail_missing_at INTEGER, tooltip_missing_at INTEGER"` glued onto `"icon_blob BLOB"` — so
+  SQLite read `INTEGERicon_blob` as a type name: the `CREATE` **succeeded**, and BOTH columns came
+  out ABSENT. The chain migration masked it (its `ALTER`s name the columns), the fresh write did
+  not: a fresh file had no icon bytes and no tooltip third state, and every reader naming them
+  would have died. The witness is `sqlite3 -readonly .schema item` read back off a fresh DB —
+  `tooltip_missing_at` present at slot 44, `icon_blob BLOB` at 45 — and `fix(db)` landed the comma.
+  The family is now named three times in this file: a schema string that BUILDS is not a schema that
+  WORKS.
+* **the coverage answer's read slots moved.** Five new counts pushed the price columns from slots
+  7-9 to 12-14; rusqlite reads rows by position, so an un-guarded read would have averaged the
+  wrong numbers into `stats`. The expected-count guard in the audits is what catches that drift,
+  and the CLI, the UI and the audits read ONE answer.
+* **the card was asked for a row upstream cannot know.** `item 900000000 --cached` answered the v0.7.0
+  `not-found` — "fetch it with `sync --stage detail`" — and every pending queue then REFUSED that
+  exact ask. The promise was a lie in one direction, so the row's own columns answer it instead
+  (`column_card`/`SQL_COLUMNS_CARD`, 14 columns), and the live door short-circuits BEFORE building a
+  client: ZERO requests, witnessed as ZERO asks for 900000000 in the fixture log before and after
+  all three queue stages ran.
+* **the fresh schema's comma fix had to land before CI grew the steps.** Chronology this release got
+  right, and v0.7.0 got wrong: the fixture grounds the tooltip door (`test(fixture)` 413e472) and
+  the schema fix (`fix(db)` 13cd1e6) land BEFORE the six new CI steps (`chore(ci)` b1df47a), so the
+  mirror stayed green at the commit that grew the sequence.
+
+### What the release grew
+
+Eighteen commits between `944b510` and the tag: `feat(db)` schema 4 + chained migration → the manual
+layer (overrides merge last, CRUD writers, tombstone) → the derived search columns in the edit door
+→ `feat(cli)` the four CRUD verbs and the usage line → `feat(stats)` the pending queues refuse
+tombstones and manual rows → `feat(query)` `visible_clause()` as the FIRST WHERE clause → `feat(stats)`
+coverage grows five counts → `feat(wowdb,models,db)` the tooltip door's URL, its `Tooltip` mirror and
+its writers → `feat(stats)` the tooltip queue → `feat(sync,cli)` `sync_tooltips` as stage 4 →
+`test(fixture)` the door's measured shape → `fix(db)` the fresh schema's comma → `chore(ci)` twenty-one
+mirror steps → `feat(db,cli)` the card carries the copy/marks/refuses tombstones → the manual row's
+card answers from its own columns → `feat(ui)` the status grid + the fourth pull-all leg → `feat(ui)`
+the write panel + the card's tooltip/marks/tombstone note → `chore` the version banner rides 0.8.0
+(both `Cargo.toml` and the pinned `Cargo.lock`, the v0.7.0 precedent).
+
+### The numbers, not adjectives (every audit re-run against the shipped tree)
+
+| audit | expectation | observed |
+| ----- | ----------- | -------- |
+| CI mirror (the committed twenty-one steps, fixture process, fresh DB, budget 8) | green with the fourth stage and the four manual doors inside | **21/21 steps exit 0**; the fourth stage budgeted `requests 5, items 3, written 3, missing 1, rate_limited 1, complete true` — asked ids `25, 40, 60, 12809`, and `12809` is the checked third state — then drained `requests 0, complete true`; the three manual answers are their own: `set-item 25 vendor_sell=606` → `{"id": 25, "field": "vendor_sell", "value": "606", "edited_at": 1795218573}`, `add-item "name=CI Test Mug" quality=Rare` → `{"id": 900000000, "manual_at": …, "fields": ["name","quality"]}`, `delete-item 60` → `{"deleted": [60], "at": …}`, `undelete-item 60` → `{"restored": [60]}`; `stats` after the mirror `items 6, named 6, priced 4, detailed 4, missing 1, icons 3, icon_missing 1, tooltips 3, tooltip_missing 1, edited 2, manual 1, deleted 0, history 4`, min/max/avg `18136`; the DB ends `6\|4\|3\|1\|1\|0\|4` (rows\|detailed\|tooltips\|tooltip_missing\|manual\|tombstones\|samples); `sync_state` FOUR rows `complete` (`list page 2`, `detail 0/2/2`, `icons 0/4/4`, `tooltip 0/0/0`); fixture log **31 GETs** — detail 13, list 5, icons 5, tooltip 5, search 3 — with `4 × 429`, `9 × 304`, `3 × 404`, and **ZERO** asks for 900000000 |
+| exit-code audit (**57 doors**) | the old doors byte-for-byte identical, the new families land where ADR 0004 says | the eighteen of v0.6.0 `0,0,0,0,4,4,0,2,0,2,2,3,3,3,0,0,0,0`; the seven of v0.7.0 `2,3,0,0,0,0,3`; the tooltip stage `0,0,0,2,3` (drained queue, targeted `--ids 12809` on the gone tooltip → **0** `requests 1, items 0, missing 1, complete false` and the DB says `tooltip_missing_at` set / `tooltip_html` NULL, a re-ask `--ids 25` → **0** `requests 1, items 1, written 0, unchanged 1` = the door's own ETag revalidation, `--stage tooltipx` → **2** `sync wants --stage list, detail, icons or tooltip, got tooltipx`, dead host → **3** naming the door `…/api/v1/tooltip/forever/item/25`); the manual layer `0,2,2,2,2,4,2,0,0` with the messages `an editable INTEGER field wants a plain number` / `nose is not editable (…)` / `set-item states exactly one FIELD=VALUE per ask` / `no item 999999999 in the DB (add-item creates one)` / `add-item wants at least a name (name=...)`, and BOTH card doors of the made row → **0**, 940 b, `status null`, `detail_synced_at null`, name `Probe Mug`, quality `Rare`; three queue doors after the create → `0,0,0` with `requests 0` each and the fixture's ask count for 900000000 still **0**; the edit doors `0,0,0,0` — `set-item 40 name=ProbeRenamed` then `search ProbeRenamed` → **0** `total 1`, and the DB says `name` "ProbeRenamed" with `name_lc` "proberenamed" in ONE write; the tombstone five `0,4,4,4,4` (bare search total **6 → 5** across `delete-item 60`, double-delete → **4** `item 60 is already tombstoned`, `item 60 --cached` → **4**, `item 60` live → **4** while the fixture's ask count for `forever/item/60` stays **2** — refused BEFORE any request goes out — and `set-item 60 …` → **4** `… (undelete-item first)`); the restore doors `0,0,4,0` (`{"restored": [60]}`, again → **4** `item 60 is not tombstoned`, search total back to **6**, `stats` `deleted 1` → `deleted 0`); and one fresh-write door against a SECOND fixture process → **0** `requests 2, written 1, rate_limited 1`: the row KEEPS the user's `vendor_sell` 606 while the crawl-owned `price_min` moves 15528 → 19913, `tooltip_html` stays in the row, and `price_history` grows 4 → 5 with exactly one new sample (`seq 5, item 25, 19913`) — ADR 0007's rule holds under the merge. No DB-only door reached **3**: the manual verbs send no request, so they cannot be rate limited |
+| GUI launch audit (scratch DB seeded by a fixture crawl: 5 rows, 4 samples) | the shipped page boots FOUR verbs; the new panel fires nothing itself | run 1: exactly `status, watch, stats, status` and **ZERO** requests to the fixture; temp probe (the four write verbs plus the made row's LIVE card, rebuilt into the page then reverted): the ipc log grows exactly `add-item (2 words), set-item (2 words), delete-item (1 words), undelete-item (1 words), item (1 words)` and the fixture saw **0** requests during that run — the manual row's card asked nothing — the DB ends 6 rows, manual 1, edited 2, deleted 0, samples 4, the made row `id 900000000, manual_at …, name "GUI Probe Mug", quality "Rare"`; run 3 re-audits the clean page after the revert (four verbs again, `git status --porcelain ui/` clean) |
+| the schema chain on a real file | a fresh DB and a migrated one answer the SAME columns | a fresh DB's `status` writes schema `4`, and `.schema item` names `tooltip_missing_at` (slot 44) and `icon_blob BLOB` (45); a genuine schema-3 file migrated by this build lands at `schema_version` 4 with `icon_blob` present and its rows intact — the comma bug above is what the fresh half of that row caught |
+| `cargo build` at the tag | warnings are the plan, not surprises | **0 errors**, FOUR warnings: `catalogue`, `open_db`, `pending_plan`'s private `PendingSql` and `Tooltip`'s unread fields (the measured key list rides the model, only `html` is read) — the set grew by exactly one, ADR 0009's rule; plus the hardlink notice when the DB-path doc recompiles on this filesystem |
+| syntax of the three embedded UI files | they parse before the build embeds them | `node --check ui/app.js` parses (v22.23.5); `ui/index.html` tag-balanced (7 sections, 17 divs, 4 selects, 16 buttons); `ui/app.css` braces 80/80 |
+| the user's own DB | never written by an audit; the authorized crawl walks it | read-only (`sqlite3 -readonly`) at the tag: schema `4`, `19 258` rows, max upstream id `288 340`, `tooltip_at` set on **0**, `detail_synced_at` set on `2 919` — the tooltip pass cannot start before the tag, because the pinned crawl snapshot has no fourth stage; the authorized real pull-all (detail → icons) kept walking on a pinned v0.8.0 snapshot, and the tooltip pass runs as a THIRD crawl pass with the released binary after the tag |
+
+The audits themselves never touched the user's file: every run pointed at a scratch DB through
+`WGT_DB` and the file was read hashed / `sqlite3 -readonly`. The ONE authorized write to it is the
+real pull-all the user asked for, and the schema migration 3→4 that any v0.8.0 build does on first
+open (measured consequence above: the pinned v0.7.0 crawl died refusing it).
+
+---
+
 ## 2026-11-20 · v0.7.0 — the live-search door: one human ask, one request
 
 ### What forced the milestone

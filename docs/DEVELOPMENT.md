@@ -29,11 +29,12 @@ cli.rs         the verbs and their JSON: dispatch(Invocation) + the CLI guard (e
 commands.rs    the app's one Tauri command: cli_call(argv) -> envelope JSON, zero logic
 gui.rs         the Builder shell: on_page_load log, generate_handler!, generate_context!
 wowdb.rs       HTTP client: URL building, ETag revalidation, rate-limit pacing
-models.rs      JSON <-> Rust structs for list summaries, item details, search hits
+models.rs      JSON <-> Rust structs for list summaries, item details, search hits, tooltip bodies
 db.rs          SQLite bootstrap: schema, db-path resolution, upserts, meta table
 query.rs       search + facets + sort + count, all executed as SQL over the local DB
-sync.rs        the sync engine: list crawl, detail crawl (pending queue or a target list), resume, cancel, progress
-stats.rs       price analytics (coverage, per-quality averages, extremes)
+sync.rs        the sync engine: FOUR stages (list crawl, detail crawl, icon copy, tooltip copy) - pending
+               queue or a target list, resume, cancel, progress
+stats.rs       the four pending queues + price analytics (coverage, per-quality averages, extremes)
 errors.rs      one AppError + kind -> exit-code/JSON-kind mapping shared by both doors
 ```
 
@@ -44,12 +45,17 @@ frontend), `icons/icon.png` (generated), `tools/gen_icon.py` (what generated it)
 progress truth and both doors read it, so mirroring it in `AppState` would be a second
 source of truth; cancel is a JS flag read at chunk granularity (ADR 0005).
 
-As of v0.7.0 every module above exists, and `cargo build` still ends in warnings only —
-the unused ones are exactly: `catalogue`, `open_db`, and `pending_plan`'s private `PendingSql`
-(plus the hardlink notice, which is the DB-path doc reading `st_mtime`/`st_nlink` at build
-time). The set SHRANK at v0.7.0: the live-search door consumed `search_url`, `SearchResponse`
-and `ApiResponse.remaining` — the three names v0.6.0 shipped unused because the door docs/API.md
-promised was never opened (ADR 0009 opened it, on measured answers). v0.6.0 consumed the readers
+As of v0.8.0 every module above exists, and `cargo build` still ends in warnings only — exactly
+FOUR of them: `catalogue`, `open_db`, `pending_plan`'s private `PendingSql` and rustc's
+"multiple fields are never read" on **`Tooltip`** (`attribution`/`build`/`fields`/`icon_url`/
+`id`/`kind`/`links`/`name`/`quality`/`version`: the measured key list of the tooltip door rides
+the model so a key upstream adds cannot break a build, and the door's body only needs `html`;
+ADR 0009's rule again — keep the measured mirror, read what the door needs). The set SHRANK at
+v0.7.0 (the live-search door consumed `search_url`, `SearchResponse` and `ApiResponse.remaining`,
+the three names v0.6.0 shipped unused because the door docs/API.md promised was never opened, on
+measured answers), and v0.8.0 grew it by exactly ONE: the `Tooltip` mirror above. Every other new
+name landed a consumer in the same release — the tooltip stage, its queue, its card row and the
+four manual verbs all have one, and the audits read the numbers they print. v0.6.0 consumed the readers
 it grew: `history_of` + `PriceSample` + `SQL_HISTORY_OF`
 and the icon trio `icon_blob_of`/`icon_at_of`/`icon_missing_at_of` all have their consumer
 in the item card. The `NotFound` error kind stopped being dead code the moment
@@ -89,6 +95,7 @@ git tag. The dated narrative lives in [docs/DEVLOG.md](./DEVLOG.md).
 - [x] `v0.5.3` (patch) — a record upstream dropped is a checked third state (`detail_missing_at`, `HttpKind::Missing`, `missing` in the sync report and in coverage), pending = never fetched **and** never checked-missing, schema `1 → 2` migrated in place with `ALTER TABLE` so an existing catalogue keeps its rows
 - [x] `v0.6.0` — price history (a second table, `price_history`: one sample per **fresh** detail write, never a `304`, ADR 0007), local icon copies via a THIRD sync stage (`icon_blob` + `icon_at` + `icon_missing_at`, ADR 0008), the item card renders the `stats` pairs (the one unshaped field grounded live), the local icon as a `data:` URI and the price trend; schema `3`, migrating v1→v2→v3 in place
 - [x] `v0.7.0` — the live-search door (ADR 0009): CLI verb `live-search TEXT` — the whole verb tail as ONE query, ONE request to the grouped door, upstream's own answer printed as it came (`{status, retry_after, remaining, answer}`), names-only means all-empty groups still exit `0`; a UI panel asks ONCE per click with `view upstream` links; the door writes and reads NO DB (schema stays `3`), and it consumes `search_url`/`SearchResponse`/`ApiResponse.remaining` so the dead set shrinks to `catalogue`/`open_db`/`PendingSql`
+- [x] `v0.8.0` — the manual layer and the description copy (ADR 0010): a FOURTH sync stage `--stage tooltip` copies the tooltip door's own `html` (the `forever/item` body carries NO description — measured key list, docs/API.md), schema `4` with a chained v1→v2→v3→v4 migration; the manual layer is ONE rule (overrides merge LAST on every write path): CLI verbs `set-item` / `add-item` / `delete-item` / `undelete-item`, DELETE is a tombstone every query hides (`visible_clause`, pushed first), user-made rows live in the reserved block `900 000 000+` (`MANUAL_ID_BASE`, measured max upstream id `288 340`) and answer their card from the DB's own columns with ZERO requests, and all pending queues refuse tombstones and manual rows
 
 ## Build & run
 
@@ -110,12 +117,17 @@ the IPC handler and parks the page behind the crawl, and fixed in v0.5.2 too: a 
 client build on the manager's tokio worker stalled the crawl at `build_client` before it
 issued a single request). The verb body therefore runs on a fresh `std` thread (`verb_on_plain_thread`
 in src/main.rs): the page keeps ticking while the crawl owns a runtime-free thread of its
-own. "Pull all info" chains all three stages to their end in one flow (v0.6.0), and the launch audit
-proves it against the fixture — the stage verbs interleave with the ticker's `status`
-polls, all three stages' forced `429` retry in place, and the scratch DB ends at 0 pending
-in every queue with all three `sync_state` rows `complete` (v0.6.0 chained
-list → detail → icons; the icons stage copies the fixture's real JPEG bytes and checks the
-one gone icon file). The GUI uses the same DB resolution as the CLI, so
+own. "Pull all info" chains all FOUR stages to their end in one flow (v0.6.0 grew three of them,
+v0.8.0 chains the fourth leg), and the launch audit proves it against the fixture — the stage
+verbs interleave with the ticker's `status` polls, all four stages' forced `429` retry in place,
+and the scratch DB ends at 0 pending in every queue with all four `sync_state` rows `complete`
+(v0.6.0 chained list → detail → icons; the icons stage copies the fixture's real JPEG bytes and
+checks the one gone icon file; v0.8.0 adds the tooltip stage, which copies the fixture's own
+stand-in `html` — its own words, never upstream's prose — and checks the record whose tooltip is
+gone). The four GUI audits agree: the shipped page boots FOUR verbs (`status, watch, stats,
+status`) because the new write panel fires nothing by itself, and a temporary probe proved the
+four write doors plus a manual row's live card reach the SAME ipc guard and ask the fixture
+ZERO times. The GUI uses the same DB resolution as the CLI, so
 `WGT_DB=/tmp/opencode/fixture.sqlite cargo run` audits the UI against the fixture DB instead
 of the real one.
 
@@ -133,6 +145,11 @@ cargo run -- item 25                      # live lookup; 304 + stored raw_json w
                                           # the record is already in the DB
 cargo run -- item 25 --cached             # the same card with no request at all
 cargo run -- sync --stage icons --ids 25,40   # exactly these icons (also --watch)
+cargo run -- sync --stage tooltip --ids 25,40 # exactly these description copies (also --watch)
+cargo run -- set-item 25 vendor_sell=606      # the manual layer: one whitelist field, one row
+cargo run -- add-item "name=CI Test Mug" quality=Rare  # the DB picks the id (reserved block)
+cargo run -- delete-item 60                   # DELETE is a tombstone, every query hides it
+cargo run -- undelete-item 60                 # and everything the row had comes back
 cargo run -- watch add 25 40              # the list the UI turns into sync targets
 cargo run -- stats                        # DB coverage + the ledger count
 ```
@@ -164,13 +181,29 @@ Environment switches used by tests and CI:
   and detail prices carry a per-process `RUN` offset — one fixture process is one observation
   window, so a second process' fresh write grows the `price_history` ledger by exactly one
   sample while a re-ask inside one process still writes none (ADR 0007's rule, measured).
-  From v0.7.0 the sequence is fifteen steps with the icon stage and the live-search door
-  inside, and it also covers a watch
+  From v0.8.0 it also answers the TOOLTIP COPY shape: `/api/v1/tooltip/…` answers `200` with
+  `html` in upstream's OWN class names but its OWN stand-in words (the probe measured upstream's
+  1404 b of markup; the fixture never copies upstream's prose), revalidates the door like the
+  detail door (the probe measured `ETag W/"2b111cbcd3bbb4d7078f6d05"` and `cache-control public,
+  max-age=300`), and answers `404` with upstream's own JSON BODY — measured 2026-11-20, 79 b:
+  `{"error":"not_found","message":"No item 999999999999 in forever.","status":404}` — for ids it
+  has no tooltip for, so one ANSWERED record has a real twin for the tooltip stage's third state
+  (`12809`; the tooltip gate also names its stage, so the stage retries a `429` in place like the
+  other three). From v0.8.0 the sequence is TWENTY-ONE steps with the fourth stage and the four
+  manual doors inside (a budgeted tooltip pass, a drained one, then `set-item`/`add-item`/`delete-item`/`undelete-item`
+  on the same DB), and it also covers a watch
   list, a targeted detail fetch, the same ids fetched again (which must answer `304` and write
   nothing) and the DB-only card read. Since v0.5.3 the local mirror adds the gone-id steps on
   the same DB: `item 127555` must answer **exit 4** (`not-found`) and re-stamp the mark, and
   the crawl that follows must answer `requests 0, complete true` — the removed record is not
   asked again. The committed CI sequence passes every step with the `404`s in it.
+- The mirror replays the committed sequence verbatim (fresh DB, fresh fixture port) and the
+  exit-code audit re-runs every door family against it: at the v0.8.0 tag, **21/21 steps exit 0**
+  and **57 doors** land where ADR 0004 says — the eighteen of v0.6.0 byte-for-byte, the seven of
+  v0.7.0, the tooltip stage's five (`0,0,0,2,3`), the manual layer's nine (`0,2,2,2,2,4,2,0,0`),
+  three queue doors, the edit doors, the tombstone's five (`0,4,4,4,4`), the restore's four and
+  one fresh-write door against a SECOND fixture process. No DB-only door ever reached `3`: the
+  manual verbs send no request, so they cannot be rate limited.
 - `tests/api.rs` / `tests/pipeline.rs` (unit tests next to the code they test) are the
   plan, not code: v0.2.0 has no `#[test]` functions yet, so `cargo test` only proves
   everything compiles.

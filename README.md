@@ -5,12 +5,16 @@ Forever** from the free [TheWoWDB](https://thewowdb.com/developers) JSON API and
 it in a local **SQLite** database, so browsing, filtering, searching and price-checking
 items works offline.
 
-Status: **v0.7.0 — the live-search door: one human ask, one request** (the grouped
-`/search/` answer docs/API.md measured is finally opened: a CLI verb and a UI panel print
-upstream's own answer as it came — `remaining` from the burst headers, a `view upstream`
-link per hit — and write NOTHING: no row, no sample, no mark; schema stays `3`). Before it:
-price history and local icon copies (v0.6.0), the checked-gone state (v0.5.3), the one-click
-pull itself (v0.5.2), the crawl no longer freezing the page (v0.5.1), and the GUI itself (v0.4.0).
+Status: **v0.8.0 — the DB holds every forever item's description copy, and takes edits by hand**
+(a FOURTH sync stage copies the tooltip door's own `html` — the `forever/item` body carries no
+description at all, docs/API.md measures the key list — with its own three states, ETag, budget,
+resume and cancel; the manual layer is ONE rule, overrides merge LAST on every write path, so
+`set-item`/`add-item`/`delete-item`/`undelete-item` survive the next crawl, DELETE is a tombstone
+every query hides, and user-made rows live in the reserved block at `900 000 000` with ZERO
+requests to upstream; schema `4`, migrating v1→v2→v3→v4 in place). Before it:
+the live-search door (v0.7.0), price history and local icon copies (v0.6.0), the checked-gone
+state (v0.5.3), the one-click pull itself (v0.5.2), the crawl no longer freezing the page (v0.5.1),
+and the GUI itself (v0.4.0).
 See the milestone list below and the dated narrative in [docs/DEVLOG.md](./docs/DEVLOG.md).
 
 ```
@@ -41,6 +45,7 @@ highest damage per second, most expensive vendor sell…).
 | `v0.5.3` | patch: a record upstream dropped is a checked third state (`detail_missing_at`, `HttpKind::Missing`, `missing` in the report and in coverage), pending = never fetched and never checked-missing, schema `1 → 2` migrated in place (`ALTER TABLE`) so an existing catalogue keeps its rows | done |
 | `v0.6.0` | price history (a second table: one price per item cannot show a trend), local icon copies, the item card rendering `stats` (the only unshaped field grounded live so far) | done |
 | `v0.7.0` | the live-search door: CLI verb `live-search TEXT` + UI panel (`Ask once`), one human ask = ONE request to the grouped search endpoint, upstream's own answer printed as it came with `view upstream` links — and it writes nothing: no row, no sample, no mark (ADR 0009) | done |
+| `v0.8.0` | the description copy + the manual layer: a FOURTH sync stage `--stage tooltip` holds each record's own tooltip `html` (three states, ETag, budget, resume — ≈ 19 258 requests ≈ 2.7 h), and CLI verbs `set-item` / `add-item` / `delete-item` / `undelete-item` plus a UI write panel let the user say it / make one / hide it / bring it back; overrides merge LAST on every crawl write, DELETE is a tombstone every query hides, user-made rows live at `900 000 000+` and answer their card from the DB with ZERO requests; schema `4` (ADR 0010) | done |
 
 ## Design notes
 
@@ -56,18 +61,33 @@ highest damage per second, most expensive vendor sell…).
   click and a `cargo run --` line cannot drift apart — see
   [ADR 0005](./docs/DECISIONS/0005-gui-ipc-commands.md), which also records that app commands
   are not ACL-checked by construction while no app ACL manifest ships.
-* **Two crawl stages plus an icon stage.** The API lists ~19 k items cheaply (name/quality/level)
-  but prices and stats need one request per item, and each answered record's own icon FILE
-  needs one more. Stage 1 is fast, stage 2 is staged, resumable and cancellable — see
+* **Four crawl stages.** The API lists ~19 k items cheaply (name/quality/level) but prices and
+  stats need one request per item, each answered record's own icon FILE needs one more, and — from
+  v0.8.0 — its description copy lives behind a FOURTH door at all: the `forever/item` body carries
+  no prose field whatsoever (measured key list), so `/api/v1/tooltip/forever/item/<id>` is where the
+  text lives, and it costs the same order as the other stages (≈ 19 258 requests ≈ 2.7 h). Stage 1 is fast, stage 2 is staged, resumable and cancellable — see
   [ADR 0002](./docs/DECISIONS/0002-two-stage-sync.md) — and v0.6.0 adds a third, `sync --stage
   icons`, with the same budget, cancel and resume plumbing (
-  [ADR 0008](./docs/DECISIONS/0008-icon-storage-third-stage.md)). From v0.5.0
+  [ADR 0008](./docs/DECISIONS/0008-icon-storage-third-stage.md)) and v0.8.0 adds the fourth,
+  [ADR 0010](./docs/DECISIONS/0010-manual-layer-and-tooltip-copy.md) — `sync --stage tooltip`,
+  same budget, same cancel, same resume. From v0.5.0
   stage 2 also takes **targets**: `--ids 25,40` and `--watch` fetch exactly what the user
   asked for, and the UI drives them in slices of 20 so Cancel stays meaningful between
   slices. Re-asking for an id that already has a record revalidates (`304`, nothing written).
-* **The card answers offline.** `item ID --cached` reads the stored `raw_json` and sends
-  no request; the card prints when that record was fetched, so the user can tell today's
-  prices from last month's, and draws the price **trend** from the `price_history` ledger.
+* **The card answers offline — and answers for the rows the user MADE.** `item ID --cached` reads
+  the stored `raw_json` and sends no request; the card prints when that record was fetched, draws
+  the price **trend** from the `price_history` ledger, and shows the description copy as upstream's
+  own markup printed as **escaped text** (rendering an upstream body would let upstream write the
+  card). A row created by `add-item` lives in the reserved block (`900 000 000+`, measured max
+  upstream id `288 340`) and answers its card from the DB's OWN columns on BOTH doors — upstream
+  cannot know the id, so the live door short-circuits before building a client (ZERO requests).
+* **The manual layer is one rule.** `manual_overrides` is one JSON array per row of `{field, value, at}`
+  entries, and every write path — the list stage's upsert, the detail stage's, the tooltip stage's,
+  and both card reads — applies it AFTER the payload binds, so a field the user stated survives the
+  next crawl while the columns the crawl owns keep refreshing. DELETE is a mark (`deleted_at`), not
+  an erase: the list stage UPSERTs every id upstream still lists, so a hard delete would be
+  resurrected. `visible_clause()` is one clause pushed first, so search, its count and the card
+  agree by construction — and no pending queue walks a tombstone or a manual row ([ADR 0010](./docs/DECISIONS/0010-manual-layer-and-tooltip-copy.md)).
   Item icons are deliberately *not* hotlinked: v0.6.0 copies each icon's bytes into the
   DB as a `BLOB` and the card shows that local copy as a `data:` URI — `icon_url` alone
   is a remote path, and the app's point is answering without the network.
