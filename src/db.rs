@@ -1778,6 +1778,78 @@ pub fn readable_tooltip_text(html: String) -> String {
     return trimmed;
 }
 
+/// rusqlite reads rows by DECLARED column type (docs/DATABASE.md), so the get()
+/// indices below ARE SQL_REFRESH_ROWS' order. EVERY row is COLLECTED before ANY
+/// write happens: a sqlite row walk over the table this same door rewrites must
+/// not be interleaved with its own UPDATEs, so the walk finishes first and the
+/// writes follow. The twin is recomputed by the SAME readable_tooltip_text the
+/// write paths call - there is no second derivation to disagree with it.
+pub fn refresh_twins(conn: &Connection) -> AppResult<RefreshTally> {
+    let mut stmt = match conn.prepare(SQL_REFRESH_ROWS) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let rows = match stmt.query_map([], |row|
+        Ok(RefreshRow { id: row.get(0)?, html: row.get(1)?, text: row.get(2)? })
+    ) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut copies: Vec<RefreshRow> = [].to_vec();
+    for item in rows {
+        match item {
+            Err(problem) => return Err(AppError::db(format!("{}", problem))),
+            Ok(value) => copies.push(value),
+        }
+    }
+    let seen: i64 = copies.len() as i64;
+    let mut filled: i64 = 0;
+    let mut rewritten: i64 = 0;
+    let mut unchanged: i64 = 0;
+    for one in copies {
+        let want: String = readable_tooltip_text(one.html.clone());
+        let differ: bool = match one.text {
+            None => {
+                filled = filled + 1;
+                true
+            },
+            Some(have) => {
+                match have == want {
+                    true => {
+                        unchanged = unchanged + 1;
+                        false
+                    },
+                    false => {
+                        rewritten = rewritten + 1;
+                        true
+                    },
+                }
+            },
+        };
+        match differ {
+            false => {},
+            true => {
+                let mut params: Vec<Value> = [].to_vec();
+                params.push(Value::Text(want.clone()));
+                params.push(Value::Text(want.to_lowercase()));
+                params.push(Value::Integer(one.id));
+                match bind_sql(conn, SQL_REFRESH_WRITE, params, 3) {
+                    Err(problem) => return Err(problem),
+                    Ok(_) => {},
+                }
+            },
+        }
+    }
+    return Ok(RefreshTally {
+        copies: seen,
+        filled: filled,
+        rewritten: rewritten,
+        unchanged: unchanged,
+        complete: true,
+        message: format!("refresh-twins over {} copies: {} rewritten, {} filled with their twin from birth, {} already matching", seen, rewritten, filled, unchanged),
+    });
+}
+
 /// The tooltip door's stamps and copy (v0.8.0, ADR 0010): the tooltip write is a
 /// FOURTH crawl stage with the same three states as every other door (written /
 /// checked gone upstream / never looked at) and its OWN ETag - the tooltip body
@@ -1795,6 +1867,39 @@ pub const SQL_TOOLTIP_MISSING_AT_OF: &str = "SELECT tooltip_missing_at FROM item
 pub const SQL_MARK_TOOLTIP_MISSING: &str = "INSERT INTO item (id, tooltip_missing_at) VALUES (?,?) ON CONFLICT (id) DO UPDATE SET tooltip_missing_at = ?";
 pub const SQL_SET_TOOLTIP: &str = "INSERT INTO item (id, tooltip_html, tooltip_etag, tooltip_at, tooltip_text, tooltip_lc) VALUES (?,?,?,?,?,?) ON CONFLICT (id) DO UPDATE SET tooltip_html = ?, tooltip_etag = ?, tooltip_at = ?, tooltip_text = ?, tooltip_lc = ?";
 pub const TOOLTIP_VALUE_COUNT: usize = 6;
+
+/// The REFRESH door (v0.9.2, ADR 0013). ADR 0012 made the twin DERIVED, so a DB
+/// whose copies were written under the OLD span rule can be re-derived from the
+/// copy it already holds - the copy is the source of truth. This door reads the
+/// DB and writes the DB: ZERO requests leave it, so ADR 0004's network door (3)
+/// cannot be reached here and the door answers 0 or 4 only. Measured on the user's
+/// own file the day this door was written: 4 602 copies, ZERO of them matching the
+/// corrected rule, and the stored twin equal to the RECOMPUTED v0.9.0 glued shape
+/// for ALL 4 602 - the refresh is fully determined by what is on disk, so a second
+/// run answers 0 rewritten. Tombstoned and manual rows ride: ADR 0012's rule is
+/// that the twin always matches what the DB SAYS, and a stated tooltip_html is
+/// what the DB says for those rows too. A copy whose twin was never born (a DB
+/// that copied at v0.8.x - the honest gap ADR 0012 names) counts as filled, which
+/// closes that gap without re-fetching anything.
+pub const SQL_REFRESH_ROWS: &str = "SELECT id, tooltip_html, tooltip_text FROM item WHERE tooltip_html IS NOT NULL";
+pub const SQL_REFRESH_WRITE: &str = "UPDATE item SET tooltip_text = ?, tooltip_lc = ? WHERE id = ?";
+
+#[derive(Serialize, Clone)]
+pub struct RefreshRow {
+    pub id: i64,
+    pub html: String,
+    pub text: Option<String>,
+}
+
+#[derive(Serialize, Clone)]
+pub struct RefreshTally {
+    pub copies: i64,
+    pub filled: i64,
+    pub rewritten: i64,
+    pub unchanged: i64,
+    pub complete: bool,
+    pub message: String,
+}
 
 /// The tooltip door's own ETag, for the conditional GET the tooltip stage sends.
 pub fn tooltip_etag_of(conn: &Connection, id: i64) -> AppResult<Option<String>> {
