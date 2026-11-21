@@ -101,9 +101,30 @@ This release's own push verdicts land in the post-tag section below, joining the
   in one open (5 items intact, meta `schema_version|6`), and door 67 rc=4 honest refusal on the
   migrated file (`database on disk uses schema 6, this build wants 4`), file untouched. The
   stale-chain hop chain is proven from the PINNED era all the way to 6.
-* **CI**: chain+tag push `1bc4e50..23ceb4e` started GitHub run — verdict recorded below the
-  moment it completes, joining this verification record's own push verdict the same way
-  (ladder rule: verdicts land FORWARD, tags never move — `v0.9.5` stays on `23ceb4e`).
+* **CI run 44960088009** (chain+tag push `1bc4e50..23ceb4e`, `head_sha 23ceb4e…` — the TAGGED
+  tree): **attempt 1 CANCELLED** (created 23:05:59Z, ended 23:12:07Z) — GitHub's branch
+  management superseded it the moment this verification record's push landed a new head on
+  `main`: a run-management fact, not a build failure, not the app's. Resubmitted through the
+  rerun endpoint: **attempt 2 SUCCESS, 5/5 jobs green in 6 min 12 s** (jobs 23:14:47Z →
+  23:20:59Z — quality 1 m 57 s · test 4 m 40 s · linux 5 m 23 s · macos 6 m 10 s · windows
+  5 m 59 s). Same head, re-measured: the TAGGED tree is green.
+* **CI run 44960596846** (verification record's push `23ceb4e..62a7501`, head `62a7501…`):
+  **attempt 1 CANCELLED** (jobs started 23:12:09Z, ended 23:12:09Z → 23:14:3x–4x — only
+  quality finished green) — superseded by the rerun submission above, landing on the SAME
+  branch while this run was still in flight; the observed rule stated where it bit: a rerun
+  or a fresh push on the branch cancels that branch's in-flight run, which is why NOTHING
+  was pushed while these runs were underway and the two rerun requests were the only
+  submissions. **Attempt 2 (rerun): SUCCESS, 5/5 in 9 min 35 s** (23:22:03Z → 23:31:38Z —
+  quality 1 m 56 s · test 4 m 47 s · linux 5 m 14 s · macos 5 m 48 s · windows 9 m 35 s), on
+  the verification tree.
+* **The v0.9.4 ladder is now COMPLETE**: its verdict-fold push run **44957300299** (head
+  `1bc4e50…`) landed **success, 5/5 in 10 min 50 s** (22:32:48Z → 22:43:38Z), beside chain+tag
+  **44954802500** (10 min 36 s) and verification push **44956129051** (10 min 44 s) — every
+  recorded push through this release is green, either straight or after an honest resubmission
+  of the SAME head.
+* **This CI-record commit** starts its own run when pushed; its verdict lands FORWARD the
+  same way — never chased with extra commits — and the tags stay put (`v0.9.5` → `23ceb4e`,
+  `v0.9.4` → `4875222`, both re-verified after this push).
 
 
 ## 2026-11-21 · v0.9.4 — the money words: prices read like the GAME writes them, and copper stays the number
