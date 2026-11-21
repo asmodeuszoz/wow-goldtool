@@ -1774,6 +1774,7 @@ pub fn readable_tooltip_text(html: String) -> String {
 /// a door's answer is not our call to make.
 pub const SQL_TOOLTIP_ETAG_OF: &str = "SELECT tooltip_etag FROM item WHERE id = ?";
 pub const SQL_TOOLTIP_HTML_OF: &str = "SELECT tooltip_html FROM item WHERE id = ?";
+pub const SQL_TOOLTIP_TEXT_OF: &str = "SELECT tooltip_text FROM item WHERE id = ?";
 pub const SQL_TOOLTIP_AT_OF: &str = "SELECT tooltip_at FROM item WHERE id = ?";
 pub const SQL_TOOLTIP_MISSING_AT_OF: &str = "SELECT tooltip_missing_at FROM item WHERE id = ?";
 pub const SQL_MARK_TOOLTIP_MISSING: &str = "INSERT INTO item (id, tooltip_missing_at) VALUES (?,?) ON CONFLICT (id) DO UPDATE SET tooltip_missing_at = ?";
@@ -1846,6 +1847,29 @@ pub fn tooltip_missing_at_of(conn: &Connection, id: i64) -> AppResult<Option<i64
 
 pub fn tooltip_html_of(conn: &Connection, id: i64) -> AppResult<Option<String>> {
     let mut stmt = match conn.prepare(SQL_TOOLTIP_HTML_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(found) => Ok(found),
+        },
+    }
+}
+
+/// The readable twin of the copied tooltip (v0.9.0, ADR 0012): derived text, so the
+/// card box can render it - the raw html fragment is printed as text only.
+pub fn tooltip_text_of(conn: &Connection, id: i64) -> AppResult<Option<String>> {
+    let mut stmt = match conn.prepare(SQL_TOOLTIP_TEXT_OF) {
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
         Ok(value) => value,
     };

@@ -9,7 +9,7 @@ use crate::errors::AppError;
 use crate::errors::AppResult;
 use crate::errors::ErrorKind;
 
-use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_blob_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, next_manual_id, open_db_at, raw_json_of, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, SyncState, unix_now};
+use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_blob_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, next_manual_id, open_db_at, raw_json_of, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, tooltip_text_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, SyncState, unix_now};
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
@@ -367,7 +367,10 @@ pub fn card_icon_parts(conn: &Connection, id: i64) -> AppResult<Vec<String>> {
 /// rides the stored JSON ARRAY verbatim (the same text the merge reads), which is
 /// what lets the UI mark the fields the user stated. tooltip_html is upstream's
 /// OWN markup for the card, printed as text and never rendered as markup: pasting
-/// an upstream body into the page would let upstream write the card.
+/// an upstream body into the page would let upstream write the card. tooltip_text
+/// (v0.9.0, ADR 0012) is the readable TWIN the card box CAN render: the derivation
+/// dropped the measured hotlink img tags and collapsed whitespace, so it is plain
+/// text of the copy - the card gets words, the bytes stay the DB's.
 pub fn card_manual_parts(conn: &Connection, id: i64) -> AppResult<Vec<String>> {
     let said: Option<String> = match manual_overrides_of(conn, id) {
         Err(problem) => return Err(problem),
@@ -386,6 +389,10 @@ pub fn card_manual_parts(conn: &Connection, id: i64) -> AppResult<Vec<String>> {
         Ok(found) => found,
     };
     let copy: Option<String> = match tooltip_html_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    let readable: Option<String> = match tooltip_text_of(conn, id) {
         Err(problem) => return Err(problem),
         Ok(found) => found,
     };
@@ -410,6 +417,14 @@ pub fn card_manual_parts(conn: &Connection, id: i64) -> AppResult<Vec<String>> {
     parts.push(fragment("edited_at".to_string(), json_opt_int(edited)));
     parts.push(fragment("deleted_at".to_string(), json_opt_int(buried)));
     parts.push(fragment("tooltip_html".to_string(), copy_json));
+    let readable_json: String = match readable {
+        None => "null".to_string(),
+        Some(text) => match to_string(&text) {
+            Err(_) => "null".to_string(),
+            Ok(json_text) => json_text,
+        },
+    };
+    parts.push(fragment("tooltip_text".to_string(), readable_json));
     parts.push(fragment("tooltip_at".to_string(), json_opt_int(copied)));
     parts.push(fragment("tooltip_missing_at".to_string(), json_opt_int(checked)));
     return Ok(parts);
