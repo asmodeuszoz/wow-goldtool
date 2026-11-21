@@ -27,7 +27,7 @@ use std::env::set_var;
 /// What the CLI can answer. Keeping the list here means an unknown verb becomes a
 /// usage error that names what the user actually typed.
 pub fn usage_text() -> String {
-    return "usage: status | sync --stage list|detail|icons|tooltip [--budget N] [--ids A,B,C] [--watch] | search TEXT [--where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | status [--db PATH] [--fixture URL]".to_string();
+    return "usage: status | sync --stage list|detail|icons|tooltip [--budget N] [--ids A,B,C] [--watch] | search TEXT [--icons --where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--icons --limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | status [--db PATH] [--fixture URL]".to_string();
 }
 
 /// The verbs of one invocation plus its flags. Unknown flags are kept rather than
@@ -50,6 +50,12 @@ pub struct Invocation {
     pub id_list: Vec<i64>,
     pub watch: bool,
     pub cached: bool,
+    /// v0.9.3 (ADR 0014): ask the list doors for the DB's OWN icon bytes. Opt-in on
+    /// the measured ground that an icon is about 3.1 K chars once encoded (avg 2 327
+    /// bytes per copy) - an unbounded hit list would be huge, so `--icons` rides the
+    /// doors the caller bounds with `--limit` and the default JSON stays exactly as
+    /// small as it is today.
+    pub icons: bool,
     pub bad: String,
 }
 
@@ -75,6 +81,7 @@ pub fn bare_flag(flag: String) -> bool {
     if flag == "--priced" { return true }
     if flag == "--watch" { return true }
     if flag == "--cached" { return true }
+    if flag == "--icons" { return true }
     return false;
 }
 
@@ -107,6 +114,7 @@ pub fn parse_invocation(args: Vec<String>) -> Invocation {
         id_list: [].to_vec(),
         watch: false,
         cached: false,
+        icons: false,
         bad: "".to_string(),
     };
     let mut index: usize = 0;
@@ -117,6 +125,7 @@ pub fn parse_invocation(args: Vec<String>) -> Invocation {
                 if token == "--priced" { out.priced = true; }
                 if token == "--watch" { out.watch = true; }
                 if token == "--cached" { out.cached = true; }
+                if token == "--icons" { out.icons = true; }
                 index = index + 1;
                 continue;
             }
@@ -776,7 +785,7 @@ pub fn cmd_search(inv: &Invocation) -> AppResult<String> {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };
-    let hits: Vec<Hit> = match search(&conn, filter, false) {
+    let hits: Vec<Hit> = match search(&conn, filter, inv.icons) {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };
@@ -805,11 +814,11 @@ pub fn cmd_stats(inv: &Invocation) -> AppResult<String> {
         None => 10,
         Some(value) => value,
     };
-    let cheap: Vec<Extreme> = match cheapest(&conn, limit, false) {
+    let cheap: Vec<Extreme> = match cheapest(&conn, limit, inv.icons) {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };
-    let rich: Vec<Extreme> = match priciest(&conn, limit, false) {
+    let rich: Vec<Extreme> = match priciest(&conn, limit, inv.icons) {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };
