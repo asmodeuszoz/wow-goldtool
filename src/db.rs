@@ -1052,6 +1052,54 @@ pub fn price_updated_at(price: Option<Price>) -> Option<String> {
     }
 }
 
+/// v0.9.4 (ADR 0015): the money words of ONE copper number, in the game's OWN
+/// wording - and the unit is not an assumption, the DB's own tooltip copies prove
+/// it: `45267` sits beside `Sell Price: 4g 52s 67c` on row 810, `10367` beside
+/// `1g 3s 67c` on 2528, `100` beside `1s` on 733 and `7` beside `7c` on 36, so
+/// 100 copper is 1 silver and 100 silver is 1 gold. The copies give the zero rule
+/// too: the denomination at zero is simply DROPPED (`25000` ↔ `2g 50s` on 4499,
+/// `20000` ↔ `2g` on 12720, `3000` ↔ `30s` on 18046, and the middle-zero `20042`
+/// ↔ `2g 42c` on 14138 - the only such row in 4 231), so this formatter writes
+/// what the copies write and never invents a `0s` upstream never stated. A copper
+/// of 0 appears NOWHERE in the DB (measured: MIN over every copper column is `1`),
+/// so the `0c` below is a RULE, not a measurement: it keeps a stated zero readable
+/// instead of printing nothing. Money is DERIVED at answer time and NEVER stored
+/// - the copper numbers stay the sort keys, the script fields and the numeric
+/// contract of docs/DATABASE.md, so the schema stays `5` with nothing to migrate.
+pub fn money_text(copper: i64) -> String {
+    let gold: i64 = copper / 10000;
+    let silver: i64 = (copper % 10000) / 100;
+    let copper_only: i64 = copper % 100;
+    let mut parts: Vec<String> = [].to_vec();
+    if gold > 0 { parts.push(format!("{}g", gold)); }
+    if silver > 0 { parts.push(format!("{}s", silver)); }
+    if copper_only > 0 { parts.push(format!("{}c", copper_only)); }
+    if parts.len() == 0 { return "0c".to_string(); }
+    return parts.join(" ");
+}
+
+/// Money beside an OPTIONAL copper number: an absent price stays absent, it never
+/// reads as `0c` - "the AH does not have this item" and "this item costs nothing"
+/// are different facts, and ADR 0004's rule against made-up zeros applies here too.
+pub fn money_of(copper: Option<i64>) -> Option<String> {
+    match copper {
+        None => return None,
+        Some(value) => return Some(money_text(value)),
+    }
+}
+
+/// Money beside an AVERAGE, which SQLite answers as a FLOAT (measured on the user's
+/// own DB: `AVG(price_min)` is `54391.705896` copper). Money has no fraction of a
+/// copper, so the average FLOORS to whole copper rather than rounding up: a rounded
+/// money word would claim a price the ledger never observed (`5g 43s 92c` for a
+/// mean that is not quite that high). The exact float still rides beside it.
+pub fn money_of_avg(average: Option<f64>) -> Option<String> {
+    match average {
+        None => return None,
+        Some(value) => return Some(money_text(value as i64)),
+    }
+}
+
 pub fn weapon_min(weapon: Option<Weapon>) -> Option<i64> {
     match weapon {
         None => return None,
@@ -2209,6 +2257,13 @@ pub struct PriceSample {
     pub sampled_at: i64,
     pub price_min: Option<i64>,
     pub price_market: Option<i64>,
+    /// v0.9.4 (ADR 0015): the SAME copper numbers above, in the game's money words
+    /// (measured: `454` copper reads `4s 54c`, `20628` reads `20g 62s 28c`), filled
+    /// at ANSWER TIME by `history_of` from the copper the read already carries - so
+    /// the ledger still holds integers, `--limit`-bounded sorts and scripts still
+    /// work, and the money a sample shows can never drift from its own number.
+    pub price_min_money: Option<String>,
+    pub price_market_money: Option<String>,
 }
 
 /// An item's own samples, OLDEST first (the trend reads left to right): the read
@@ -2228,6 +2283,8 @@ pub fn history_of(conn: &Connection, id: i64, limit: i64) -> AppResult<Vec<Price
             sampled_at: row.get(0)?,
             price_min: row.get(1)?,
             price_market: row.get(2)?,
+            price_min_money: money_of(row.get(1)?),
+            price_market_money: money_of(row.get(2)?),
         })
     }) {
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
