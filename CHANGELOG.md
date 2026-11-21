@@ -6,6 +6,50 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.9.5 — the price homes: FOUR columns own FOUR questions, carved now, filled later · 2026-11-21 · tag `v0.9.5`
+
+Added
+
+- **Three reserved columns** (ADR 0016): `vendor_buy` (what a vendor BUYS — only when the
+  item can be bought at all), `price_min_now` (the CURRENT auction-house min buyout) and
+  `price_trend_normal` (the historic "normal" the live trend answers) join the schema beside
+  the `vendor_sell` / `price_min` / `price_market` homes that already exist. **Schema 5 → 6**,
+  additive ALTERs, and `check_schema` now chains EVERY stale shape (v1..v5) up to 6 — the
+  staircase v0.9.0's comment promised since its own hop.
+- **The reservation moves ZERO bytes**: no producer, no reader, no door, no UI change this
+  release — measured with BOTH binaries (the v0.9.4 tree at `4875222`, built in a scratch
+  worktree, and this one) over two copies of ONE fixture DB: 12 of 13 doors BYTE-IDENTICAL
+  at the same byte counts, and `status` identical once its own `db.path` echo is pinned
+  (the paths cannot match: the OLD binary refuses the file the NEW one migrated).
+- **The migration is real and idempotent**: the user's own file went 5 → 6 the moment a
+  door opened it — **19 258 rows / 4 231 vendor_sell / 4 285 history samples intact**, trio
+  NULL on all of them, and a SECOND open re-migrated NOTHING (second `status`
+  byte-identical).
+
+Honest about what did NOT move
+
+- **NULL in the trio means "NO PRODUCER HAS EVER WRITTEN IT"** — deliberately NOT yet the
+  "fetched / fetched-and-not-there" split the price columns carry; the third state arrives
+  WITH the first producer, never before it (ADR 0011's rule: no plan for a door that does
+  not exist). HOW the values get fetched is later work — the user said so, and no upstream
+  door has EVER answered these words, so the column NAMES are ours and docs/API.md gains
+  nothing (never invent upstream shapes).
+- `price_min` (the stored copy's cheapest AH buy, an aging payload's number) and `price_min_now`
+  (what the AH says NOW) are TWO columns on purpose: one column answering two questions over
+  time is two truths in one word.
+- **money (ADR 0015) waits**: `money_of` takes any `Option<i64>` copper, so the words will
+  reach these columns the day producers write them — with ZERO measured rows there is ZERO
+  money to answer now, and money of NULL was rejected by ADR 0004's rule again.
+- **CI gains no step** (31 stays 31 + one plant line, verified by step-line count after the
+  edit): the smoke file is now BORN at 6, and the ALTER chain does NOT run in CI — CI has
+  no schema-5 file — so the migration gets measured on scratch copies in the post-tag audit
+  (ADR 0011's honest split).
+- **the stale direction keeps its honest refusal**: the pinned v0.8.1 binary answers exit
+  4 — `database on disk uses schema 6, this build wants 4` — over a migrated file, untouched.
+
+Refs: ADR 0016, ADR 0015's money formatter (it will reach these columns later), ADR 0007's
+sampling rule, ADR 0011's CI rule; schema is `6` — the FIRST hop since v0.9.0's own.
+
 ## v0.9.4 — prices read like the GAME writes them (`2g 50s`), copper stays the number · 2026-11-21 · tag `v0.9.4`
 
 Added

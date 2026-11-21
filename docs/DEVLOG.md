@@ -5,6 +5,64 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-21 · v0.9.5 — the price homes: FOUR columns own FOUR questions, carved now, filled later
+
+### What forced it — the user's own test
+
+The user tested the app and said: "the prices shown right now are not the vendor prices —
+there should be a vendor sell value and a vendor buy value (if the item can be bought), and
+down the line two more: current auction-house min buyout and the historic normal the live
+trend answers. How we'll get to those values can be ignored for now, but the columns should
+be allocated now." The answer until today really does carry ONE price (plus the vendor sell):
+`price_min` is the STORED copy's cheapest AUCTION-house buy — an aging payload's number, not
+a live one, and not a vendor's. The honest shape is FOUR homes, and the user's sentence
+settled the scope: carve NOW, fetch LATER.
+
+One thing the test exposed that the record must keep: `price_min` answering "the gold column"
+in docs/DATABASE.md was always the stored copy's number — users read `2g 5s 27c` on the
+money cell and assumed the AH OFFERS that now. It never promised now-ness. The hop names the
+live question as its OWN column instead of quietly overloading the old one.
+
+### The decision, and what was rejected
+
+The schema hop 5 → 6 adds `vendor_buy`, `price_min_now`, `price_trend_normal` — names that
+are OURS: no upstream door has EVER answered these words (docs/API.md's measured keys hold
+nothing near them), so writing a producer now would INVENT an upstream shape (rejected twice:
+the user deferred fetching, AND the house rule forbids guessing at payloads). Computing live
+values at answer time was rejected too — unlike money (ADR 0015: a pure rendering of copper
+that already exists), "what the AH offered at 14:05" is an OBSERVATION that AGES: it cannot
+be re-derived from what is on disk, so its home IS the DB. Overloading `price_min` for the
+live value was rejected: one column answering two questions over time is two truths in one
+word — `price_min` stays what the payload said, `price_min_now` is what the AH says NOW.
+Carving nothing and documenting a wish was rejected by the user's own words. Chosen:
+additive ALTERs, `check_schema` chains v1..v5 up to 6 — the staircase v0.9.0's comment
+promised since its own hop. NULL in the trio means **"no producer has ever written it"** —
+deliberately NOT yet the fetched/not-there triple the price columns split: a checked-missing
+state for a door that does not exist is ADR 0011's rejected plan; the third state arrives
+WITH the first producer.
+
+### Chain
+
+`cb80fcc` feat(db) (`SCHEMA_VERSION` 6, trio in `SCHEMA_SQL` before `raw_json`, `SQL_MIGRATE_TO_V6`,
+arms 1–5 in `check_schema`) → `5fa6b23` ci (money paragraph gains its tense note, schema claims
+truthful, 31 steps stay 31) → `e5acc83` chore (banner 0.9.4 → 0.9.5, Cargo.lock rides) →
+this record carries the tag.
+
+### Verification, pre-tag — the hop, ZERO requests
+
+| probe | answer |
+| ----- | ------ |
+| fresh DB born at 6 | `.schema item`: trio BEFORE `raw_json` in CREATE; `schema_version|6` |
+| scratch schema-5 copy, first door | `status` rc=0 → meta 6; rows 6 / 4 priced / 4 vendor_sell intact, copper unchanged (25 keeps its stated `606`), trio NULL on all; SECOND `status` BYTE-IDENTICAL, nothing re-migrated |
+| the user's own file, first door | 5 → 6 in place: **19 258 rows / 4 231 vendor_sell / 4 285 samples intact**, trio NULL on ALL (`COUNT ... IS NOT NULL` = 0), money doors re-answer (`item 14138`: `vendor_sell 20042 → 2g 42c`, no money key inside `item`) |
+| door pairs, BOTH binaries (v0.9.4 tree `4875222`, scratch worktree; this one) over two copies of ONE fixture DB | **12 of 13 BYTE-IDENTICAL** at equal byte counts: search 1 941 / 763 / 755 / 3 363, stats 1 533 / 1 850 / 17 462, cards 4 336 / 1 103 / 3 868 / 4 022, `refresh-twins` 223; `status` differs ONLY in its `db.path` echo — pinned, IDENTICAL |
+| pinned v0.8.1 binary on a migrated file | exit **4**, `database on disk uses schema 6, this build wants 4`, file untouched after |
+| build through the chain | exit 0, the FOUR named dead-code warnings the whole way — `SQL_MIGRATE_TO_V6` had its consumer in the SAME commit (no dead window, unlike v0.9.4's `money_of_avg`) |
+
+This release's own push verdicts land in the post-tag section below, joining the ladder
+(`v0.9.4` → `4875222`, `v0.9.3` → `78426d1`, `v0.9.2` → `46ee524`, `v0.9.1` → `5631168`,
+`v0.9.0` → `174460f`).
+
 ## 2026-11-21 · v0.9.4 — the money words: prices read like the GAME writes them, and copper stays the number
 
 ### What forced it — the unit was an open question, and the DB's OWN copies settle it

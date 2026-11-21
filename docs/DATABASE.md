@@ -15,23 +15,31 @@ or stale-schema file, or `execute_batch(SCHEMA_SQL)` writes it and stamps
 `schema_version` into `meta`. The schema is idempotent, so a fresh process (CLI or GUI)
 can always attach; `open_db` and `open_db_at` are the two doors into that helper.
 
-**Four stale shapes are migrated instead of refused** (v0.8.0 grew the chain to four again at
-v0.9.0): the file on disk saying `schema_version = 1` (the user's own catalogue, 19 258 rows,
-still never touched by a refusal), `2`, `3` or `4` differs from this build by additive steps
-only, so `check_schema` chains them: v1 gets v0.5.3's one `ALTER` first, v1/v2 get the v0.6.0
-batch, v1/v2/v3 the v0.8.0 batch of eight, and v1/v2/v3/v4 all get the v0.9.0 batch — two
-`ALTER`s, `tooltip_text TEXT` and `tooltip_lc TEXT`, the readable twin of the copy (ADR 0012) —
-with the `meta` stamp moving to `5` in the same call. Refusing any file would throw away a 19 258-row catalogue on the excuse of
-a schema bump. A migrated file's **column order differs from a fresh file's** (ALTER
-appends, SCHEMA_SQL lists the new columns mid-table) — every reader in the code names columns
-explicitly and nothing reads positions. A file **newer** than this build is still refused — that
-direction cannot be guessed at (measured consequence: a pinned v0.7.0 binary refuses a file that
-already reached `schema_version = 4` with `database on disk uses schema 4, this build wants 3`).
+**Five stale shapes are migrated instead of refused** (v0.9.0 grew the chain to four;
+v0.9.5 grew it to five again): the file on disk saying `schema_version = 1` (the user's own
+catalogue, 19 258 rows, still never touched by a refusal), `2`, `3`, `4` or `5` differs from
+this build by additive steps only, so `check_schema` chains them: v1 gets v0.5.3's one
+`ALTER` first, v1/v2 get the v0.6.0 batch, v1/v2/v3 the v0.8.0 batch of eight, v1..v4 the
+v0.9.0 batch of two `ALTER`s (`tooltip_text`/`tooltip_lc`, the readable twin, ADR 0012),
+and v1..v5 all get THIS build's trio — `vendor_buy INTEGER`, `price_min_now INTEGER`,
+`price_trend_normal INTEGER` (ADR 0016: carved, never written), with the `meta` stamp
+moving to `6` in the same breath (measured 2026-11-21: the user's own file went 5 → 6
+on the first door that opened it, 19 258 rows / 4 231 vendor_sell / 4 285 samples intact,
+and a SECOND open re-migrated nothing). Refusing any file would throw away a 19 258-row
+catalogue on the excuse of a schema bump. A migrated file's **column order differs from a
+fresh file's** (ALTER appends, SCHEMA_SQL lists the new columns mid-table — the trio sits
+BEFORE `raw_json` in a fresh CREATE and AFTER `deleted_at`… at the END in a migrated file) —
+every reader in the code names columns explicitly and nothing reads positions. A file
+**newer** than this build is still refused — that direction cannot be guessed at
+(measured consequences: a pinned v0.7.0 binary refuses a schema-4 file, and a pinned v0.8.1
+binary refuses THIS release's schema-6 file with `database on disk uses schema 6, this
+build wants 4`, file untouched).
 See [ADR 0006](./DECISIONS/0006-checked-missing-third-state.md),
-[ADR 0008](./DECISIONS/0008-icon-storage-third-stage.md) and
-[ADR 0010](./DECISIONS/0010-manual-layer-and-tooltip-copy.md).
+[ADR 0008](./DECISIONS/0008-icon-storage-third-stage.md),
+[ADR 0010](./DECISIONS/0010-manual-layer-and-tooltip-copy.md) and
+[ADR 0016](./DECISIONS/0016-the-price-homes.md).
 
-## Schema (`schema_version = 5`)
+## Schema (`schema_version = 6`)
 
 ```sql
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
@@ -48,11 +56,11 @@ CREATE TABLE item (
   sockets TEXT, socket_bonus TEXT, classes TEXT, stats TEXT, effects TEXT,
   faction_prices TEXT,
   dmg_min INTEGER, dmg_max INTEGER, dps REAL, speed REAL,   -- weapon block
-  vendor_sell INTEGER,              -- copper
-  price_min INTEGER,                -- copper, cheapest AH buy        <- the "gold" column
-  price_market INTEGER,             -- copper, AH market value
-  price_available INTEGER,          -- offers on the AH
-  price_realms INTEGER,             -- realms watched for the price
+  vendor_sell INTEGER,              -- copper, what a VENDOR SELLS (the copy's own "Sell Price:" words)
+  price_min INTEGER,                -- copper, cheapest AH buy from the STORED COPY (not live!)  <- the "gold" column
+  price_market INTEGER,             -- copper, AH market value from the stored copy
+  price_available INTEGER,          -- offers on the AH  (COUNT, never money)
+  price_realms INTEGER,             -- realms watched for the price  (COUNT, never money)
   price_region TEXT, price_scope TEXT, price_updated_at TEXT,
   api_url TEXT, html_url TEXT, tooltip_url TEXT, tooltip_etag TEXT,
   list_etag TEXT, detail_etag TEXT, -- conditional GET bookkeeping
@@ -63,6 +71,9 @@ CREATE TABLE item (
   manual_overrides TEXT,            -- one JSON ARRAY {field,value,at} - merged LAST on every write
   edited_at INTEGER,                -- the last field a user stated
   deleted_at INTEGER,               -- the tombstone every query hides
+  vendor_buy INTEGER,               -- RESERVED v0.9.5 (ADR 0016): what a vendor BUYS (NULL = no
+  price_min_now INTEGER,            --   producer has EVER written it - NOT "looked up, found nothing")
+  price_trend_normal INTEGER,       --   the trio: vendor buy / CURRENT AH min buyout / historic "normal"
   raw_json TEXT                     -- verbatim detail payload, forward-compatible
 );
 
@@ -309,6 +320,41 @@ true, because the numeric contract of this file is the contract everything else 
 * the average FLOORS: SQLite answers `AVG` as a float (measured `AVG(price_min) = 54 391.705896`
   copper → `5g 43s 91c`), and rounding up would print `5g 43s 92c`, a price no observation
   reached. The exact float still rides beside it.
+
+### The price homes (v0.9.5, [ADR 0016](./DECISIONS/0016-the-price-homes.md)): carved now, filled later — NULL means NO PRODUCER
+
+The user's testing asked for FOUR price homes; the schema hop 5 → 6 carves three of them
+(`vendor_buy`, `price_min_now`, `price_trend_normal` — the names are OURS: this is the user's
+product wish, and NO upstream door has ever answered these words, so docs/API.md grows
+nothing and no payload key changed). HOW the values get fetched is explicitly later work
+(the user said so); this release creates the columns and NOTHING writes or reads them:
+
+* every door answers BYTE-IDENTICAL across the hop (measured with BOTH the v0.9.4 binary —
+  the tree at `4875222`, built in a scratch worktree — and this one over two copies of ONE
+  fixture DB: `search --limit 6` 1 941 bytes both sides, `stats --limit 3` 1 533, `stats`
+  1 850, `stats --icons` 17 462, `item 25 --cached` 4 336, the made card 1 103, 12809/40
+  --cached 3 868/4 022, the --where steps 763/755/3 363, `refresh-twins` 223; `status`
+  echoes its own `db.path`, so with that string pinned its JSON is IDENTICAL — the paths
+  cannot match, because the OLD binary refuses the file the NEW one migrated);
+* NULL in the trio means **"no producer has ever written it"** — deliberately NOT the same
+  answer as the price columns' "not fetched yet vs fetched and not on the AH" pair; the
+  third state arrives WITH the producers, in later releases, and only THEN gets its
+  checked-missing shape;
+* the hop itself is honest additive ALTERs: the user's own file went 5 → 6 the moment a
+  door opened it, **19 258 rows / 4 231 vendor_sell / 4 285 samples intact**, trio NULL on
+  all of them, and a second open migrated NOTHING (idempotent, second `status`
+  BYTE-IDENTICAL);
+* the money formatter (ADR 0015) will reach these columns the day producers write them —
+  `money_of` takes any `Option<i64>` copper — but with ZERO measured rows there is ZERO
+  money to answer now, and inventing money of NULL was rejected by ADR 0004's rule again;
+* `price_min` (the stored copy's cheapest AH buy) and `price_min_now` (the CURRENT one) are
+  TWO columns on purpose: a stored payload's price ages, a live refresh does not, and
+  collapsing them would make one column answer two different questions over time.
+
+No index for the trio (a guessed index for columns nothing queries is a plan, not a
+measurement — ADR 0011's rule again), and the fresh-CREATE order (trio BEFORE `raw_json`)
+vs the ALTER order (appended at the END) is exactly why every reader names columns — the
+rule the v0.6.0 migration comment already states.
 
 
 ## Query recipes
