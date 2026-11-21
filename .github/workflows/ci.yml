@@ -2,6 +2,19 @@ name: CI
 
 # Single Cargo project at the repo root (docs/DECISIONS/0001-flat-cargo-layout-no-cli.md),
 # so plain cargo steps are enough: no Tauri CLI, no Node toolchain, no display server.
+#
+# Every action name below is one GitHub resolves: `actions/checkout` and
+# `dtolnay/rust-toolchain` (rustup-based, on the Actions marketplace). The system
+# dependencies the Tauri shell needs on Linux are installed with apt directly, which
+# keeps the workflow free of third-party setup actions.
+#
+# There is deliberately NO `cargo fmt --check` gate: measured on this tree,
+# `cargo fmt --check` answers a diff (the house style is hand-written — long
+# `use` lists, explicit `return`), so such a gate would be red for a style reason
+# and not a bug. A rustfmt-clean tree would be its own deliberate milestone.
+# The linter runs INFORMATIONAL: `cargo clippy` answers 0 errors and hundreds of
+# warnings, and this build's four dead-code warnings (docs/DEVELOPMENT.md names the
+# set) are intended, so a `-D warnings` gate would lie about our own plan.
 
 on:
   push:
@@ -34,21 +47,15 @@ jobs:
     env:
       RUST_BACKTRACE: 1
     steps:
+      - name: Check out the tree
+        uses: actions/checkout@v7
       - name: Install the Rust toolchain
-        uses: actions/rust-action@v7
-      - name: Install Ubuntu system dependencies (webkit2gtk + gtk for the Tauri shell)
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install the Ubuntu libraries the Tauri shell links against (webkit2gtk + gtk)
         if: matrix.platform.os == 'ubuntu-24.04'
-        uses: ubuntu-setup-action/install-ubuntu-system-dependencies@v7
-        with:
-          apps: >-
-            libgtk2.0-0 libgtk2.0-dev libwebkit2gtk-4.0-dev
-          directories: appdir
-          appimage-extract-and-run: '1'
-      - name: Install Windows system dependencies
-        if: matrix.platform.os == 'windows-2025'
-        uses: windows-setup-action/install-windows-system-dependencies@v7
-        with:
-          dependencies: close-to-none
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk2.0-0 libgtk2.0-dev libwebkit2gtk-4.0-dev
       - name: Build (dev)
         run: cargo build --target ${{ matrix.platform.target }}
       - name: Build (release)
@@ -59,20 +66,32 @@ jobs:
     env:
       RUST_BACKTRACE: 1
     steps:
-      - name: Install the Rust toolchain
-        uses: actions/rust-action@v7
-      - name: Format gate
-        run: cargo fmt
-      - name: Lint gate
-        run: cargo lint
+      - name: Check out the tree
+        uses: actions/checkout@v7
+      - name: Install the Rust toolchain (with the lint component)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - name: Install the Ubuntu libraries the Tauri shell links against (webkit2gtk + gtk)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk2.0-0 libgtk2.0-dev libwebkit2gtk-4.0-dev
+      - name: Lint (informational — this build's warnings are the plan, see docs/DEVELOPMENT.md)
+        run: cargo clippy --all-targets
 
   test:
     runs-on: ubuntu-24.04
     env:
       RUST_BACKTRACE: 1
     steps:
+      - name: Check out the tree
+        uses: actions/checkout@v7
       - name: Install the Rust toolchain
-        uses: actions/rust-action@v7
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install the Ubuntu libraries the Tauri shell links against (webkit2gtk + gtk)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk2.0-0 libgtk2.0-dev libwebkit2gtk-4.0-dev
       - name: Unit + pipeline tests (fixture server, never the live API)
         run: cargo test
       # Active from v0.2.0 on: the headless CLI (docs/DECISIONS/0004) doubles as the
