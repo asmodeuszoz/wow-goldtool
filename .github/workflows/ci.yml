@@ -196,4 +196,18 @@ jobs:
           cargo run -- refresh-twins
           cargo run -- search "damage speed" --where description
           cargo run -- refresh-twins
+          # the icon doors (v0.9.3, ADR 0014): --icons puts the DB's OWN icon bytes
+          # on a list answer, so what these two steps read is the mirror's icons stage
+          # above - 3 files copied, 1 checked as gone upstream. Measured on a scratch
+          # copy of this DB: WITHOUT the flag the trio answers as three nulls, WITH it
+          # row 25's hit carries 2 596 chars of base64 plus icon_at, the manual row
+          # carries none of the three ("no copy and never asked for one"), and the door
+          # over every visible row shows the gone-stamped row 60 answering no bytes with
+          # icon_missing_at set - the three states stay three answers. ZERO requests
+          # leave either door (they only read the DB), so the fixture's GET tallies must
+          # not move: a green replay keeps GETs at whatever the crawl made them, and
+          # that unchanged tally IS the proof the flag asks nothing upstream. The payload
+          # is not asserted byte-wise here; the replay record decodes it.
+          cargo run -- search sword --where description --icons
+          cargo run -- stats --icons
           cargo run -- stats
