@@ -27,6 +27,20 @@ function num(value) {
   return Number(value).toLocaleString("en-US");
 }
 
+// v0.9.4 (ADR 0015): the money cell. The WORDS are not computed here - Rust's ONE
+// money formatter (money_text in db.rs) wrote them into the very answer this cell
+// reads, so the UI never does copper maths and cannot drift a price or invent the
+// game's shape. The cell shows what the GAME writes (`1g 75c`, zero denominations
+// dropped exactly as the DB's own tooltip copies write them) and the EXACT copper
+// - the number the price sorts, the scripts and docs/DATABASE.md's numeric
+// contract use - rides in the hover, so money never hides a number. A row with no
+// price answers "no price", never 0c: "the AH has no offer" and "costs nothing"
+// stay two answers (ADR 0004's rule against made-up zeros, again).
+function money_cell(money, copper) {
+  if (money === null || money === undefined) { return '<span class="muted">no price</span>'; }
+  return '<span class="moneycell" title="' + esc(num(copper) + " copper exact") + '">' + esc(money) + "</span>";
+}
+
 // The one door to Rust: argv in, parsed verb JSON out. Failures throw the
 // envelope's error object, which carries kind/exit/message/retry_after, so each
 // handler has exactly one catch and the UI never re-derives an error shape.
@@ -91,10 +105,10 @@ async function refreshStatus() {
     }
     grid.push(["price samples", num(status.coverage.history) + " stored (" + num(status.coverage.detailed) + " fresh detail writes add one each, 304s add none)"]);
     if (num(status.coverage.min_price) !== null) {
-      grid.push(["price range", num(status.coverage.min_price) + " .. " + num(status.coverage.max_price)]);
+      grid.push(["price range", status.coverage.min_price_money + " .. " + status.coverage.max_price_money + " (" + num(status.coverage.min_price) + " .. " + num(status.coverage.max_price) + " copper)"]);
     }
     if (num(status.coverage.avg_price) !== null) {
-      grid.push(["average price", num(Math.round(status.coverage.avg_price))]);
+      grid.push(["average price", status.coverage.avg_price_money + " (floors " + num(Math.floor(status.coverage.avg_price)) + " copper: money has no fraction of a copper)"]);
     }
     grid.push(["list crawl", fmt_state(status.list)]);
     grid.push(["detail crawl", fmt_state(status.detail)]);
@@ -151,7 +165,7 @@ async function runSearch() {
     }
     document.querySelector("#hits tbody").innerHTML = rows;
     var shown = found.hits.length;
-    var note = "showing " + shown + " of " + num(found.total) + " — details of " + num(found.total) + " items cost one request each, and the sync stage caches them; the icon column shows the DB's OWN copy where the icons stage wrote one (\u25c7 means no bytes: never fetched, or checked as gone upstream \u2014 the hover says which, and nothing is hotlinked)";
+    var note = "showing " + shown + " of " + num(found.total) + " — details of " + num(found.total) + " items cost one request each, and the sync stage caches them; the price column shows the game's OWN money words (hover: the exact copper, the number the sorts and the scripts read), the icon column shows the DB's OWN copy where the icons stage wrote one (\u25c7 means no bytes: never fetched, or checked as gone upstream \u2014 the hover says which, and nothing is hotlinked)";
     if (found.total === 0) { note = "no item matches — the search runs against the local DB only"; }
     set_note(document.getElementById("search-note"), note, false);
     document.getElementById("btn-search").classList.remove("running");
@@ -184,9 +198,7 @@ function hit_row(hit) {
   if (hit.html_url) {
     link = '<a class="source" href="' + esc(hit.html_url) + '">view</a>';
   }
-  var price = num(hit.price_min);
-  var price_cell = '<span class="muted">no price</span>';
-  if (price !== null) { price_cell = esc(price); }
+  var price_cell = money_cell(hit.price_min_money, hit.price_min);
   var watch_label = "watch";
   if (watched.indexOf(hit.id) >= 0) { watch_label = "unwatch"; }
   var toggle = '<button class="rowact" data-id="' + esc(String(hit.id)) + '">' + watch_label + "</button>";
@@ -491,7 +503,7 @@ async function runCard(live) {
       }
     }
     if (found.history && found.history.length > 1) {
-      line = line + ", and the price has " + found.history.length + " samples (trend drawn on the card)";
+      line = line + ", and the price has " + found.history.length + " samples (trend drawn on the card, each bar's hover carries that sample's money)";
     } else if (found.history && found.history.length === 1) {
       line = line + ", and one price sample so far — a later fresh write adds the next point";
     }
@@ -533,10 +545,15 @@ function render_card(found) {
   rows.push(["type", item.item_type, "item_type"]);
   rows.push(["subtype", item.item_subtype, "item_subtype"]);
   rows.push(["slot", item.slot, ""]);
-  rows.push(["min price", item.price ? item.price.min : null, ""]);
-  rows.push(["market price", item.price ? item.price.market : null, ""]);
+  // v0.9.4 (ADR 0015): the money words ride these THREE rows as a 4th element -
+  // they come from Rust beside the very numbers printed here, and the row shows
+  // money with the exact copper in the hover. `available` gets NO money: it counts
+  // auctions (measured, row 25 answers `available 12` for 12 offers of 15 000
+  // copper), and money never rides a count.
+  rows.push(["min price", item.price ? item.price.min : null, "", found.price_min_money]);
+  rows.push(["market price", item.price ? item.price.market : null, "", found.price_market_money]);
   rows.push(["available", item.price ? item.price.available : null, ""]);
-  rows.push(["vendor sell", item.vendor_sell, "vendor_sell"]);
+  rows.push(["vendor sell", item.vendor_sell, "vendor_sell", found.vendor_sell_money]);
   if (item.weapon) {
     rows.push(["damage", item.weapon.damage_min + "-" + item.weapon.damage_max, ""]);
     rows.push(["dps / speed", item.weapon.dps + " / " + item.weapon.speed, ""]);
@@ -572,7 +589,12 @@ function render_card(found) {
     if (said[key] !== undefined) {
       mark = " <i>the user said this on " + esc(when(said[key])) + "</i>";
     }
-    html = html + '<div class="cardrow"><span>' + esc(rows[i][0]) + "</span><b>" + esc(String(value)) + mark + "</b></div>";
+    // A money row (the 4th element) shows the game's words and keeps the copper in
+    // the hover; every other row prints its value as before. money_cell escapes
+    // both parts, so the money text from Rust lands as text, not as markup.
+    var body = esc(String(value));
+    if (rows[i].length > 3) { body = money_cell(rows[i][3], rows[i][1]); }
+    html = html + '<div class="cardrow"><span>' + esc(rows[i][0]) + "</span><b>" + body + mark + "</b></div>";
   }
   // A row the user MADE (ADR 0010): the DB's own columns answer its card, and the
   // card says so - the fields only an upstream record can state read empty above.
@@ -608,7 +630,10 @@ function render_card(found) {
   }
   // The price trend: one bar per sample, oldest first (history_of reads newest-40
   // reversed). Heights are a percentage of the window's max price_min; a one-sample
-  // window shows one bar: the sample EXISTS, the trend just has no slope yet.
+  // window shows one bar: the sample EXISTS, the trend just has no slope yet. v0.9.4
+  // (ADR 0015): a bar carries the sample's money plus its exact copper in the hover
+  // - money reaches EVERY copper number, and the samples' money came along in the
+  // same fragments Rust filled (PriceSample.price_min_money).
   if (found.history && found.history.length > 0) {
     var maxp = 1;
     for (var h = 0; h < found.history.length; h = h + 1) {
@@ -620,7 +645,7 @@ function render_card(found) {
       var sample = found.history[g];
       if (sample.price_min === null) { continue; }
       var pct = Math.max(8, Math.round(100 * sample.price_min / maxp));
-      bars = bars + '<div class="trendcol" style="height:' + pct + '%"></div>';
+      bars = bars + '<div class="trendcol" title="' + esc(String(sample.price_min_money) + " \u00b7 " + num(sample.price_min) + " copper") + '" style="height:' + pct + '%"></div>';
     }
     html = html + '<div class="cardrow"><span>price trend</span><b><div class="trendbox">' + bars + "</div></b></div>";
   }
@@ -765,10 +790,10 @@ async function runStats() {
       var row = byq[j];
       var label = row.quality || "unknown";
       var pct = Math.round(100 * row.items / biggest);
-      var avg = num(row.avg_price === null ? null : Math.round(row.avg_price));
+      var avg = money_cell(row.avg_price_money, row.avg_price);
       bars = bars + '<div class="barrow"><span class="chip c-' + esc(label) + '">' + esc(label) + "</span>"
         + '<div class="bar c-' + esc(label) + '" style="width:' + pct + '%"></div>'
-        + "<b>" + num(row.items) + " items · " + num(row.priced) + " priced · avg " + (avg === null ? "no price" : avg) + "</b></div>";
+        + "<b>" + num(row.items) + " items · " + num(row.priced) + " priced · avg " + (row.avg_price_money === null ? "no price" : avg) + "</b></div>";
     }
     document.getElementById("stats-bars").innerHTML = bars;
     document.querySelector("#stats-cheap tbody").innerHTML = extreme_rows(found.cheapest);
@@ -776,7 +801,7 @@ async function runStats() {
     var cov = found.coverage;
     set_note(document.getElementById("stats-note"),
       "one read answered " + num(cov.items) + " items, " + num(cov.priced) + " priced, " + num(cov.detailed) + " with details; the price spread is "
-      + (num(cov.min_price) === null ? "unknown" : num(cov.min_price) + " .. " + num(cov.max_price))
+      + (num(cov.min_price) === null ? "unknown" : cov.min_price_money + " .. " + cov.max_price_money + " (" + num(cov.min_price) + " .. " + num(cov.max_price) + " copper)")
       + " — the icon column is the DB's own copy where the icons stage wrote one (\u25c7: no bytes)", false);
     document.getElementById("btn-stats").classList.remove("running");
   } catch (problem) {
@@ -789,11 +814,9 @@ function extreme_rows(rows) {
   for (var i = 0; i < rows.length; i = i + 1) {
     var one = rows[i];
     var quality = one.quality || "unknown";
-    var price = num(one.price_min);
-    if (price === null) { price = "no price"; }
     html = html + '<tr><td class="namecell">' + esc(one.name) + '<span class="chip c-' + esc(quality) + '">' + esc(quality) + "</span></td>"
       + '<td class="iconcell">' + icon_cell(one) + "</td>"
-      + '<td class="pricecell">' + esc(String(price)) + "</td></tr>";
+      + '<td class="pricecell">' + money_cell(one.price_min_money, one.price_min) + "</td></tr>";
   }
   return html;
 }

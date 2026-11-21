@@ -171,6 +171,11 @@ td.iconcell { width: 34px; padding: 3px 6px; text-align: center; }
 .pricecell { font-variant-numeric: tabular-nums; }
 .pricecell.muted { color: var(--muted); }
 
+/* v0.9.4 (ADR 0015): money in the cell, the exact copper in its hover. tabular-nums
+   keeps the digits of a money column (g / s / c) aligned the way a price column must
+   be, and cursor: help says the hover is carrying the number under the money. */
+.moneycell { font-variant-numeric: tabular-nums; cursor: help; }
+
 /* sync */
 .sync-actions { display: flex; gap: 10px; margin: 12px 0 0; }
 #btn-cancel { min-width: 86px; }

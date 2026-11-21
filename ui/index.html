@@ -52,7 +52,7 @@
       </div>
       <table class="hits" id="hits">
         <thead>
-          <tr><th class="col-id">id</th><th class="col-name">name</th><th class="col-icon">icon</th><th class="col-quality">quality</th><th class="col-price">min price</th></tr>
+          <tr><th class="col-id">id</th><th class="col-name">name</th><th class="col-icon">icon</th><th class="col-quality">quality</th><th class="col-price">min price (money)</th></tr>
         </thead>
         <tbody></tbody>
       </table>
@@ -79,7 +79,7 @@
         <button class="act" id="btn-card-live" type="button">Re-check online</button>
       </div>
       <div class="cardbox" id="card-box"></div>
-      <div class="note" id="card-note">the card reads the DB: it answers offline, and "Re-check online" is the only button that touches the API</div>
+      <div class="note" id="card-note">the card reads the DB: it answers offline, prices are shown as the game&#8217;s money with the exact copper in each hover, and "Re-check online" is the only button that touches the API</div>
     </section>
 
     <section class="card" id="edit-card">
@@ -161,14 +161,14 @@
       <button class="act" id="btn-stats" type="button">Read the DB</button>
       <div class="bars" id="stats-bars"></div>
       <table class="mini" id="stats-cheap">
-        <thead><tr><th>cheapest to hunt</th><th class="col-icon">icon</th><th class="col-price">min price</th></tr></thead>
+        <thead><tr><th>cheapest to hunt</th><th class="col-icon">icon</th><th class="col-price">min price (money)</th></tr></thead>
         <tbody></tbody>
       </table>
       <table class="mini" id="stats-rich">
-        <thead><tr><th>priciest found</th><th class="col-icon">icon</th><th class="col-price">min price</th></tr></thead>
+        <thead><tr><th>priciest found</th><th class="col-icon">icon</th><th class="col-price">min price (money)</th></tr></thead>
         <tbody></tbody>
       </table>
-      <div class="note" id="stats-note">every number here is a query over the local DB — one read, no requests; the icon column is the DB's OWN copy where the icons stage wrote one, &#9671; where there are no bytes</div>
+      <div class="note" id="stats-note">every number here is a query over the local DB — one read, no requests; prices are the game&#8217;s OWN money words (hover: the exact copper, the number the sorts read), the icon column is the DB&#8217;S OWN copy where the icons stage wrote one, &#9671; where there are no bytes</div>
     </section>
   </main>
 
