@@ -114,6 +114,13 @@ jobs:
       # pixels) and one record's icon FILE is gone (404, the stage's third state) - the
       # card read after it shows the local copy and the trend, and stats prints the ledger
       # count, which is what proves the one-sample-per-fresh-write rule end to end.
+      # From v0.9.0 on the sequence also proves the LOCAL search door's scope (ADR
+      # 0012): --where description reads the readable twin (tooltip_text/tooltip_lc,
+      # schema 5) and --where all is name OR description - the fixture grounds both:
+      # item 25's COPIED tooltip says "One-Handed Sword" while its name does not, and
+      # one listed row really is named "Worn Shortsword" (measured fixture payload),
+      # so description answers 2 (25 + the manual row) and all answers 3; the manual
+      # row's card then shows the twin its stated fields earned at birth, DB-only.
       - name: CLI smoke test on a seeded fixture DB
         # the DB path is a plain RELATIVE path, not an expression: `runner.tmpDir` is
         # not a context property, measured on run #3 it evaluated to the empty string,
@@ -144,9 +151,17 @@ jobs:
           cargo run -- sync --stage tooltip --fixture http://127.0.0.1:8765 --budget 8
           cargo run -- sync --stage tooltip --fixture http://127.0.0.1:8765
           cargo run -- set-item 25 vendor_sell=606
-          cargo run -- add-item "name=CI Test Mug" quality=Rare
+          cargo run -- add-item "name=CI Test Mug" quality=Rare "tooltip_html=a plain CI sword mug"
           cargo run -- delete-item 60
           cargo run -- undelete-item 60
+          # the local door's scope (v0.9.0, ADR 0012): the UPSTREAM search door was
+          # measured names-only (docs/API.md: "tooltip" answers empty groups even
+          # though the tooltip carries the word), so these two steps prove the LOCAL
+          # door reads the readable twin - the fixture's copied tooltip of 25 says
+          # "One-Handed Sword" while its NAME does not, and the manual row above
+          # wears a stated description from birth. ZERO requests leave either door.
+          cargo run -- search sword --where description
+          cargo run -- search sword --where all
           # the live-search door: one ask, one request, against the fixture's
           # grouped answer - ungated because the door answers a 429 with exit 3
           cargo run -- live-search sword --fixture http://127.0.0.1:8765
@@ -156,4 +171,7 @@ jobs:
           # names-only trap: a tooltip-ish word answers EMPTY groups - still success
           cargo run -- live-search tooltip --fixture http://127.0.0.1:8765
           cargo run -- item 25 --cached
+          # the manual row's card, DB-only: it shows the twin its fields earned at
+          # birth - name, quality and the stated description - with ZERO requests
+          cargo run -- item 900000000 --cached
           cargo run -- stats
