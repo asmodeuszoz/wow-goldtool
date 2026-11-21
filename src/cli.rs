@@ -9,7 +9,7 @@ use crate::errors::AppError;
 use crate::errors::AppResult;
 use crate::errors::ErrorKind;
 
-use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_blob_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, next_manual_id, open_db_at, raw_json_of, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, tooltip_text_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, SyncState, unix_now};
+use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_blob_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, next_manual_id, open_db_at, raw_json_of, refresh_twins, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, tooltip_text_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, RefreshTally, SyncState, unix_now};
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
@@ -27,7 +27,7 @@ use std::env::set_var;
 /// What the CLI can answer. Keeping the list here means an unknown verb becomes a
 /// usage error that names what the user actually typed.
 pub fn usage_text() -> String {
-    return "usage: status | sync --stage list|detail|icons|tooltip [--budget N] [--ids A,B,C] [--watch] | search TEXT [--where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | status [--db PATH] [--fixture URL]".to_string();
+    return "usage: status | sync --stage list|detail|icons|tooltip [--budget N] [--ids A,B,C] [--watch] | search TEXT [--where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | status [--db PATH] [--fixture URL]".to_string();
 }
 
 /// The verbs of one invocation plus its flags. Unknown flags are kept rather than
@@ -1268,6 +1268,40 @@ pub fn cmd_undelete_item(inv: &Invocation) -> AppResult<String> {
     return Ok(object(parts));
 }
 
+/// The refresh door (v0.9.2, ADR 0013): a DB whose twins predate the corrected
+/// span rule gets them re-derived from the copies it already holds. The door reads
+/// and writes the DB ONLY - ZERO requests leave it, so ADR 0004's network door
+/// (exit 3) is unreachable here and a missing DB is the honest 4. It takes no
+/// arguments: it refreshes EVERY copy in the DB, tombstones and manual rows
+/// included (ADR 0012's rule is that the twin always matches what the DB SAYS).
+/// A second run over a refreshed DB answers 0 rewritten and still exits 0 - the
+/// report says so, 4 would mean "the DB does not have it", which is not this case.
+/// The GUI reaches the same verb through the same dispatch, so the exit-code
+/// contract stays one path.
+pub fn cmd_refresh_twins(inv: &Invocation) -> AppResult<String> {
+    if inv.words.len() != 0 {
+        return Err(AppError::usage("refresh-twins takes no arguments (it refreshes every copy in the DB)".to_string()));
+    }
+    let conn: Connection = match open_at(inv) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    let tally: RefreshTally = match refresh_twins(&conn) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    let mut parts: Vec<String> = [].to_vec();
+    parts.push(fragment("kind".to_string(), json_text("refresh".to_string())));
+    parts.push(fragment("copies".to_string(), format!("{}", tally.copies)));
+    parts.push(fragment("rewritten".to_string(), format!("{}", tally.rewritten)));
+    parts.push(fragment("filled".to_string(), format!("{}", tally.filled)));
+    parts.push(fragment("unchanged".to_string(), format!("{}", tally.unchanged)));
+    parts.push(fragment("requests".to_string(), "0".to_string()));
+    parts.push(fragment("complete".to_string(), format!("{}", tally.complete)));
+    parts.push(fragment("message".to_string(), json_text(tally.message.clone())));
+    return Ok(object(parts));
+}
+
 /// One verb's result through the same output guard: JSON on stdout, the message
 /// and the reason on stderr, and the kind of failure as the exit code.
 pub fn guard(body: AppResult<String>) -> i32 {
@@ -1370,6 +1404,7 @@ pub fn dispatch(inv: Invocation) -> AppResult<String> {
     if inv.verb == "add-item" { return cmd_add_item(&inv); }
     if inv.verb == "delete-item" { return cmd_delete_item(&inv); }
     if inv.verb == "undelete-item" { return cmd_undelete_item(&inv); }
+    if inv.verb == "refresh-twins" { return cmd_refresh_twins(&inv); }
     if inv.verb == "help" {
         eprintln!("{}", usage_text());
         return Ok("{}".to_string());
