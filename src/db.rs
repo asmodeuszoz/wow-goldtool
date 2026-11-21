@@ -37,7 +37,7 @@ use std::time::UNIX_EPOCH;
 /// files chain through v2 to this shape - because the user's own catalogue sits on
 /// disk at v1 and refusing it would throw away 19 258 rows. A file NEWER than this
 /// build is still refused: we cannot know what it holds.
-pub const SCHEMA_VERSION: i64 = 5;
+pub const SCHEMA_VERSION: i64 = 6;
 
 /// Default DB file name, used when WGT_DB does not point somewhere else.
 pub const DB_FILE_NAME: &str = "wow-goldtool.sqlite";
@@ -76,6 +76,7 @@ pub const SCHEMA_SQL: &str = concat!(
     "tooltip_text TEXT, tooltip_lc TEXT,",
     "icon_blob BLOB, icon_at INTEGER, icon_missing_at INTEGER,",
     "manual_at INTEGER, manual_overrides TEXT, edited_at INTEGER, deleted_at INTEGER,",
+    "vendor_buy INTEGER, price_min_now INTEGER, price_trend_normal INTEGER,",
     "raw_json TEXT",
     ");",
     "CREATE TABLE watch (id INTEGER PRIMARY KEY, added_at INTEGER, note TEXT);",
@@ -185,6 +186,28 @@ pub const SQL_MIGRATE_TO_V4: &str = concat!(
 pub const SQL_MIGRATE_TO_V5: &str = concat!(
     "ALTER TABLE item ADD COLUMN tooltip_text TEXT;",
     "ALTER TABLE item ADD COLUMN tooltip_lc TEXT;",
+);
+
+/// The v5 -> v6 steps (v0.9.5, ADR 0016): the RESERVATION of the price columns the
+/// user's testing asked for. Until today the app showed ONE price per row (the
+/// stored copy's `price_min`, an auction-house number) beside the vendor sell, and
+/// the user's own test said the truth needs FOUR separate homes: vendor sell (the
+/// column already exists), vendor BUY (only when the item can be bought at all),
+/// the CURRENT auction-house min buyout, and the historic "normal" price the live
+/// trend answers. HOW each value gets fetched is explicitly NOT this release
+/// (the user said so: "how we'll get to those values can be ignored for now, but
+/// the columns should be allocated now") - this milestone creates the homes, and
+/// NOTHING writes or reads them yet, so every door still answers the old shape
+/// BYTE-FOR-BYTE and every new column is NULL everywhere. NULL here means "no
+/// producer has ever written it" (docs/DATABASE.md names the third state); it is
+/// NOT yet "looked up and found nothing". Additive again: ALTER appends, rows,
+/// stamps and cursors stay intact, and readers keep naming columns explicitly,
+/// so the fresh-CREATE order (these three sit before raw_json) vs the ALTER order
+/// (appended at the end) cannot matter.
+pub const SQL_MIGRATE_TO_V6: &str = concat!(
+    "ALTER TABLE item ADD COLUMN vendor_buy INTEGER;",
+    "ALTER TABLE item ADD COLUMN price_min_now INTEGER;",
+    "ALTER TABLE item ADD COLUMN price_trend_normal INTEGER;",
 );
 
 /// Marking an id as "the upstream has no forever record for it" (v0.5.3). The row
@@ -503,10 +526,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
             // (2026-11-20, measured: schema_version meta now says 3, rows 19 258
             // intact), so refusing ANY older stamp would throw away a full catalogue
             // on the excuse of a schema bump. v1 -> v2 is v0.5.3's ALTER, v2 -> v3 is
-            // the v0.6.0 batch, v3 -> v4 is v0.8.0's ALTERs, v4 -> v5 is this build's
-            // pair - all additive, so existing rows and stamps stay intact and the
-            // cursor in sync_state keeps its meaning. Anything newer or foreign keeps
-            // the honest refusal below.
+            // the v0.6.0 batch, v3 -> v4 is v0.8.0's ALTERs, v4 -> v5 is v0.9.0's pair,
+            // v5 -> v6 is this build's trio (ADR 0016, additive ALTERs) - all additive,
+            // so existing rows and stamps stay intact and the cursor in sync_state keeps
+            // its meaning. Anything newer or foreign keeps the honest refusal below.
             match version {
                 1 => {
                     match bind_sql(conn, SQL_ADD_MISSING_COLUMN, [].to_vec(), 0) {
@@ -522,6 +545,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                         Ok(_) => {},
                     }
                     match conn.execute_batch(SQL_MIGRATE_TO_V5) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V6) {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
@@ -543,6 +570,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V6) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
                     match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
                         Err(problem) => return Err(problem),
                         Ok(_) => return Ok(()),
@@ -557,6 +588,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V6) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
                     match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
                         Err(problem) => return Err(problem),
                         Ok(_) => return Ok(()),
@@ -564,6 +599,20 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                 },
                 4 => {
                     match conn.execute_batch(SQL_MIGRATE_TO_V5) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V6) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
+                    match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
+                        Err(problem) => return Err(problem),
+                        Ok(_) => return Ok(()),
+                    }
+                },
+                5 => {
+                    match conn.execute_batch(SQL_MIGRATE_TO_V6) {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
