@@ -74,6 +74,19 @@ banner (Cargo.toml `0.8.1` at `fe691c9`) because the promise it fixes is the rep
 and the USER_AGENT line built from `CARGO_PKG_VERSION` now says `wow-goldtool 0.8.1` —
 every upstream ask announces which build of the discipline it rode.
 
+### Verification at the tag (executed AFTER the tag, on ports nothing had touched)
+
+GitHub's own witness at the tagged tree and both local replays re-run against it:
+
+| probe at `v0.8.1` | expectation | observed |
+| ----------------- | ----------- | -------- |
+| run #5 (`a160ffa`, the commit the tag rides) | green on the tagged tree | **SUCCESS 5/5 in 8 min 01 s**: quality 2 m 18 s · test 4 m 23 s · build (linux) 5 m 37 s · build (macos, aarch64) 6 m 30 s · build (windows) 8 m 01 s — five measured runs total, the last two green |
+| `cargo build` at the tag (after the documented `rm -rf target/debug/incremental` workaround for the hardlink-free FS) | still compiles | rc 0, **0 errors, exactly the four documented warnings** |
+| 21-step mirror replay GENERATED from the committed ci.yml (fixture port 9114, fresh DB) | the smoke sequence still green | **21/21 rc=0** · **31 GETs** (list 5 · detail 13 · icons 5 · tooltip 5 · search 3) · `4 × 429` retried IN PLACE · `9 × 304` · `3 × 404` · **ZERO asks for the manual id 900000000** · DB ends `6|4|3|1|1|0|4` · four `sync_state` rows `complete` |
+| 57-door exit audit (ports 9115..9122 + 9123, fresh DBs) | the contract unchanged | **57/57 door/rc pairs identical** to the v0.8.0 record — usage `2`, network `3`, not-found `4` on the same doors; manual-row card 940 b DB-only; fresh write `requests 2, written 1, rate_limited 1`; keeps your `vendor_sell 606` while the crawl-owned columns refresh; ledger 4 → 5 |
+| the harness hiccup, honestly owned | the mirror is GENERATED, so it cannot drift | my regeneration for v0.8.1 first pasted the ci.yml's literal `8765` into the step lines (fixture bound at 9114, steps knocked a dead port: 14 non-zero). The fix was IN THE HARNESS — steps re-pasted with `$PORT` — and the second replay is the one recorded. The repo's ci.yml stayed byte-identical throughout |
+| only figures that moved between audits | prices, by design | the fixture gives each process its own RUN offset (ADR 0007's sampling rule) — a fresh fixture process IS a fresh observation window, so price fields cannot and must not reproduce |
+
 ## 2026-11-20 · v0.8.0 — the DB holds every forever item's description copy, and takes edits by hand
 
 ### What forced the milestone
