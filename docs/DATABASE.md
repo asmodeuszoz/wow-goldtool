@@ -148,7 +148,10 @@ ADR 0010, so the twin always matches what the DB SAYS), `set-item ID tooltip_htm
 it in the same UPDATE as the stated value, and `add-item` births it beside the stated fields.
 The derivation is the measured three moves (upstream tooltip bodies were read whole: div/span/img
 tags, ZERO entities — no decoder exists because none was measured, and entities would show
-verbatim): drop `<...>` spans, collapse whitespace runs, trim. The local search door grew the
+verbatim): every `<...>` span leaves ONE space (v0.9.1 correction, measured: live tooltip html is
+MINIFIED and a bare span-DROP glued words across element boundaries — the user file's first 4 602
+twins read `Worn ShortswordItem Level 2Main Hand...`, while the FIXTURE's own card carries spaces
+at the boundaries, which is why it never showed it), then collapse whitespace runs, trim. The local search door grew the
 scope to match: `search TEXT --where name|description|all` (default `name`, the UI's old
 behaviour), `description` reads `tooltip_lc` behind `IS NOT NULL` (never-fetched and checked-gone
 records skip honestly), `all` is name OR description, and a bogus scope answers the usage door

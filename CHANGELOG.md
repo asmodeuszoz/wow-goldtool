@@ -6,6 +6,36 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.9.1 — the scope door answers and the twin keeps its spaces: v0.9.0's measured defects fixed forward · 2026-11-21 · tag `v0.9.1`
+
+Fixed
+
+- **`search TEXT --where …` hung instead of answering** (found by measurement, not by theory):
+  both post-tag replays of v0.9.0 froze **2 h 01 m in state R** at the same door, and a scratch
+  `timeout 5` repro answers **rc 124** — the `--where` block's bare `continue` on VALID values
+  skipped the parser's shared value-flag advance (`index = index + 2`). It now falls through
+  like every other value flag (`--sort`/`--quality`/…); measured after: the `description`/`all`/
+  `name` doors answer rc **0** in well under a second and a bogus scope still answers the usage
+  door **2** with the same message.
+- **The twin glued words at element boundaries** (`Worn ShortswordItem Level 2Main HandOne-Handed
+  Sword1 - 3 DamageSpeed 1.9…` across the user file's first 4 602 copies): live tooltip html is
+  MINIFIED — adjacent spans, no whitespace between them — and the v0.9.0 derivation DROPPED spans.
+  The fixture could not show this: its stand-in card carries spaces AT the tag boundaries, so
+  fixture-shaped data cannot disprove claims about the live shape (only a live pass can). The rule
+  now: every `<…>` span leaves ONE space, then collapse whitespace runs, trim.
+- Honest residue, stated not swept: the 4 602 glued twins already on the user's file stay in their
+  v0.9.0 shape until a copy's CONTENT changes (the pending rule never re-asks stamped copies, and
+  a `304` writes nothing per ADR 0007) — a refresh door is a named plan for a later milestone, not
+  invented code.
+
+Changed
+
+- ADR 0012's derivation bullet and audit row carry the correction (with the hung-replay and
+  cancelled-run facts); `docs/DATABASE.md` and `docs/DEVELOPMENT.md` state the corrected span →
+  space rule; the DEVLOG gained the v0.9.0 post-tag verification section and this entry.
+
+Refs: ADR 0012, ADR 0004's exit-code contract, [docs/DEVLOG.md](./docs/DEVLOG.md), tag `v0.9.1`.
+
 ## v0.9.0 — the copies become READABLE and FINDABLE: every copied tooltip gets a readable twin · 2026-11-21 · tag `v0.9.0`
 
 Added

@@ -5,6 +5,30 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-21 · v0.9.1 — the v0.9.0 defects die here: the scope door answers, the twin keeps its spaces
+
+### What forced it — two measurements, no theory
+
+1. **A hang**: both v0.9.0 replays (ports 9124 / 9125..9133) froze **2 h 01 m** on
+   `search sword --where description`, the child in **state R** with no output; a scratch `timeout 5`
+   repro answers **rc 124**. Read off `parse_invocation`: the value-flag path advances at the loop
+   TAIL (`index = index + 2`); the v0.9.0 `--where` block answered VALID values with a bare
+   `continue` — skipping the advance, re-reading the same pair forever. The house pattern (assign
+   `out.scope`, fall through to the shared advance like `--sort`/`--quality`) lands; the bogus
+   scope still answers the usage door `2`.
+2. **Glued twins**: the user file's first live tooltip pass (4 602 copies) shows live tooltip html
+   is minified — spans adjacent, no whitespace between them — and the v0.9.0 derivation DROPPED
+   spans: `Worn ShortswordItem Level 2Main HandOne-Handed Sword1 - 3 DamageSpeed 1.9…`. The
+   fixture's stand-in card carries spaces AT the tag boundaries, which is exactly why this survived
+   every fixture-shaped audit. Measured lesson written down: **fixture-shaped data cannot disprove
+   claims about the live shape; only the live pass can.** The rule now: every `<…>` span leaves
+   ONE space, collapse whitespace runs, trim.
+
+`ee8c06d` `fix(cli)` + `5a36d19` `fix(db)`, this record carries the tag. The v0.9.0 tag stays put
+(tag `v0.9.0` = `174460f`, its verification record `05d073d`); the user file's 4 602 glued twins
+stay until a copy's content changes (pending rule + 304-writes-nothing) — a refresh door is a
+named plan.
+
 ## 2026-11-21 · v0.9.0 — the copies are READABLE and FINDABLE: the readable twin of every copied tooltip
 
 ### What forced the milestone
