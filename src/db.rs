@@ -1609,11 +1609,14 @@ pub fn write_tooltip(conn: &Connection, id: i64, html: String, etag: String, at:
             }
         }
     }
+    let readable: String = readable_tooltip_text(text.clone());
     let mut head: Vec<Value> = [].to_vec();
     head.push(Value::Integer(id));
     head.push(Value::Text(text));
     head.push(text_value(optional_text(etag.clone())));
     head.push(Value::Integer(at));
+    head.push(text_value(optional_text(readable.clone())));
+    head.push(text_value(optional_text(readable.to_lowercase())));
     match bind_sql(conn, SQL_SET_TOOLTIP, upsert_params(head), TOOLTIP_VALUE_COUNT * 2 - 1) {
         Err(problem) => return Err(problem),
         Ok(count) => return Ok(count),
@@ -1694,6 +1697,53 @@ pub fn manual_overrides_of(conn: &Connection, id: i64) -> AppResult<Option<Strin
     }
 }
 
+/// The READABLE derivation (v0.9.0, ADR 0012, house rule: measured, not invented).
+/// Measured: two live tooltip answers - one plain (forever/item/25) and one carrying
+/// flavor prose (forever/item/728) - hold div/span/img tags with class/src/width/height
+/// attributes and ZERO HTML entities. So the rule is exactly: drop <...> spans, collapse
+/// whitespace runs, trim. NO entity decoder is written because none was measured - if
+/// upstream ever ships entities they show verbatim, and the words still search. This
+/// reads the MERGED copy (the manual layer's stated tooltip_html wins before the twin
+/// is computed), so a card and a search can never disagree with the DB.
+pub fn readable_tooltip_text(html: String) -> String {
+    let mut stripped: String = "".to_string();
+    let mut inside_tag: bool = false;
+    for ch in html.chars() {
+        match inside_tag {
+            true => {
+                if ch == '>' {
+                    inside_tag = false
+                }
+            },
+            false => {
+                match ch {
+                    '<' => inside_tag = true,
+                    _ => stripped.push(ch),
+                }
+            },
+        }
+    }
+    let mut text: String = "".to_string();
+    let mut seen_space: bool = true;
+    for ch in stripped.chars() {
+        let is_space: bool = ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
+        match is_space {
+            true => {
+                match seen_space {
+                    false => text.push(' '),
+                    true => {},
+                }
+                seen_space = true
+            },
+            false => {
+                text.push(ch);
+                seen_space = false
+            },
+        }
+    }
+    return text;
+}
+
 /// The tooltip door's stamps and copy (v0.8.0, ADR 0010): the tooltip write is a
 /// FOURTH crawl stage with the same three states as every other door (written /
 /// checked gone upstream / never looked at) and its OWN ETag - the tooltip body
@@ -1708,8 +1758,8 @@ pub const SQL_TOOLTIP_HTML_OF: &str = "SELECT tooltip_html FROM item WHERE id = 
 pub const SQL_TOOLTIP_AT_OF: &str = "SELECT tooltip_at FROM item WHERE id = ?";
 pub const SQL_TOOLTIP_MISSING_AT_OF: &str = "SELECT tooltip_missing_at FROM item WHERE id = ?";
 pub const SQL_MARK_TOOLTIP_MISSING: &str = "INSERT INTO item (id, tooltip_missing_at) VALUES (?,?) ON CONFLICT (id) DO UPDATE SET tooltip_missing_at = ?";
-pub const SQL_SET_TOOLTIP: &str = "INSERT INTO item (id, tooltip_html, tooltip_etag, tooltip_at) VALUES (?,?,?,?) ON CONFLICT (id) DO UPDATE SET tooltip_html = ?, tooltip_etag = ?, tooltip_at = ?";
-pub const TOOLTIP_VALUE_COUNT: usize = 4;
+pub const SQL_SET_TOOLTIP: &str = "INSERT INTO item (id, tooltip_html, tooltip_etag, tooltip_at, tooltip_text, tooltip_lc) VALUES (?,?,?,?,?,?) ON CONFLICT (id) DO UPDATE SET tooltip_html = ?, tooltip_etag = ?, tooltip_at = ?, tooltip_text = ?, tooltip_lc = ?";
+pub const TOOLTIP_VALUE_COUNT: usize = 6;
 
 /// The tooltip door's own ETag, for the conditional GET the tooltip stage sends.
 pub fn tooltip_etag_of(conn: &Connection, id: i64) -> AppResult<Option<String>> {
