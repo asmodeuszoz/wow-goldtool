@@ -66,6 +66,30 @@ card fragment (BOTH shapes on the card) → `48b16a8` UI where select + rendered
 `0e0f0ac` CI smoke 21→24 → `dbb699a` banner 0.9.0 → `fa4311f` the smoke comment's measured truth
 → docs record + ADR 0012 (this commit carries the tag).
 
+### Verification, post-tag — what the replays ACTUALLY did (2026-11-21, kept not papered over)
+
+The two replays this tag's own entry promised ("the post-tag mirror replay… recorded in the
+verification record") ran — and did NOT land green. The truth, every row measured:
+
+| probe (2026-11-21) | measured answer |
+| ------------------ | --------------- |
+| mirror replay (port 9124), steps 1–16 | all rc 0 — the v0.8.1-shaped steps still pass (the `add-item` now states a description) |
+| step 17 / exit-audit door 58: `search sword --where description` | child process **R (running), 2 h 01 m, no output** — BOTH replays froze on this exact door; mirror stopped at 16/24, the audit at 57/66 |
+| reproduction on a scratch DB | `timeout 5` → **rc 124** killed at 5 s — the door never lands: not slowness, a loop |
+| the cause, read off `parse_invocation` | the v0.9.0 `--where` block used a bare `continue` on VALID values; the parser's value-flag path advances at the loop TAIL (`index = index + 2`) — the `continue` skipped it, re-reading the same pair forever |
+| GH run for the tag-push tree (run 44863357406) | created 03:53Z, sat queued overnight, **cancelled — never ran**; a rerun was fired at 11:04 EST and reached the SAME smoke door: **in_progress 2 h 03 m, cancelled by hand at 18:07Z** (measured) — the tree at this tag never had a green run |
+| the user file's crawl this window | the file read **schema 5 at ≤10:25** (a 0.9.x build opened it EARLIER than the sequencing rule assumed), and the pinned 0.8.0 snapshot then refused it (exit-4 door) and died with the harness restart. The crawl RESUMED on pinned v0.9.0 snapshots (pending rule = resume point): detail COMPLETE (990 fetched + 4 663 checked-404 → 4 602 answered / 14 656 checked-removed of 19 258), icons COMPLETE over 4 tries (a 403 icon door retried in place; 1 393 copied; DB: 4 030 icons + 1 checked-gone), tooltip COMPLETE in ONE try: **4 602 requests → 4 602 copies in 2 256 s (~2 rec/s)** — and `tooltip_text`/`tooltip_lc` both count **4 602**: every copy on this file was born with a twin; rows 19 258 intact through the additive migration |
+| the FIRST twin on the user file | `Worn ShortswordItem Level 2Main HandOne-Handed Sword1 - 3 DamageSpeed 1.9(1.1 damage per second)...` — **words glued**: live tooltip html is MINIFIED (no whitespace between spans) and the v0.9.0 derivation DROPPED spans instead of leaving a space. The fixture never showed this — its stand-in card carries spaces AT the tag boundaries — so fixture-shaped data cannot disprove claims about the live shape: only the live pass can |
+
+Both defects are fixed FORWARD, and this tag stays put: `ee8c06d` `fix(cli)` (the shared
+advance) and `5a36d19` `fix(db)` (span→space) open the v0.9.1 chain; its green replays
+(fresh ports 9134 / 9135..9142: mirror **24/24**, GETs 31 = 429×4/304×9/404×3, twins
+4|4|4|0, hits 2/2/0, ZERO asks for the manual id; audit **64 doors**, the v0.8.1 map byte
+identical + `0,0,0,2` scope + `0,0,0` twin doors) and its CI runs are recorded there. The
+user file's 4 602 GLUED twins stay in their v0.9.0 shape until a copy's content changes
+(the pending rule will not re-ask stamped copies, and a 304 writes nothing by ADR 0007) —
+a refresh door is a named plan, not invented code.
+
 ## 2026-11-20 · v0.8.1 — CI says only what it can prove: the public project is green on three targets
 
 ### What forced the milestone

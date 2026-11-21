@@ -63,8 +63,11 @@ them, and a card that shows markup-as-text, is half-finished work.
 * schema `4 → 5`: `tooltip_text TEXT, tooltip_lc TEXT` appended (`SQL_MIGRATE_TO_V5`),
   and `check_schema` now chains EVERY stale shape up to v5 (`v1→v2→v3→v4→v5` plus the
   fresh `4→5` hop) — the user's file rides it the moment a 0.9.x build opens it;
-* the derivation is exactly the measured three moves: drop `<...>` spans, collapse
-  whitespace, trim; the twin is derived from the **merged** copy (manual overrides merge
+* the derivation is exactly the measured moves — v0.9.1 correction INCLUDED: every
+  `<...>` span leaves ONE space (measured after the user file's first live tooltip pass:
+  live html is minified, and a bare span-DROP glued words across element boundaries —
+  `Worn ShortswordItem Level 2Main Hand...` in 4 602 copies), then collapse whitespace,
+  trim; the twin is derived from the **merged** copy (manual overrides merge
   LAST, ADR 0010, so the twin matches what the DB SAYS), and `SQL_SET_TOOLTIP` grows both
   columns in the SAME upsert — no window where a card shows text search cannot find;
 * the manual doors birth the twin too: `set-item ID tooltip_html=…` derives it in the
@@ -99,4 +102,4 @@ them, and a card that shows markup-as-text, is half-finished work.
 | every Rust commit of this chain | builds | each `cargo build` rc=0 between commits; the final one answers 0 errors, the four documented code warnings + this FS's hardlink notice |
 | compile fixes owned mid-chain | honest, not swept under | a Python-style `.format(` idiom leaked into the parser and cargo answered it; the regex function-clone for the twin reader failed twice and the exact-source insert landed instead — both recorded |
 | user's own file at the decision date | twin-gap honesty | schema `4`, 19 258 rows, ZERO tooltip copies → after the post-release tooltip pass every copy has a twin from birth; the gap only shows on DBs that already copied at v0.8.x |
-| post-tag mirror + exit audits (fresh ports 9124 / 9125..9132+9133) | the 24-step block + scope doors green, ZERO-request rule intact | recorded in the verification commit under this tag |
+| post-tag mirror + exit audits | the 24-step block + scope doors green, ZERO-request rule intact | **measured NOT green**: both replays hung 2 h 01 m at the door `search sword --where description` (scratch repro: timeout rc 124) — the `--where` block's bare `continue` skipped the parser's shared `index = index + 2` advance; the tag-push GH run was cancelled before executing, its rerun hung 2 h 03 m to a hand-cancel. Fixed forward at `ee8c06d`/`5a36d19` (v0.9.1); green replays (9134 / 9135..9142: 24/24, GETs 31 = 429×4/304×9/404×3, twins 4|4|4|0) recorded at that tag |
