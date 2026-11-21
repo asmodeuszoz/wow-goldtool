@@ -8,6 +8,8 @@
 use crate::errors::AppError;
 use crate::errors::AppResult;
 
+use crate::db::{icon_at_of, icon_b64_of, icon_missing_at_of};
+
 use serde::Serialize;
 
 use rusqlite::Connection;
@@ -26,6 +28,15 @@ pub struct Hit {
     pub price_available: Option<i64>,
     pub html_url: Option<String>,
     pub icon_url: Option<String>,
+    /// v0.9.3 (ADR 0014): the DB's OWN icon bytes as base64, filled ONLY when the
+    /// door was asked with --icons - measured avg 2 327 bytes per copy, about 3.1 K
+    /// chars once encoded, so an unbounded hit list would be huge and --limit bounds
+    /// it. The two stamps say WHICH no-icon state a row is in (checked as gone
+    /// upstream vs never fetched), and `icon_url` above is upstream's address, which
+    /// ADR 0008's rule says is never hotlinked - only the bytes in the DB get shown.
+    pub icon_b64: Option<String>,
+    pub icon_at: Option<i64>,
+    pub icon_missing_at: Option<i64>,
 }
 
 /// What a local search can filter on. Every part is optional, and the parts are
@@ -259,14 +270,17 @@ pub fn count_plan(filter: Filter) -> Plan {
     return Plan { sql: sql, params: head.params };
 }
 
-/// Run a search and read every hit.
-pub fn search(conn: &Connection, filter: Filter) -> AppResult<Vec<Hit>> {
+/// Run a search and read every hit. `with_icons` is the door's `--icons` flag
+/// (v0.9.3, ADR 0014): it asks for the DB's own icon bytes per hit and sends
+/// NOTHING to the network - the rows are COLLECTED first, then each row's three
+/// icon columns are read beside it, so a hit list cannot straddle a write.
+pub fn search(conn: &Connection, filter: Filter, with_icons: bool) -> AppResult<Vec<Hit>> {
     let plan: Plan = search_plan(filter);
     let mut stmt = match conn.prepare(&plan.sql) {
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
         Ok(value) => value,
     };
-    let mapped = match stmt.query_map(params_from_iter(plan.params), |row| {
+    let mapped = match stmt.query_map(params_from_iter(plan.params), |row|
         Ok(Hit {
             id: row.get(0)?,
             name: row.get(1)?,
@@ -277,8 +291,11 @@ pub fn search(conn: &Connection, filter: Filter) -> AppResult<Vec<Hit>> {
             price_available: row.get(6)?,
             html_url: row.get(7)?,
             icon_url: row.get(8)?,
+            icon_b64: None,
+            icon_at: None,
+            icon_missing_at: None,
         })
-    }) {
+    ) {
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
         Ok(value) => value,
     };
@@ -288,6 +305,28 @@ pub fn search(conn: &Connection, filter: Filter) -> AppResult<Vec<Hit>> {
             Err(problem) => return Err(AppError::db(format!("{}", problem))),
             Ok(value) => hits.push(value),
         }
+    }
+    match with_icons {
+        false => {},
+        true => {
+            let mut index: usize = 0;
+            while index < hits.len() {
+                let one_id: i64 = hits[index].id;
+                hits[index].icon_b64 = match icon_b64_of(conn, one_id) {
+                    Err(problem) => return Err(problem),
+                    Ok(found) => found,
+                };
+                hits[index].icon_at = match icon_at_of(conn, one_id) {
+                    Err(problem) => return Err(problem),
+                    Ok(found) => found,
+                };
+                hits[index].icon_missing_at = match icon_missing_at_of(conn, one_id) {
+                    Err(problem) => return Err(problem),
+                    Ok(found) => found,
+                };
+                index = index + 1;
+            }
+        },
     }
     return Ok(hits);
 }

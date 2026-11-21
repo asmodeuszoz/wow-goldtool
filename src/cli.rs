@@ -776,7 +776,7 @@ pub fn cmd_search(inv: &Invocation) -> AppResult<String> {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };
-    let hits: Vec<Hit> = match search(&conn, filter) {
+    let hits: Vec<Hit> = match search(&conn, filter, false) {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };
