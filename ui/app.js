@@ -132,9 +132,11 @@ async function runSearch() {
   var quality = document.getElementById("search-quality").value;
   var sort = document.getElementById("search-sort").value;
   var priced = document.getElementById("search-priced").checked;
+  var where = document.getElementById("search-where").value;
   var argv = ["search"];
   if (text !== "") { argv.push(text); }
   if (quality !== "") { argv.push("--quality", quality); }
+  argv.push("--where", where);
   argv.push("--sort", sort);
   if (priced) { argv.push("--priced"); }
   argv.push("--limit", "40");
@@ -565,6 +567,14 @@ function render_card(found) {
     html = html + '<div class="cardrow"><span>icon (local copy)</span><b><img class="iconimg" src="data:image/jpeg;base64,' + found.icon_b64 + '" alt="item icon"></b></div>';
   } else if (found.icon_missing_at !== null && found.icon_missing_at !== undefined) {
     html = html + '<div class="cardrow"><span>icon</span><b>no icon upstream (checked ' + esc(when(found.icon_missing_at)) + ")</b></div>";
+  }
+  // The READABLE twin (v0.9.0, ADR 0012): derived plain text of the copy, hotlink
+  // img tags dropped - a card CAN render it (the measured upstream markup hotlinks
+  // render.worldofwarcraft.com and thewowdb.com/assets pixels, which is exactly
+  // what never happens). Escaped like everything from a DB column anyway. A row
+  // migrated from a schema-4 DB has the copy but no twin yet: honest gap below.
+  if (found.tooltip_text) {
+    html = html + '<div class="cardrow"><span>description (readable copy)</span><b>' + esc(String(found.tooltip_text)) + "</b></div>";
   }
   // The description copy (v0.8.0, ADR 0010): upstream's own markup, printed as
   // TEXT and escaped - pasting it as markup would let an upstream body write the
