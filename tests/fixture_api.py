@@ -104,12 +104,18 @@ DETAIL_BASE = {
 # in upstream's own class names - NOT upstream prose, whose text we never copy. The crawler
 # reads only `html` (the description text the user asked the DB to hold). One answered id is
 # ABSENT here on purpose: the tooltip stage's third state then has a real twin (the 404 below
-# answers with upstream's own JSON error, the measured shape).
+# answers with upstream's own JSON error, the measured shape). FROM v0.9.6 the fields block is
+# NO LONGER EMPTY because the REFRESH stage (ADR 0017) reads fields.price: the fixture replays
+# the shape the LIVE door answered today (2026-11-21): keys available,market,min,realms,region,
+# scope,updated_at with the price MOVING per process like the detail door's own (so the audit
+# can SEE price_min_now differ from the stored price_min), and ONE answer carries the WHOLE
+# fields.price as literal null - the fixture twin of the measured live id 200 third state
+# ("looked, the AH offers nothing right now"), which the refresh stage must CHECK not invent.
 TOOLTIP_PAGES = {
     "25": {
         "attribution": ATTRIBUTION,
         "build": "fixture-build",
-        "fields": {},
+        "fields": {"price": {"available": 5, "market": 1200, "min": 14000 + int(RUN), "realms": 3, "region": "us", "scope": "fixture Normal Alliance", "updated_at": "2026-11-21T00:00:00+00:00"}},
         "html": '<div class="twdb-card twdb-k-item"><div class="twdb-head"><img class="twdb-icon" src="https://render.worldofwarcraft.com/us/icons/56/inv_sword_04.jpg" alt="Fixture Detail 25" /></div><div class="twdb-body">Fixture Detail 25 Item Level 1 Main Hand One-Handed Sword 1 - 3 Damage Speed 1.9 Sell Price: 7c</div></div>',
         "icon_url": "https://render.worldofwarcraft.com/us/icons/56/inv_sword_04.jpg",
         "id": 25,
@@ -122,7 +128,7 @@ TOOLTIP_PAGES = {
     "40": {
         "attribution": ATTRIBUTION,
         "build": "fixture-build",
-        "fields": {},
+        "fields": {"price": None},
         "html": '<div class="twdb-card twdb-k-item"><div class="twdb-body">Fixture Detail 40 Item Level 1 Sell Price: 7c</div></div>',
         "icon_url": "https://render.worldofwarcraft.com/us/icons/56/inv_sword_04.jpg",
         "id": 40,
@@ -135,7 +141,7 @@ TOOLTIP_PAGES = {
     "60": {
         "attribution": ATTRIBUTION,
         "build": "fixture-build",
-        "fields": {},
+        "fields": {"price": {"available": 9, "market": 1300, "min": 13000 + int(RUN), "realms": 4, "region": "us", "scope": "fixture Normal Alliance", "updated_at": "2026-11-21T00:00:00+00:00"}},
         "html": '<div class="twdb-card twdb-k-item"><div class="twdb-body">Fixture Detail 60 Item Level 1 Sell Price: 7c</div></div>',
         "icon_url": "https://render.worldofwarcraft.com/us/icons/56/inv_sword_04.jpg",
         "id": 60,
