@@ -194,6 +194,13 @@ async function runSearch() {
     var shown = found.hits.length;
     var note = "showing " + shown + " of " + num(found.total) + " — details of " + num(found.total) + " items cost one request each, and the sync stage caches them; the price column shows the game's OWN money words (hover: the exact copper, the number the sorts and the scripts read), the icon column shows the DB's OWN copy where the icons stage wrote one (\u25c7 means no bytes: never fetched, or checked as gone upstream \u2014 the hover says which, and nothing is hotlinked)";
     if (found.total === 0) { note = "no item matches — the search runs against the local DB only"; }
+    // v0.9.9 (ADR 0020): the live-sort knob reorders rows by the LIVE min buyout, but the
+    // price CELL stays the STORED min - the note names which is which beside every hit, so
+    // an out-of-looking-order column is never a mystery (money rules ADR 0015 untouched:
+    // this sentence carries no numbers at all).
+    if (sort === "price-now") {
+      note = note + " — this order reads the LIVE min buyout the Sync tab's Price button (or the CLI stage) wrote, one ask per copied record ever; the price column stays the DB's STORED min, and rows with no live price sort last (never refreshed, or checked price-less at ask time — their own stamps keep the two kinds apart)";
+    }
     set_note(document.getElementById("search-note"), note, false);
     document.getElementById("btn-search").classList.remove("running");
   } catch (problem) {
