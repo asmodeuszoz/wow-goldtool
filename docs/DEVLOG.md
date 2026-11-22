@@ -46,6 +46,22 @@ chore (banner 0.9.9, lock rides) -> this record carries the tag.
 | schema | stays 7 (grep `SCHEMA_VERSION: i64 = 7` — NO hop: the column was born at 6 with ADR 0016, this release READS it) |
 | builds | exit 0, FOUR named warnings every commit (incremental-clear mechanic every build) |
 
+### Post-tag verification — MEASURED on fresh ports: 34 steps green, wire pairs byte-for-byte
+
+| probe | answer |
+| ----- | ------ |
+| mirror replay — driver generated FROM the GROWN committed block (port-stripped compare EQUAL **34/34** + plant one), fresh fixture port 9241 (bind-verified), fresh DB mirror099a.sqlite born 7 | **34/34 rc 0, plant rc 0** — the grown `--sort price-now` step itself rc 0 inside the replay (its live order printed in the log lines); GET tallies **34 = 200x18 / 304x9 / 404x3 / 429x4** — IDENTICAL to the v0.9.8 era: the new step reads the DB, adds ZERO requests, the tallies cannot move; price press THIS process: live 18 460/17 460 vs stored 19 460 (fixture RUN), row 40 stamped 1795315035 with COUNTED missing 1; trio NULL |
+| wire byte pairs — v0.9.8 binary (`wgt-v98-pre-sort`, saved pre-release) vs v0.9.9, SAME mirror099a DB | `item 25 --cached` **BYTE-IDENTICAL 4 394 B**, `stats --icons --limit 6` **17 473 B**, default-sort `search sword --where description --sort price --icons --limit 5` **3 361 B** — the knob moved ZERO bytes on the OTHER doors |
+| live door shape, post-tag, same DB, BOTH binaries | NEW: 60, 25, 12809, 40 (live 17 460 < 18 460 then NULL tail by name, sort echo `price-now`); OLD binary on the same ask: 12809, 25, 40, 60 — the DEFAULT fallback (unknown key, its documented rule) — the knob is exactly the delta |
+| exit map — 90-door driver remapped to fresh 9242-9250 + fresh DBs (exit099p), v0.9.9 binary | **90/90 rc pairs IDENTICAL**: 0x59 / 2x14 / 3x6 / 4x11 held |
+| extension doors — both drivers remapped to fresh 9251/9252 + DEAD 9497/9498 | ext1 0x6/2x2 (press 3 reqs / 2 written / missing 1; drained dead-port pass recorded AGAIN as weak); ext2 abort where pending EXISTS: rc **3**, pending 25/40/60 identical AFTER, stamps ZERO at that moment, 3 only after the re-press; list-only DB 0 requests complete true. **101-door totals 0x67 / 2x16 / 3x7 / 4x11 — identical for the FOURTH era in a row** |
+| pinned pair on the fresh 7-file | v0.9.5 rc 4 "wants 6", v0.8.1 rc 4 "wants 4", files untouched |
+| the user's own file by the v0.9.9 binary (two opens) | schema 7, 19 258 / 4 231 / 4 287 samples, AVG 54 366.05243532976 — **BYTE-IDENTICAL to the v0.9.8-era snapshot**: NO NEW drift this era (the earlier +1 sample is fully explained in THAT era's row); five price-home/stamp columns still NULL on every row (0 with any value); second status BYTE-IDENTICAL |
+| limits kept | rendered look never claimed (no display), content embedding compressed (filename map), node --check = PARSE witness — same honest line as v0.9.8's era |
+| housekeeping | all fixture servers killed after the runs; ports 9241-9252 + 9497/9498 re-verified FREE (survivor check run separately — the self-match lesson honored) |
+
+**44976892186** (this release's chain+tag push `c4fac31..53f9221`, head `53f9221…` = the TAGGED tree): **success, 5/5 in 9 min 39 s** (02:36:38Z -> 02:46:17Z — quality 1 m 49 s · test 4 m 36 s · linux 4 m 25 s · macos 6 m 22 s · windows 9 m 37 s), exactly ONE run id for that head, no CANCELLED sibling, no rerun (matched by id/head_sha). The fold waited LOCAL while it flew and GREW this verdict by amend before pushing — only the fold's OWN push run lands FORWARD in the next record. (Honest probe note: the wait loop's first line issued one invalid run-id API call that answered 404 — harness noise, not a run; the ladder above lost nothing and chased nothing.)
+
 ### CI ladder (folded as measured)
 
 **44976027751** (v0.9.8's verification-fold push, head `c4fac31…`): **success, 5/5 in 6 min 21 s**

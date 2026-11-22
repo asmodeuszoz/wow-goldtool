@@ -101,6 +101,4 @@ verdict already folded into v0.9.8's verification fold (that fold waited and gre
 02:31:55Z — quality 2 m 10 s · test 5 m 01 s · linux 5 m 36 s · macos 5 m 44 s · windows 6 m 18 s),
 exactly ONE run id for that head, no CANCELLED sibling, no rerun — it landed WHILE THIS CHAIN built
 (nothing was in flight when v0.9.9's first commit was made; the honest ordering fact recorded where
-it stands). v0.9.9's own chain+tag push starts a run that lands FORWARD in this release's
-verification fold, never chased. Tags stay put (`v0.9.8` -> `9aaa3f6`, `v0.9.9` -> this record's
-commit).
+it stands). v0.9.9's own chain+tag push `c4fac31..53f9221` (head `53f9221…` — the TAGGED tree) ran **44976892186**: **success, 5/5 in 9 min 39 s** (02:36:38Z -> 02:46:17Z — quality 1 m 49 s · test 4 m 36 s · linux 4 m 25 s · macos 6 m 22 s · windows 9 m 37 s), exactly one run id for that head, no CANCELLED sibling, no rerun. The verification fold waited (LOCAL while that run flew — the observed rule), GREW this verdict by amend and pushed: only the fold's OWN push lands FORWARD in the next record, never chased. Tags stay put (`v0.9.8` -> `9aaa3f6`, `v0.9.9` -> `53f9221`).
