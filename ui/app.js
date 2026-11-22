@@ -922,7 +922,7 @@ async function runLive() {
     }
     var note = "";
     if (seen === 0) { note = "no group answered a hit - and empty groups are still a success: "; }
-    note = note + left + ", names only (a tooltip word is not searched)" + more_note + " - the hits' own upstream page: " + hits_link;
+    note = note + left + ", names only (a tooltip word is not searched)" + more_note + " - every hit row carries its own view link to the upstream page";
     set_note(document.getElementById("live-note"), note, false);
     document.getElementById("btn-live").classList.remove("running");
   } catch (problem) {
