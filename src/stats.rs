@@ -223,6 +223,10 @@ fn pending_plan(sql: String, limit: Option<i64>) -> PendingSql {
 /// the drift the expected-count guard catches. v0.9.4 (ADR 0015) adds NO SQL aggregate at
 /// all: money is written by the ONE formatter in `db.rs` from the very MIN/MAX/AVG this
 /// read already answers, so the read slots stay 0-14 and the aggregate cannot drift.
+/// Used by `status`, the `stats` verb and the UI footer directly: the sync module used
+/// to re-export this through a one-line `catalogue` wrapper (v0.11.1, ADR 0024) - it had
+/// no call site left once `cli.rs` read this one, and rustc named it never used, so the
+/// wrapper died and its claim came to where the door actually lives.
 pub fn coverage(conn: &Connection) -> AppResult<Coverage> {
     let found: Coverage = match conn.query_row(SQL_COVERAGE, [], |row| {
         Ok(Coverage {

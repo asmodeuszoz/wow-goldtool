@@ -30,7 +30,7 @@ use crate::models::{ItemDetail, ListPage, Tooltip, RecipeFile};
 
 use crate::db::{copy_icon, detail_etag_of, icon_url_of, mark_icon_missing_at, mark_missing_at, mark_price_missing_at, mark_tooltip_missing_at, meta_get, meta_set, sync_state_get, sync_state_set, tooltip_etag_of, unix_now, upsert_detail, upsert_summary, write_price_now, write_recipe, write_tooltip, SyncState};
 
-use crate::stats::{icon_pending_ids, pending_ids, price_pending_ids, tooltip_pending_ids, coverage, Coverage};
+use crate::stats::{icon_pending_ids, pending_ids, price_pending_ids, tooltip_pending_ids};
 
 use rusqlite::Connection;
 
@@ -903,11 +903,6 @@ pub fn sync_icons(client: Client, conn: &Connection, mut budget: RateBudget, id_
             icon_missing_note(report.missing))
     };
     return finish(conn, report, started, 0, total, "partial".to_string());
-}
-
-/// Catalogue coverage, used by `status` and the UI footer.
-pub fn catalogue(conn: &Connection) -> AppResult<Coverage> {
-    return coverage(conn);
 }
 
 /// "N answered 404 for the tooltip and are checked as no-tooltip-upstream", the
