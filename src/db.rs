@@ -17,6 +17,8 @@ use crate::models::Price;
 use crate::models::Weapon;
 use crate::models::Links;
 use crate::models::ManualEdit;
+use crate::models::RecipeEntry;
+use crate::models::Reagent;
 
 use rusqlite::Connection;
 use rusqlite::params_from_iter;
@@ -2374,6 +2376,351 @@ pub fn upsert_summary(conn: &Connection, summary: ItemSummary, etag: String, syn
     head.push(text_value(etag_text));
     head.push(int_value(stamp));
     return bind_sql(conn, UPSERT_LIST_SQL, upsert_params(head), LIST_VALUE_COUNT * 2 - 1);
+}
+
+/// One row of the recipe table, written from ONE dataset entry (v0.10.0, ADR
+/// 0021): every column names what the measured wire says (docs/API.md's second-
+/// source section records the entry keys); NULL means the dataset did not state
+/// it (measured: 133 of 1240 classic entries carry NO crafted id - the enchanting
+/// craft has no crafted item). `reagents_json` rides the entry's reagent ARRAY
+/// as TEXT bytes - the same "the DB gets the bytes" rule raw_json rides - and the
+/// door resolves each reagent item_id through the item rows it already owns.
+/// `learned_json` is the dataset's own object bytes (its key is `type`, a
+/// reserved word nothing must reach for); the door chip reads the entry's plain
+/// `acquisition` string instead. UPSERT, so a re-fetch over one spell id moves
+/// a row forward, never twins it.
+pub const SQL_INSERT_RECIPE: &str = concat!(
+    "INSERT INTO recipe (spell_id, profession, recipe_name, crafted_item_id, crafted_item_name, skill_required, skill_tier, trivial_low, trivial_high, reagents_json, learned_json, acquisition, acquisition_note, source)",
+    " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+    " ON CONFLICT (spell_id) DO UPDATE SET profession = ?, recipe_name = ?, crafted_item_id = ?, crafted_item_name = ?, skill_required = ?, skill_tier = ?, trivial_low = ?, trivial_high = ?, reagents_json = ?, learned_json = ?, acquisition = ?, acquisition_note = ?, source = ?",
+);
+pub const RECIPE_VALUE_COUNT: usize = 14;
+
+pub fn write_recipe(conn: &Connection, file_profession: String, entry: RecipeEntry) -> AppResult<usize> {
+    let reagents_json: String = match to_string(&entry.reagents) {
+        Err(problem) => return Err(AppError::db(format!("recipe {} cannot store its reagents: {}", entry.spell_id, problem))),
+        Ok(found) => found,
+    };
+    let learned_json: Option<String> = match entry.learned_from.clone() {
+        None => None,
+        Some(whole) => match to_string(&whole) {
+            Err(problem) => return Err(AppError::db(format!("recipe {} cannot store its learned_from: {}", entry.spell_id, problem))),
+            Ok(found) => Some(found),
+        },
+    };
+    let mut head: Vec<Value> = [].to_vec();
+    head.push(Value::Integer(entry.spell_id));
+    head.push(text_value(Some(file_profession)));
+    head.push(text_value(entry.spell_name));
+    head.push(int_value(entry.crafted_item_id));
+    head.push(text_value(entry.crafted_item_name));
+    head.push(int_value(entry.required_skill_value));
+    head.push(text_value(entry.skill_tier));
+    head.push(int_value(entry.trivial_low));
+    head.push(int_value(entry.trivial_high));
+    head.push(Value::Text(reagents_json));
+    head.push(text_value(learned_json));
+    head.push(text_value(entry.acquisition));
+    head.push(text_value(entry.acquisition_note));
+    head.push(text_value(entry.source));
+    return bind_sql(conn, SQL_INSERT_RECIPE, upsert_params(head), RECIPE_VALUE_COUNT * 2 - 1);
+}
+
+/// The LOCAL recipe door (v0.10.0, ADR 0021): reads the fetched rows and joins
+/// them BY VALUE through the item rows the DB already owns - the cooked item
+/// answers its live name, its money words and its icon, and every reagent does
+/// too. NULL in a row is the dataset NOT stating it (measured: the enchanting
+/// entries carry no crafted id), while a crafted/reagent id WITHOUT an item row
+/// is the other answer - the DB never saw that id - so the door ships both:
+/// `crafted_db_name`/`in_db` name what the DB holds, the dataset's OWN bytes
+/// (`crafted_dataset_name`/`dataset_name`) ride beside them, never instead.
+/// `learned_json` is stored but has no reader yet: the door chip reads the
+/// entry's plain `acquisition` word (ADR 0021 records this). ORDER is honest
+/// NULLS-LAST (the pair rule every list door keeps): the skill of an
+/// unstated entry stays at the end of its profession, never at the top.
+pub const SQL_RECIPE_ROWS: &str = "SELECT spell_id, profession, recipe_name, crafted_item_id, crafted_item_name, skill_required, skill_tier, trivial_low, trivial_high, reagents_json, acquisition, acquisition_note, source FROM recipe ";
+pub const SQL_RECIPE_COUNT: &str = "SELECT COUNT(1) FROM recipe ";
+pub const SQL_RECIPE_ORDER: &str = "ORDER BY profession ASC, (skill_required IS NULL) ASC, skill_required ASC, spell_id ASC";
+pub const SQL_LIVE_NAME_PRICE: &str = "SELECT name, price_min FROM item WHERE id = ? AND deleted_at IS NULL";
+
+#[derive(Serialize, Clone)]
+pub struct RecipeReagent {
+    pub item_id: i64,
+    pub dataset_name: Option<String>,
+    pub count: Option<i64>,
+    pub in_db: bool,
+    pub db_name: Option<String>,
+    pub price_copper: Option<i64>,
+    pub price_money: Option<String>,
+    pub icon_b64: Option<String>,
+    pub icon_at: Option<i64>,
+}
+
+#[derive(Serialize, Clone)]
+pub struct RecipeRow {
+    pub spell_id: i64,
+    pub profession: String,
+    pub recipe_name: Option<String>,
+    pub skill_required: Option<i64>,
+    pub skill_tier: Option<String>,
+    pub trivial_low: Option<i64>,
+    pub trivial_high: Option<i64>,
+    pub acquisition: Option<String>,
+    pub acquisition_note: Option<String>,
+    pub source: Option<String>,
+    pub crafted_item_id: Option<i64>,
+    pub crafted_dataset_name: Option<String>,
+    pub crafted_db_name: Option<String>,
+    pub crafted_price_money: Option<String>,
+    pub crafted_icon_b64: Option<String>,
+    pub crafted_icon_at: Option<i64>,
+    pub reagents: Vec<RecipeReagent>,
+}
+
+/// The door's raw pass (v0.10.0): the fetched rows as stored, plus the reagent
+/// ARRAY bytes still to join - the joins happen AFTER this read finished, so the
+/// door cannot meet a reagent whose item row a write moved mid-read (the same
+/// collect-then-read order the `--icons` hits follow, ADR 0014's rule).
+#[derive(Serialize, Clone, Debug)]
+pub struct RawRecipe {
+    pub spell_id: i64,
+    pub profession: String,
+    pub recipe_name: Option<String>,
+    pub skill_required: Option<i64>,
+    pub skill_tier: Option<String>,
+    pub trivial_low: Option<i64>,
+    pub trivial_high: Option<i64>,
+    pub reagents_json: String,
+    pub crafted_item_id: Option<i64>,
+    pub crafted_dataset_name: Option<String>,
+    pub acquisition: Option<String>,
+    pub acquisition_note: Option<String>,
+    pub source: Option<String>,
+}
+
+/// One live item answer beside an id the recipe rows name: None = the DB never
+/// saw that id alive (the dataset's OWN bytes stay visible next to it).
+#[derive(Clone, Debug)]
+pub struct LiveNamePrice {
+    pub name: Option<String>,
+    pub price_min: Option<i64>,
+}
+
+/// The live name + min price of an id, ONLY when its row is visible (the
+/// tombstone rule rides): None answer = "the DB never saw this id alive".
+pub fn live_name_price_of(conn: &Connection, id: i64) -> AppResult<Option<LiveNamePrice>> {
+    let mut stmt = match conn.prepare(SQL_LIVE_NAME_PRICE) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(name) => match row.get(1) {
+                Err(problem) => Err(AppError::db(format!("{}", problem))),
+                Ok(copper) => Ok(Some(LiveNamePrice { name: name, price_min: copper })),
+            },
+        },
+    }
+}
+
+/// One reagent of one row, joined through the item rows the DB owns. The
+/// dataset's OWN bytes ride beside the DB's answer, never merged: a reagent
+/// id the DB never saw keeps its dataset name visible and says `in_db` false.
+pub fn join_recipe_reagent(conn: &Connection, reagent: Reagent, with_icons: bool) -> AppResult<RecipeReagent> {
+    let found: Option<LiveNamePrice> = match live_name_price_of(conn, reagent.item_id) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    let mut out: RecipeReagent = RecipeReagent {
+        item_id: reagent.item_id,
+        dataset_name: reagent.item_name,
+        count: reagent.count,
+        in_db: false,
+        db_name: None,
+        price_copper: None,
+        price_money: None,
+        icon_b64: None,
+        icon_at: None,
+    };
+    match found {
+        None => {},
+        Some(live) => {
+            out.in_db = true;
+            out.db_name = live.name;
+            out.price_copper = live.price_min;
+            out.price_money = money_of(live.price_min);
+            match with_icons {
+                false => {},
+                true => {
+                    out.icon_b64 = match icon_b64_of(conn, reagent.item_id) {
+                        Err(problem) => return Err(problem),
+                        Ok(value) => value,
+                    };
+                    out.icon_at = match icon_at_of(conn, reagent.item_id) {
+                        Err(problem) => return Err(problem),
+                        Ok(value) => value,
+                    };
+                },
+            }
+        },
+    }
+    return Ok(out);
+}
+
+/// Read the recipe rows of one door call: filter echo, ORDER, LIMIT/OFFSET are
+/// bound values (never interpolated), and every reagent + the crafted item are
+/// joined through the item rows AFTER the rows are collected - the door cannot
+/// meet a reagent whose item row a write moved mid-read.
+pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: bool, limit: Option<i64>, offset: Option<i64>) -> AppResult<Vec<RecipeRow>> {
+    let filter_part: String = match profession {
+        None => "".to_string(),
+        Some(_) => "WHERE profession = ? ".to_string(),
+    };
+    let mut sql: String = format!("{}{}{} ", SQL_RECIPE_ROWS, filter_part.clone(), SQL_RECIPE_ORDER);
+    let mut params: Vec<Value> = [].to_vec();
+    match profession {
+        None => {},
+        Some(word) => params.push(Value::Text(word)),
+    }
+    match limit {
+        None => {},
+        Some(value) => {
+            sql = sql.clone() + "LIMIT ? ";
+            params.push(Value::Integer(value));
+        },
+    }
+    match offset {
+        None => {},
+        Some(value) => {
+            sql = sql.clone() + "OFFSET ? ";
+            params.push(Value::Integer(value));
+        },
+    }
+    let mut stmt = match conn.prepare(&sql.clone()) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mapped = match stmt.query_map(params_from_iter(params), |row|
+        Ok(RawRecipe {
+            spell_id: row.get(0)?,
+            profession: row.get(1)?,
+            recipe_name: row.get(2)?,
+            crafted_item_id: row.get(3)?,
+            crafted_dataset_name: row.get(4)?,
+            skill_required: row.get(5)?,
+            skill_tier: row.get(6)?,
+            trivial_low: row.get(7)?,
+            trivial_high: row.get(8)?,
+            reagents_json: row.get(9)?,
+            acquisition: row.get(10)?,
+            acquisition_note: row.get(11)?,
+            source: row.get(12)?,
+        })
+    ) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut out: Vec<RecipeRow> = [].to_vec();
+    for item in mapped {
+        match item {
+            Err(problem) => return Err(AppError::db(format!("{}", problem))),
+            Ok(raw) => {
+                let reagents: Vec<Reagent> = match from_str(&raw.reagents_json.clone()) {
+                    Err(problem) => return Err(AppError::decode(format!("stored reagents of recipe {} are not the array the writer described: {}", raw.spell_id, problem))),
+                    Ok(found) => found,
+                };
+                let mut row: RecipeRow = RecipeRow {
+                    spell_id: raw.spell_id,
+                    profession: raw.profession.clone(),
+                    recipe_name: raw.recipe_name.clone(),
+                    skill_required: raw.skill_required.clone(),
+                    skill_tier: raw.skill_tier.clone(),
+                    trivial_low: raw.trivial_low.clone(),
+                    trivial_high: raw.trivial_high.clone(),
+                    acquisition: raw.acquisition.clone(),
+                    acquisition_note: raw.acquisition_note.clone(),
+                    source: raw.source.clone(),
+                    crafted_item_id: raw.crafted_item_id.clone(),
+                    crafted_dataset_name: raw.crafted_dataset_name.clone(),
+                    crafted_db_name: None,
+                    crafted_price_money: None,
+                    crafted_icon_b64: None,
+                    crafted_icon_at: None,
+                    reagents: [].to_vec(),
+                };
+                for one in reagents.clone() {
+                    let joined: RecipeReagent = match join_recipe_reagent(conn, one.clone(), with_icons) {
+                        Err(problem) => return Err(problem),
+                        Ok(value) => value,
+                    };
+                    row.reagents.push(joined);
+                }
+                match raw.crafted_item_id.clone() {
+                    None => {},
+                    Some(id) => {
+                        let found: Option<LiveNamePrice> = match live_name_price_of(conn, id) {
+                            Err(problem) => return Err(problem),
+                            Ok(value) => value,
+                        };
+                        match found {
+                            None => {},
+                            Some(live) => {
+                                row.crafted_db_name = live.name.clone();
+                                row.crafted_price_money = money_of(live.price_min.clone());
+                                match with_icons {
+                                    false => {},
+                                    true => {
+                                        row.crafted_icon_b64 = match icon_b64_of(conn, id) {
+                                            Err(problem) => return Err(problem),
+                                            Ok(value) => value,
+                                        };
+                                        row.crafted_icon_at = match icon_at_of(conn, id) {
+                                            Err(problem) => return Err(problem),
+                                            Ok(value) => value,
+                                        };
+                                    },
+                                }
+                            },
+                        }
+                    },
+                }
+                out.push(row);
+            },
+        }
+    }
+    return Ok(out);
+}
+
+/// How many recipe rows a profession filter matches: the same WHERE chain as
+/// the rows read, so the door and its count cannot drift (ADR 0009's "showing
+/// 40 of 1250" rule, kept for the new door too).
+pub fn recipes_count(conn: &Connection, profession: Option<String>) -> AppResult<i64> {
+    let filter_part: String = match profession {
+        None => "".to_string(),
+        Some(_) => "WHERE profession = ? ".to_string(),
+    };
+    let sql: String = format!("{}{}", SQL_RECIPE_COUNT, filter_part.clone());
+    let params: Vec<Value> = match profession {
+        None => [].to_vec(),
+        Some(word) => {
+            let mut one: Vec<Value> = [].to_vec();
+            one.push(Value::Text(word));
+            one
+        },
+    };
+    match conn.query_row(&sql.clone(), params_from_iter(params), |row| row.get(0)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(total) => return Ok(total),
+    }
 }
 
 /// Stage 2 write: one detail record. `raw_json` keeps the verbatim payload so a future

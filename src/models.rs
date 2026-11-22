@@ -177,3 +177,51 @@ pub struct ManualEdit {
     pub value: Value,
     pub at: i64,
 }
+
+/// The recipe files' own shape (v0.10.0, ADR 0021): the SECOND source the engine
+/// fetches (docs/API.md's second-source section measures it: the MIT dataset at
+/// raw.githubusercontent.com, 8 classic files, entry keys measured 2026-11-22
+/// fresh on the wire). A file answers `profession, recipe_count, recipes[]`;
+/// an entry carries `spell_id, spell_name, crafted_item_id, crafted_item_name,
+/// required_skill_value, skill_tier, trivial_low, trivial_high, reagents[{item_id,
+/// item_name, count}], learned_from, acquisition, acquisition_note, source` -
+/// keys NOT typed here (`auto_granted, confidence, vendor_sell_price, craft_spell_id,
+/// skill_line_id, game_version, known_limitation`) are recorded in ADR 0021 and
+/// stay on the wire: the tool reads only what has a reader, and serde ignores
+/// unknown keys by default, so a key the dataset adds cannot break a build -
+/// the same rule TooltipFields keeps. Measured on the wire: 133 of 1240 classic
+/// entries carry NO crafted_item_id at all (the enchanting craft applies an
+/// effect - there is no crafted ITEM), so every answer below a crafted id is
+/// Option; and `learned_from` rides as a wire Value - its key is `type`, a
+/// reserved word, and nothing reads INTO it yet: the door chip reads the entry's
+/// plain `acquisition` string, while the object's BYTES go to the DB whole.
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct RecipeFile {
+    pub profession: String,
+    pub recipe_count: Option<i64>,
+    pub recipes: Vec<RecipeEntry>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct RecipeEntry {
+    pub spell_id: i64,
+    pub spell_name: Option<String>,
+    pub crafted_item_id: Option<i64>,
+    pub crafted_item_name: Option<String>,
+    pub required_skill_value: Option<i64>,
+    pub skill_tier: Option<String>,
+    pub trivial_low: Option<i64>,
+    pub trivial_high: Option<i64>,
+    pub reagents: Vec<Reagent>,
+    pub learned_from: Option<Value>,
+    pub acquisition: Option<String>,
+    pub acquisition_note: Option<String>,
+    pub source: Option<String>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct Reagent {
+    pub item_id: i64,
+    pub item_name: Option<String>,
+    pub count: Option<i64>,
+}
