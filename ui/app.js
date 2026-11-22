@@ -12,6 +12,9 @@ var cancel_requested = false;
 var sync_busy = false;
 var last_hits = [];
 var watched = [];
+// v0.10.0 (ADR 0021): the recipes tab's shown rows, the same shape last_hits is
+// for the search tab: btn-recipes-watch watches the COOKED items of THESE rows.
+var recipes_shown = [];
 
 // v0.9.7 (ADR 0018): the one crammed page became seven activity tabs. The switch
 // is ONE truth here: exactly one section with a data-tab is visible, the rest wear
@@ -245,7 +248,134 @@ function hit_row(hit) {
     + "</tr>";
 }
 
-// ---- sync card -------------------------------------------------------------
+// ---- recipes card (v0.10.0, ADR 0021) --------------------------------------
+// The door answers through cli_ok(["recipes"...]) like every other tab (ADR 0014's
+// one-code-path rule). The ROW truth is honest about its OWN source: the job words,
+// skill numbers and recipe names come from the FETCHED dataset (the second source
+// docs/API.md records, MIT cited); the icons, names and prices beside them come
+// THROUGH the item rows this DB owns. The two answers ride SIDE BY SIDE and never
+// merge: an unjoined reagent keeps its dataset name and carries a state chip.
+async function runRecipes() {
+  var profession = document.getElementById("recipes-profession").value;
+  var limit = document.getElementById("recipes-pager").value;
+  var argv = ["recipes", "--limit", limit, "--icons"];
+  if (profession !== "") { argv.push("--profession", profession); }
+  try {
+    var found = await cli_ok(argv);
+    recipes_shown = found.recipes;
+    var rows = "";
+    for (var i = 0; i < found.recipes.length; i = i + 1) {
+      rows = rows + recipe_row(found.recipes[i]);
+    }
+    document.querySelector("#recipe-hits tbody").innerHTML = rows;
+    var shown = found.recipes.length;
+    var note = "showing " + shown + " of " + num(found.matching) + " recipe rows \u2014 the job words, skill numbers and material LISTS are the FETCHED set's own (the Sync tab\u2019s Recipes button: 8 files, MIT second source, cited here): the API has no professions door and its recipe cards never name a job or materials (measured); icons and money beside the materials are YOUR DB\u2019S OWN \u2014 an item the DB never saw says so beside its dataset name, and an enchanting craft says it has NO crafted item at all";
+    if (found.matching === 0) {
+      note = "no recipe rows for this filter \u2014 the set is fetched by the Sync tab\u2019s Recipes button (or the CLI stage), read here ever after";
+    }
+    if (profession !== "") {
+      note = note + " \u2014 filtered to " + profession;
+    }
+    set_note(document.getElementById("recipes-note"), note, false);
+    document.getElementById("btn-recipes").classList.remove("running");
+  } catch (problem) {
+    set_note(document.getElementById("recipes-note"), problem.message, true);
+  }
+}
+
+function chip_word(text, css) {
+  return '<span class="' + css + '">' + esc(text) + "</span>";
+}
+
+function recipe_mats(one) {
+  if (!one.reagents || one.reagents.length === 0) {
+    return chip_word("the set states no materials for this recipe", "mat-none");
+  }
+  var out = "";
+  for (var i = 0; i < one.reagents.length; i = i + 1) {
+    var reagent = one.reagents[i];
+    var name = reagent.db_name || reagent.dataset_name || ("item " + String(reagent.item_id));
+    var state = "";
+    if (reagent.in_db === false) {
+      state = " " + chip_word("not in your DB", "mat-not-in-db");
+    }
+    out = out + '<span class="mat"><span class="matname">' + esc(name) + (reagent.count ? " \u00d7" + esc(String(reagent.count)) : "") + "</span> " + recipe_icon(reagent.icon_b64, reagent.icon_at, name) + " " + money_cell(reagent.price_money, reagent.price_copper) + state + "</span> ";
+  }
+  return out;
+}
+
+function recipe_crafted(one) {
+  var label = one.crafted_db_name || one.crafted_dataset_name || ("item " + String(one.crafted_item_id));
+  var state = "";
+  if (one.crafted_item_id === null || one.crafted_item_id === undefined) {
+    return chip_word("no crafted item \u2014 enchanting craft", "cooked-none");
+  }
+  if (!one.crafted_db_name) {
+    state = " " + chip_word("the DB never saw this id", "cooked-not-in-db");
+  }
+  return '<span class="cooked">' + esc(label) + " " + recipe_icon(one.crafted_icon_b64, one.crafted_icon_at, label) + " " + money_cell(one.crafted_price_money, one.crafted_price_copper) + state + "</span>";
+}
+
+function recipe_icon(b64, at, label) {
+  if (b64) {
+    return '<img class="listicon" src="data:image/jpeg;base64,' + esc(b64) + '" alt="' + esc(label) + ' icon">';
+  }
+  return '<span class="noicon" title="no bytes: never fetched (or checked as gone upstream) \u2014 the icons stage copies the DB\u2019s OWN copy">\u25c7</span>';
+}
+
+function recipe_row(one) {
+  var skill = "";
+  if (one.skill_required !== null && one.skill_required !== undefined) {
+    skill = chip_word("skill " + String(one.skill_required), "skillchip") + " ";
+  }
+  var tier = one.skill_tier ? chip_word(one.skill_tier, "tierchip") + " " : "";
+  return "<tr>"
+    + '<td class="col-job">' + chip_word(one.profession, "jobchip") + "</td>"
+    + '<td class="col-recipe">' + esc(one.recipe_name || one.spell_id) + "</td>"
+    + '<td class="col-skill">' + skill + tier + "</td>"
+    + '<td class="col-mats">' + recipe_mats(one) + "</td>"
+    + '<td class="col-cooked">' + recipe_crafted(one) + "</td>"
+    + "</tr>";
+}
+
+// The watch button of THIS tab is the same verb the search tab's uses, aimed at the
+// cooked items of the shown rows (one batched call, like watchHits). Two kinds of
+// row are skipped HONESTLY, never invented: an enchanting craft has no crafted item
+// at all (crafted_item_id is null), and a cooked item the DB never has a row for
+// cannot be watched - the row already says "the DB never saw this id", and the door
+// refuses to watch a row it has never seen (the watch verb's row guard).
+async function watchRecipes() {
+  if (recipes_shown.length === 0) {
+    set_note(document.getElementById("recipes-note"), "read the recipes first: there are no rows to watch", true);
+    return;
+  }
+  var argv = ["watch", "add"];
+  var targets = 0;
+  for (var i = 0; i < recipes_shown.length; i = i + 1) {
+    var one = recipes_shown[i];
+    if (one.crafted_item_id === null || one.crafted_item_id === undefined) { continue; }
+    if (!one.crafted_db_name) { continue; }
+    if (watched.indexOf(Number(one.crafted_item_id)) >= 0) { continue; }
+    var again = false;
+    for (var k = 2; k < argv.length; k = k + 1) {
+      if (argv[k] === String(one.crafted_item_id)) { again = true; }
+    }
+    if (again) { continue; }
+    argv.push(String(one.crafted_item_id));
+    targets = targets + 1;
+  }
+  if (targets === 0) {
+    set_note(document.getElementById("recipes-note"), "nothing new to watch \u2014 every cooked item of the shown rows is already watched, has no row in your DB, or is an enchanting craft with no crafted item", true);
+    return;
+  }
+  try {
+    await cli_ok(argv);
+    await refreshWatched();
+    set_note(document.getElementById("recipes-note"), "watching " + targets + " cooked items of the shown rows \u2014 the Details: watch list button fetches exactly those records, like every watch row before", false);
+  } catch (problem) {
+    set_note(document.getElementById("recipes-note"), problem.message, true);
+  }
+}
 // ---- liveness while one chunk is in flight --------------------------------
 // A chunk is seconds (pacing at 2/s) or minutes (a Retry-After wait on a 429),
 // and the await for it is exactly where the page could look dead. It does not:
@@ -963,7 +1093,17 @@ document.getElementById("btn-detail-hits").addEventListener("click", function ()
 document.getElementById("btn-icons").addEventListener("click", function () { runSync("icons"); });
 document.getElementById("btn-tooltip").addEventListener("click", function () { runSync("tooltip"); });
 document.getElementById("btn-price").addEventListener("click", function () { runSync("price"); });
-document.getElementById("btn-cancel").addEventListener("click", requestCancel);
+// v0.10.0 (ADR 0021): the Recipes tab's listeners. btn-recipes-fetch rides the
+// SAME runSync(stage) loop as every other stage button (ADR 0019's shape kept for
+// the second source); the recipes stage is deliberately NOT chained into runPullAll
+// - the chain's contract is "the catalogue is complete" over the API's doors, and
+// the recipe set is a fetched dataset on ANOTHER host (recorded, ADR 0021 - not
+// silently added). btn-recipes-watch watches the COOKED items of the shown rows:
+// only ids the DB has rows for (the watch verb's row guard answers honestly for the
+// rest - the door already marked them "the DB never saw this id").
+document.getElementById("btn-recipes").addEventListener("click", function () { runRecipes(); });
+document.getElementById("btn-recipes-fetch").addEventListener("click", function () { runSync("recipes"); });
+document.getElementById("btn-recipes-watch").addEventListener("click", function () { watchRecipes(); });
 document.getElementById("btn-card-db").addEventListener("click", function () { runCard(false); });
 document.getElementById("btn-card-live").addEventListener("click", function () { runCard(true); });
 document.getElementById("btn-live").addEventListener("click", function () { runLive(); });

@@ -27,6 +27,15 @@
       <button class="tab" id="tab-writes" data-tab="writes" type="button">Writes</button>
       <button class="tab" id="tab-live" data-tab="live" type="button">Live look</button>
       <button class="tab" id="tab-stats" data-tab="analytics" type="button">Analytics</button>
+      <!-- v0.10.0 (ADR 0021): the EIGHTH nameplate tab. Its rows are NOT the API's
+           - the words/bands/skill numbers ride the fetched classic recipe set (MIT
+           second source, cited below on the very tab), and the materials answer
+           THROUGH the item rows this DB already owns: icon = the DB's OWN bytes,
+           price = money words with the exact copper in the hover (ADR 0015's rule,
+           kept for the new tab). Honest by construction: an item the DB never saw
+           says so beside its dataset name, and an enchanting craft says it has NO
+           crafted item at all (measured: 133 of the set carry no crafted id). -->
+      <button class="tab" id="tab-recipes" data-tab="recipes" type="button">Recipes</button>
     </nav>
 
     <section class="card" id="status-card" data-tab="overview">
@@ -76,6 +85,37 @@
       <div class="note" id="search-note"></div>
     </section>
 
+    <section class="card wide tab-off" id="recipes-card" data-tab="recipes">
+      <h2>Recipes — what the jobs can craft (the fetched set)</h2>
+      <div class="fields" id="recipes-fields">
+        <select class="field" id="recipes-profession">
+          <option value="">any job</option>
+          <option value="Alchemy">Alchemy</option>
+          <option value="Blacksmithing">Blacksmithing</option>
+          <option value="Cooking">Cooking</option>
+          <option value="Enchanting">Enchanting</option>
+          <option value="Engineering">Engineering</option>
+          <option value="First Aid">First Aid</option>
+          <option value="Leatherworking">Leatherworking</option>
+          <option value="Tailoring">Tailoring</option>
+        </select>
+        <select class="field" id="recipes-pager">
+          <option value="25">25 a page</option>
+          <option value="50">50 a page</option>
+          <option value="100">100 a page</option>
+        </select>
+        <button class="act" id="btn-recipes" type="button">Read the DB</button>
+        <button class="act" id="btn-recipes-watch" type="button">Watch the cooked items</button>
+      </div>
+      <table class="recipehits" id="recipe-hits">
+        <thead>
+          <tr><th class="col-job">job</th><th class="col-recipe">recipe</th><th class="col-skill">skill</th><th class="col-mats">materials (icon · money)</th><th class="col-cooked">cooked at</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="note" id="recipes-note"></div>
+    </section>
+
     <section class="card tab-off" id="sync-card" data-tab="sync">
       <h2>Sync</h2>
       <div class="note" id="sync-note">idle — the last crawl is remembered in the DB, so a stopped run resumes</div>
@@ -93,6 +133,14 @@
         <button class="act" id="btn-icons" type="button">Icons: copy the files</button>
         <button class="act" id="btn-tooltip" type="button">Descriptions: copy</button>
         <button class="act" id="btn-price" type="button">Price: live refresh</button>
+        <!-- v0.10.0 (ADR 0021): the SECOND source's stage lands as its OWN button -
+             same runSync loop, same cli_ok argv (ADR 0014's one-code-path rule). It is
+             NOT part of the pull-all chain (recorded, ADR 0019's discipline): the chain's
+             contract is "the catalogue is complete" over the API's doors; the recipe set
+             is a dataset on ANOTHER host, fetched whole, eight conditional-GET files - and
+             its pending rule is the UPSERT + the meta ETags (a re-pull pays 304s, never
+             twins rows). Not a refresh either: it writes LOCAL rows from fetched bytes. -->
+        <button class="act" id="btn-recipes-fetch" type="button">Recipes: fetch the set</button>
         <button class="act" id="btn-cancel" type="button">Cancel</button>
       </div>
     </section>
