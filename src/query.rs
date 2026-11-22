@@ -120,6 +120,14 @@ pub const LEVEL_ORDER: &str = "ORDER BY (item_level IS NULL) ASC, item_level DES
 /// Plain id order: the crawl order.
 pub const ID_ORDER: &str = "ORDER BY id ASC";
 
+/// Order by the LIVE min buyout (v0.9.9, ADR 0020): the price the price stage
+/// saw at its ask time, so this order reads what the AH offers NOW, not what
+// the DB once stored. Rows with NULL here — never refreshed OR checked price-less
+// at ask time — sort LAST exactly like every other price sort (the two kinds of
+// NULL stay apart in their own stamps, the sort does not care and does not guess);
+// ties broken by name so the order is stable across runs.
+pub const NOW_ORDER: &str = "ORDER BY (price_min_now IS NULL) ASC, price_min_now ASC, name ASC";
+
 /// Sort keys the CLI and the UI pass around; unknown keys fall back to the default.
 pub fn order_for(sort: String) -> String {
     if sort == "quality" {
@@ -133,6 +141,9 @@ pub fn order_for(sort: String) -> String {
     }
     if sort == "id" {
         return ID_ORDER.to_string();
+    }
+    if sort == "price-now" {
+        return NOW_ORDER.to_string();
     }
     return DEFAULT_ORDER.to_string();
 }
