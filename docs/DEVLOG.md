@@ -59,16 +59,25 @@ chain (diff names only ui/index.html + ui/app.js + Cargo.toml/lock).
 
 ### Post-tag verification — replays on FRESH ports, real numbers (the verification fold)
 
-_(the fold commit lands after the tag; its tables are folded here once measured — ADR 0011's
-FORWARD rule: this record writes the plan, the fold writes the numbers.)_
+### Post-tag verification — MEASURED: the buttons moved ZERO bytes on the wire
+
+_(the fold grew these numbers off the replays that produced them — fresh bind-verified ports, fresh
+scratch DBs, the v0.9.8 binary that carries the buttons; nothing here is hoped, every row names its
+own port/DB/driver. The fold waits LOCAL while this release's chain+tag push run flies, GREWS with
+that waited verdict before pushing, and only its OWN push lands FORWARD — the discipline since the
+v0.9.6 era.)_
 
 | probe | answer |
 | ----- | ------ |
-| mirror replay, driver python-generated FROM the committed block (port-stripped compare EQUAL 33/33), fresh fixture port 9229 (bind-verified free), fresh DB mirror098a.sqlite | 33/33 rc 0 + plant rc 0; GET tally; trio/stamp rows read back — the SAME tallies as the v0.9.7 era expected (block unchanged, zero Rust) |
-| wire byte pairs, v0.9.7 binary (`/tmp/opencode/wgt-v97-pre-panels`, saved pre-release) vs the v0.9.8 binary, SAME DB | `item 25 --cached` / `stats --icons --limit 6` / `search sword --where description --sort price --icons --limit 5` byte-for-byte — the buttons moved ZERO bytes on the wire |
-| exit-map ladder, remapped fresh ports + dead ports, v0.9.8 binary | 90-door map 0x59/2x14/3x6/4x11 and 101-door totals 0x67/2x16/3x7/4x11, abort rc 3 pending intact stamps 0 at that moment, drained dead-port pass recorded AGAIN as weak |
-| pinned refusal pair on the fresh 7-file | v0.9.5 rc 4 "wants 6", v0.8.1 rc 4 "wants 4", files untouched |
-| the user's own file | schema 7, 19 258/4 231/4 286, five price-home/stamp columns NULL on every row, status BYTE-IDENTICAL to the era snapshots — the release cannot move the DB (zero Rust) and the replay proves it did not |
+| mirror replay — python driver generated FROM the committed block (port-stripped compare EQUAL 33/33), fresh fixture port 9229 (bind-verified free), fresh DB mirror098a.sqlite born 7 | **33/33 rc 0, plant rc 0**; GET tallies **34 = 200x18 / 304x9 / 404x3 / 429x4** — IDENTICAL to the v0.9.6/v0.9.7 era (block untouched); price press on THIS process: live 17 106/16 106 vs stored 18 106 (the fixture's own RUN moves numbers per process — recorded since the v0.9.6 era), row 40 stamped 1795313703 price-less-at-ask with the COUNTED missing 1; `vendor_buy`/`price_trend_normal` NULL on every row; schema meta 7 at birth |
+| wire byte pairs — v0.9.7 binary `/tmp/opencode/wgt-v97-pre-panels` (saved pre-release) vs the v0.9.8 binary, SAME DB mirror098a, same verbs | `item 25 --cached` **BYTE-IDENTICAL at 4 389 bytes** (live pair still rides it: 17 106 beside `1g 71s 6c`), `stats --icons --limit 6` **BYTE-IDENTICAL at 17 461**, `search sword --where description --sort price --icons --limit 5` **BYTE-IDENTICAL at 3 359** — the buttons moved ZERO bytes on the wire, proven not argued. Cross-process the pair SIZES track the fixture RUN (the v0.9.7-era pair was 4 394/17 473/3 361 — same shape, different numbers: honest restatement where sizes are quoted) |
+| exit-code map — the 90-door driver REMAPPED to fresh ports 9230-9238 + fresh DBs (exit098p...), v0.9.8 binary | **90/90 rc pairs IDENTICAL**: 0x59 / 2x14 / 3x6 / 4x11 held |
+| extension doors — both drivers REMAPPED to fresh fixture ports 9239/9240 + DEAD ports 9397/9398 (upstream sees nothing) | ext1: 8 doors 0x6 / 2x2 (price press 3 requests / 2 written / missing 1 counted; the drained dead-port ask rc 0 recorded AGAIN as the weak pass it is — pending already empty). ext2: abort RE-MEASURED where pending EXISTS (dead 9398, pending 25/40/60): rc **3**, pending AFTER identical, stamps ZERO at that moment, THREE only after the re-press; bogus 2s; list-only DB rc 0 / 0 requests / complete true (5 rows / 0 copies). **Totals over 101 doors: 0x67 / 2x16 / 3x7 / 4x11 — identical to the v0.9.7 AND v0.9.6 era maps** |
+| pinned refusal pair on the fresh 7-file | pinned v0.9.5 (`wgt-v95-prehop`): rc **4**, "database on disk uses schema 7, this build wants 6", file stays 7; pinned v0.8.1: rc **4**, "wants 4", untouched |
+| the user's own file by the v0.9.8 binary (two opens) | schema 7 · 19 258 rows / 4 231 vendor_sell / **4 287 samples**, AVG 54 366.052435329765 — and the DRIFT recorded honestly: +1 sample vs both era snapshots (seq 4287, item 10940 = Strange Dust, 20c min / 150c market, born 1795312676 ≈ 19 min before the read): NOT my doing — every audit run points WGT_DB at scratch DBs (nothing opened the user's file; `status` sends no request and writes no sample), so the user's own app run re-sampled the details chart. Everything ELSE byte-identical to the era snapshots; the five price-home/stamp columns stay NULL on ALL rows (0 rows with any value); second status BYTE-IDENTICAL. The file is the user's: their run moved it, this zero-Rust release cannot and did not |
+| limits recorded, not claimed | the window's rendered look (no display — the buttons are GREP + PARSE witnesses only), content embedding compressed (filename map x14/x1), webview runtime never run (`node --check` = PARSE witness) — ADR 0018's honesty line transfers to the buttons UNCHANGED |
+
+**44975077893** (this release's chain+tag push `0236479..9aaa3f6`, head `9aaa3f6…` = the TAGGED tree): **success, 5/5 in 10 min 45 s** (02:13:34Z -> 02:24:19Z — quality 2 m 03 s · test 5 m 03 s · linux 5 m 25 s · macos 4 m 54 s · windows 10 m 42 s), EXACTLY ONE run id for that head, no CANCELLED sibling, no rerun (matched by id/head_sha; .attempt reads null — the ladder's habit). The fold waited LOCAL while this run flew (the observed rule), GREW this verdict by amend, and pushed — only the fold's OWN push run lands FORWARD in the next record. Every recorded push through this release's chain+tag is green measured: 44973516964 · 44972713823 · 44975077893 (and the era's earlier, straight or resubmitted).
 
 ### Bends, recorded where they stand
 
