@@ -137,19 +137,27 @@ pub struct SearchResponse {
 /// is the TYPED mirror TooltipFields: serde still ignores every key we have no
 /// reader for, so the same promise holds, and the refresh stage now RE-ASKS this
 /// door and reads `price.min` - the live price the door carries.
+///
+/// The mirror was NARROWED at v0.11.1 (ADR 0024) to exactly the two keys with a reader
+/// - `html` (the copy stage writes it; the forever/item body carries none, the measured
+/// key list) and `fields` (the price stage reads `price.min` through TooltipFields).
+/// The other eight keys the probe read - attribution, build, icon_url, id, kind, links,
+/// name, quality, version minus those two, the full list stays recorded whole in docs/API.md
+/// - now ride ON THE WIRE: serde ignores a key we have no reader for, so an answer
+/// carrying them, one without them, or one with a key upstream adds cannot break a
+/// build. This is the rule TooltipFields and the recipe shapes (v0.9.6, v0.10.0) already
+/// carry, applied at the top level too, and it is what killed rustc's "multiple fields
+/// are never read" on this struct: nine names nothing ever read are dead code in the
+/// door's shape - the standard ADR 0011 states and ADR 0021 kept when it called a stored
+/// field with no reader dead code in the recipe shape (ADR 0024 records this fating). Recorded cost, not hidden: `id` was the only REQUIRED key here, so serde used
+/// to refuse an answer that omitted it. Nothing compares a tooltip's own id against the
+/// id we asked for - the request URL carries it, and the compiler proves no reader exists
+/// - and a body that is not an object carrying an `html` string still fails to parse and
+/// still aborts the stage with "not the JSON we expect", so no measured answer moved.
 #[derive(Deserialize, Clone, Debug)]
 pub struct Tooltip {
-    pub id: i64,
     pub html: String,
-    pub kind: Option<String>,
-    pub name: Option<String>,
-    pub quality: Option<String>,
-    pub version: Option<String>,
-    pub build: Option<String>,
-    pub icon_url: Option<String>,
     pub fields: Option<TooltipFields>,
-    pub links: Option<Links>,
-    pub attribution: Option<Attribution>,
 }
 
 /// The `fields` object INSIDE a tooltip answer (v0.9.6, ADR 0017 - the price
