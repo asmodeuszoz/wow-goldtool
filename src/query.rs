@@ -250,6 +250,33 @@ pub fn where_parts(filter: Filter) -> Plan {
     return Plan { sql: format!("WHERE {} ", joined), params: params };
 }
 
+/// v0.10.1 (ADR 0022): ONE paging composition for EVERY door that pages, because
+/// the two doors that page (the search door and the recipe door) were composing
+/// `LIMIT`/`OFFSET` independently and SQLite REFUSES `OFFSET` without a `LIMIT`
+/// — measured TODAY on both doors (`search sword --offset 3` and `recipes --offset 10`
+/// answered rc 4 with the raw clause: `near "OFFSET": syntax error`). The rule is
+/// not a guard bolted on: a door that says "skip N and show the REST" still needs
+/// a LIMIT token, and SQLite's OWN rule (measured today on the DB this tool links,
+/// sqlite 3.54.1) is that a NEGATIVE limit value means "no bound" — `LIMIT ? OFFSET ?`
+/// with -1 answered rows 4..10 on a 10-row scratch table, IDENTICAL to the bare
+/// SELECT's tail, so the semantics of "no `--limit` given" ride unchanged.
+pub fn paging_clause(limit: Option<i64>, offset: Option<i64>) -> (String, Vec<i64>) {
+    match limit {
+        None => {
+            match offset {
+                None => return ("".to_string(), [].to_vec()),
+                Some(skip) => return ("LIMIT ? OFFSET ? ".to_string(), [-1, skip].to_vec()),
+            }
+        },
+        Some(take) => {
+            match offset {
+                None => return ("LIMIT ? ".to_string(), [take].to_vec()),
+                Some(skip) => return ("LIMIT ? OFFSET ? ".to_string(), [take, skip].to_vec()),
+            }
+        },
+    }
+}
+
 /// One full SELECT for a search: the WHERE chain, the ORDER BY and paging.
 pub fn search_plan(filter: Filter) -> Plan {
     let head: Plan = where_parts(filter.clone());
@@ -258,19 +285,10 @@ pub fn search_plan(filter: Filter) -> Plan {
     sql = format!("{}{}{}", sql, order_for(filter.sort), " ");
     let mut params: Vec<Value> = [].to_vec();
     params.extend(head.params);
-    match filter.limit {
-        Some(value) => {
-            sql = sql + "LIMIT ? ";
-            params.push(Value::Integer(value));
-        },
-        None => {},
-    }
-    match filter.offset {
-        Some(value) => {
-            sql = sql + "OFFSET ? ";
-            params.push(Value::Integer(value));
-        },
-        None => {},
+    let page: (String, Vec<i64>) = paging_clause(filter.limit, filter.offset);
+    sql = format!("{}{}", sql, page.0);
+    for whole in page.1 {
+        params.push(Value::Integer(whole));
     }
     return Plan { sql: sql, params: params };
 }
