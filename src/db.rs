@@ -2580,7 +2580,10 @@ pub fn join_recipe_reagent(conn: &Connection, reagent: Reagent, with_icons: bool
 /// Read the recipe rows of one door call: filter echo, ORDER, LIMIT/OFFSET are
 /// bound values (never interpolated), and every reagent + the crafted item are
 /// joined through the item rows AFTER the rows are collected - the door cannot
-/// meet a reagent whose item row a write moved mid-read.
+/// meet a reagent whose item row a write moved mid-read. v0.10.1 (ADR 0022): the
+/// paging clause comes from the SAME `paging_clause` the search door rides - two
+/// doors composing `OFFSET` alone was one defect in two places, and one rule now
+/// answers it twice (`LIMIT -1` is SQLite's own "no bound", measured today).
 pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: bool, limit: Option<i64>, offset: Option<i64>) -> AppResult<Vec<RecipeRow>> {
     let filter_part: String = match profession {
         None => "".to_string(),
@@ -2592,19 +2595,10 @@ pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: b
         None => {},
         Some(word) => params.push(Value::Text(word)),
     }
-    match limit {
-        None => {},
-        Some(value) => {
-            sql = sql.clone() + "LIMIT ? ";
-            params.push(Value::Integer(value));
-        },
-    }
-    match offset {
-        None => {},
-        Some(value) => {
-            sql = sql.clone() + "OFFSET ? ";
-            params.push(Value::Integer(value));
-        },
+    let page: (String, Vec<i64>) = crate::query::paging_clause(limit, offset);
+    sql = format!("{}{}", sql, page.0);
+    for whole in page.1 {
+        params.push(Value::Integer(whole));
     }
     let mut stmt = match conn.prepare(&sql.clone()) {
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
