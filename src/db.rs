@@ -2471,6 +2471,7 @@ pub struct RecipeRow {
     pub crafted_item_id: Option<i64>,
     pub crafted_dataset_name: Option<String>,
     pub crafted_db_name: Option<String>,
+    pub crafted_price_copper: Option<i64>,
     pub crafted_price_money: Option<String>,
     pub crafted_icon_b64: Option<String>,
     pub crafted_icon_at: Option<i64>,
@@ -2652,6 +2653,7 @@ pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: b
                     crafted_item_id: raw.crafted_item_id.clone(),
                     crafted_dataset_name: raw.crafted_dataset_name.clone(),
                     crafted_db_name: None,
+                    crafted_price_copper: None,
                     crafted_price_money: None,
                     crafted_icon_b64: None,
                     crafted_icon_at: None,
@@ -2675,6 +2677,7 @@ pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: b
                             None => {},
                             Some(live) => {
                                 row.crafted_db_name = live.name.clone();
+                                row.crafted_price_copper = live.price_min.clone();
                                 row.crafted_price_money = money_of(live.price_min.clone());
                                 match with_icons {
                                     false => {},
