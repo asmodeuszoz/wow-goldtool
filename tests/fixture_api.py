@@ -183,6 +183,10 @@ MISSING_ICON_ITEM = 60
 # v0.3.0/v0.5.0 reuse steps (re-ask the same ids -> 304, write nothing, sample
 # nothing) keep their exact meaning. The ETag salt moves with the numbers: a
 # changed observation is a changed ETag, never a stale 304 over new values.
+# FROM v0.9.6 this definition sits ABOVE the tooltip page dict because the
+# fixture's live price answers (fields.price, read by the refresh stage) MOVE
+# with RUN too - a dict literal is evaluated at import, so the order must be
+# definition first.
 RUN = str((os.getpid() * 7919) % 6000)
 
 # A listed id the upstream has no detail record for - the live catalogue answers
