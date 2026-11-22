@@ -83,6 +83,15 @@
         <button class="act" id="btn-pull" type="button">Pull all info</button>
         <button class="act" id="btn-detail-watch" type="button">Details: watch list</button>
         <button class="act" id="btn-detail-hits" type="button">Details: shown hits</button>
+        <!-- v0.9.8 (ADR 0019): the three stage buttons the v0.9.6/v0.9.7 records scoped to the
+             CLI land HERE - same runSync loop, same cli_ok argv the cargo line takes (ADR 0014).
+             The Price button is a REFRESH, not a pull: ADR 0017's pending rule answers zero asks
+             a second time (one live ask per copied record, EVER), and it is deliberately NOT part
+             of the pull-all chain (re-recording below) - a click and a `cargo run --` stay one
+             code path, cancel rides at the chunk end like every crawl. -->
+        <button class="act" id="btn-icons" type="button">Icons: copy the files</button>
+        <button class="act" id="btn-tooltip" type="button">Descriptions: copy</button>
+        <button class="act" id="btn-price" type="button">Price: live refresh</button>
         <button class="act" id="btn-cancel" type="button">Cancel</button>
       </div>
     </section>
@@ -95,7 +104,7 @@
         <button class="act" id="btn-card-live" type="button">Re-check online</button>
       </div>
       <div class="cardbox" id="card-box"></div>
-      <div class="note" id="card-note">the card reads the DB: it answers offline, prices are shown as the game&#8217;s money with the exact copper in each hover, the live min buyout row reads "no price" until sync --stage price refreshed it (a CLI-side stage, and the door can also answer that the AH offers nothing right now), and "Re-check online" is the only button that touches the API</div>
+      <div class="note" id="card-note">the card reads the DB: it answers offline, prices are shown as the game&#8217;s money with the exact copper in each hover, the live min buyout row reads "no price" until the price refresh ran - the Sync tab&#8217;s Price button or the CLI stage, one live ask per copied record ever, and the door can also answer that the AH offers nothing right now - and on the card itself "Re-check online" is the only button that touches the API</div>
     </section>
 
     <section class="card tab-off" id="edit-card" data-tab="writes">

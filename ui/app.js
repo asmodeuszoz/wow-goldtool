@@ -285,8 +285,17 @@ async function runSync(stage) {
       clearInterval(tick);
       seen = seen + report.requests;
       if (report.complete) {
+        // v0.9.8 (ADR 0019): the completion note names the stage's OWN third state
+        // count when there is one - generic words that fit every stage without
+        // guessing its meaning (detail: gone upstream; icons/tooltip: the FILE/copy
+        // 404; price: the AH offers nothing now - checked once, never asked again,
+        // ADR 0006's pattern all the way). Stages whose report carries no such
+        // field stay byte-identical: the clause rides ONLY when missing > 0.
+        var third_state = (report.missing !== null && report.missing !== undefined && report.missing > 0)
+          ? ", " + num(report.missing) + " answered the stage's own third state (checked once, never asked again)"
+          : "";
         set_note(document.getElementById("sync-note"),
-          stage + " stage complete: " + num(report.items) + " seen, " + num(report.written) + " written, " + num(report.unchanged) + " reused", false);
+          stage + " stage complete: " + num(report.items) + " seen, " + num(report.written) + " written, " + num(report.unchanged) + " reused" + third_state, false);
         outcome = "complete";
         break;
       }
@@ -535,7 +544,7 @@ async function runCard(live) {
     if (found.price_min_now !== null && found.price_min_now !== undefined) {
       line = line + " — live min buyout refreshed by sync --stage price through the tooltip door (it carries a live AH price); it can differ from the stored min above, which ages with the copy";
     } else if (found.tooltip_at !== null && found.tooltip_at !== undefined) {
-      line = line + " — no live price yet: sync --stage price asks this copied record once (it may also CHECK the record as price-less — the door's own third state, the DB's stamps keep that apart)";
+      line = line + " — no live price yet: the Sync tab's Price button (or the CLI stage) asks this copied record once (it may also CHECK the record as price-less — the door's own third state, the DB's stamps keep that apart)";
     }
     if (found.history && found.history.length > 1) {
       line = line + ", and the price has " + found.history.length + " samples (trend drawn on the card, each bar's hover carries that sample's money)";
@@ -602,10 +611,12 @@ function render_card(found) {
   // state, live id 200): the card door does not split those two yet - its
   // stamps pair does, on disk - so money_cell's muted "no price" plus the
   // note's sentence are the honest reading, and the row label says which
-  // stage fills it. The label matters: the panel has no button for this
-  // stage (gui.rs builds the window and draws no card, reads no column;
-  // verified before this claim), so a value only the CLI stage wrote shows
-  // up when the CLI ran - the card never pretends the panel did anything.
+  // stage fills it. SINCE v0.9.8 (ADR 0019) the door is named: the Sync tab now
+  // has a Price button, and it sends the SAME argv the CLI takes (ADR 0014: a
+  // click and a cargo line are ONE code path), so the value arrives from either
+  // - the row still shows WHAT THE STAGE SAW AT ITS ASK TIME and ages after.
+  // gui.rs alone still builds the Rust shell, draws no card, reads no column
+  // (verified; unchanged since v0.9.7) - the button lives webview-side.
   rows.push(["live min buyout", found.price_min_now, "", found.price_min_now_money]);
   if (item.weapon) {
     rows.push(["damage", item.weapon.damage_min + "-" + item.weapon.damage_max, ""]);
@@ -939,6 +950,12 @@ document.getElementById("btn-list").addEventListener("click", function () { runS
 document.getElementById("btn-pull").addEventListener("click", function () { runPullAll(); });
 document.getElementById("btn-detail-watch").addEventListener("click", function () { runWatchDetails(); });
 document.getElementById("btn-detail-hits").addEventListener("click", function () { runHitsDetails(); });
+// v0.9.8 (ADR 0019): the three stage buttons the CLI used to own - SAME runSync
+// loop, SAME cli_ok(["sync","--stage",...]) argv; chunking, cancel at the chunk
+// end and resume from sync_state ride for free (ADR 0014: one code path).
+document.getElementById("btn-icons").addEventListener("click", function () { runSync("icons"); });
+document.getElementById("btn-tooltip").addEventListener("click", function () { runSync("tooltip"); });
+document.getElementById("btn-price").addEventListener("click", function () { runSync("price"); });
 document.getElementById("btn-cancel").addEventListener("click", requestCancel);
 document.getElementById("btn-card-db").addEventListener("click", function () { runCard(false); });
 document.getElementById("btn-card-live").addEventListener("click", function () { runCard(true); });
