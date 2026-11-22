@@ -72,14 +72,30 @@ heuristic (prose apostrophes mispair), its value is the confirmed hit, NOT a pro
 * the v0.9.6-era "re-embedded" phrasing became measurable and got corrected HERE, not retro-tagged
   anywhere (tags stay put; the era's own record keeps its words).
 
+### Post-tag verification — replays on FRESH ports, real numbers, the wire did not move
+
+| probe | answer |
+| ----- | ------ |
+| mirror replay, driver python-generated FROM the committed block (port-stripped compare EQUAL 33/33), fresh fixture port 9213 (bind-verified free), fresh DB mirror097a (born 7) | **33/33 rc 0, plant rc=0**; fixture GET tallies **34 = 200x18 / 304x9 / 404x3 / 429x4** — IDENTICAL to the v0.9.6 era's 34-tally: the block is unchanged and the wire did not move (the price press adds its own three 200s, the idempotent press nothing, exactly as before); price press live 16 645/15 645 against stored 17 645 (the fixture's own RUN 645 THIS process), row 40 stamped 1795311783 price-less with the COUNTED missing 1; trio NULL on every row |
+| wire byte pairs, v0.9.6 binary (`/tmp/opencode/wgt-v96-pre-ui`, saved pre-release) vs the v0.9.7 binary, SAME mirror DB, same verbs | `item 25 --cached` **BYTE-IDENTICAL at 4 394 bytes** (live pair still riding: `16645` beside `1g 66s 45c`), `stats --icons --limit 6` **BYTE-IDENTICAL at 17 473**, `search sword --where description --sort price --icons --limit 5` **BYTE-IDENTICAL at 3 361** — the frame moved ZERO bytes on the wire, proven not argued |
+| the v0.9.5-era 90-door exit map REMAPPED to fresh ports 9220-9228 + fresh DBs (exit097p...) run with the v0.9.7 binary | **90/90 rc pairs IDENTICAL**: totals `0`x59 / `2`x14 / `3`x6 / `4`x11 held — money doors 2/2/0/0, pinned trio 65/66/67 = 0/0/4 with door 66 chaining 4->5->6->7 in one open, meta 7 |
+| the two extension drivers REMAPPED to fresh ports 9214/9215 + DEAD ports 9297/9298 (upstream sees NOTHING) | ext1 eight doors 0x6 / 2x2 (press on pending rc 0 written 2 + missing 1 counted; the drained dead-port ask rc 0 recorded AGAIN as the weak pass it is — pending was already empty); ext2 abort RE-MEASURED where pending EXISTS (dead 9298, pending 25/40/60): rc **3**, pending AFTER IDENTICAL, stamps ZERO — resumable, nothing marked; re-press rc 0 (requests 3, written 2, missing 1 — stamps moved to 3 only AFTER the press); list-only DB (5 rows, ZERO copies): rc 0, 0 requests, `complete true`. **Totals 101 doors: `0`x67 / `2`x16 / `3`x7 / `4`x11 — identical to v0.9.6's map** |
+| pinned refusal ladder on the fresh 7-file | pinned v0.9.5 (`wgt-v95-prehop`): rc **4**, `database on disk uses schema 7, this build wants 6`, file stays 7; pinned v0.8.1: rc **4**, `wants 4`, untouched — the ladder keeps its teeth under a release that never touched Rust |
+| the user's own file, first door by the v0.9.7 binary | schema 7, **19 258 rows / 4 231 vendor_sell / 4 286 samples**, `price_min_now`/`price_now_at`/`price_now_missing_at`/`vendor_buy`/`price_trend_normal` NULL on ALL (rows with any value: **0**) — second `status` BYTE-IDENTICAL, and BYTE-IDENTICAL to the v0.9.6-era audit snapshot (no drift: the file did not move since) |
+| what CANNOT be witnessed, recorded as such | the window's rendered LOOK (no display on this FS — never claimed); content embedding (tauri v2 compresses: content greps 0, filename map x14/x1 is the greppable witness); the webview's runtime (node --check is a PARSE witness only) — the release's honesty line says the CONTRACT survived, not the pixels |
+
 ### CI ladder
 
 **44970667747** (v0.9.6's CI-fold push `0c450ba..e4c6f3f`, head `e4c6f3f...`): **success, 5/5 in 7 min
-30 s** (01:16:24Z -> 01:23:54Z — quality 2 m 00 s · test 4 m 42 s · linux 5 m 24 s · macos 7 m 12 s ·
+30 s** (01:16:24Z -> 01:23:54Z - quality 2 m 00 s · test 4 m 42 s · linux 5 m 24 s · macos 7 m 12 s ·
 windows 7 m 28 s), EXACTLY ONE run id for that head, no CANCELLED sibling, no rerun (matched by
-id/head_sha; the run's own .attempt reads null on this API — the ladder's habit). It was IN FLIGHT while
-that fold waited, and its verdict folds HERE, FORWARD, this record — every recorded push through v0.9.6
-is green. v0.9.7's own chain+tag push starts a run that lands FORWARD in the NEXT record, never chased.
+id/head_sha; the run's own .attempt reads null on this API). **44972713823** (v0.9.7's chain+tag push
+`e4c6f3f..dfb8826`, head `dfb8826...` - the TAGGED tree): **success, 5/5 in 8 min 44 s** (01:42:32Z ->
+01:51:16Z - quality 2 m 19 s · test 4 m 55 s · linux 4 m 29 s · macos 4 m 42 s · windows 8 m 42 s),
+exactly ONE run id for that head, no CANCELLED sibling, no rerun submitted. The verification fold waited
+(staying LOCAL while that run flew - the observed rule) and GREW with this verdict before pushing -
+honest: only the fold's OWN push lands FORWARD in the next record. Every recorded push through v0.9.7 is
+green now, straight or after an honest resubmission of the SAME head.
 Tags stay put (`v0.9.6` -> `4ced794`, `v0.9.7` -> this record's commit).
 
 ## 2026-11-21 · v0.9.6 — the live min buyout: ADR 0016's first producer, and the door that answers NOW

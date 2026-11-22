@@ -122,6 +122,12 @@ ADR 0016's ladder grows measured: **44970667747** (v0.9.6's CI-fold push, `0c450
 test 4 m 42 s · linux 5 m 24 s · macos 7 m 12 s · windows 7 m 28 s), exactly ONE run id for that
 head, no CANCELLED sibling, no rerun (matched by `id`/`head_sha` — the run's own `.attempt` reads
 null on this API, the ladder's habit). It was IN FLIGHT while the v0.9.6 fold waited and pushed
-clean, and its verdict folds HERE, FORWARD, this record. v0.9.7's own chain+tag push starts a run
-that lands FORWARD in the next record, never chased — same for the verification folds. Tags stay
+clean, and its verdict folds HERE, FORWARD, this record. v0.9.7's own chain+tag push `e4c6f3f..dfb8826`
+(head `dfb8826...` - the TAGGED tree) ran **44972713823**: **success, 5/5 in 8 min 44 s** (01:42:32Z ->
+01:51:16Z - quality 2 m 19 s · test 4 m 55 s · linux 4 m 29 s · macos 4 m 42 s · windows 8 m 42 s),
+exactly one run id for that head, no CANCELLED sibling, no rerun (matched by id/head_sha; the run's own
+.attempt reads null on this API). The verification fold waited - staying LOCAL while that run flew
+(the observed rule: a fresh push cancels the branch's in-flight run) - and GREW with this verdict before
+pushing, honest: only the fold's OWN push lands FORWARD in the next record. Tags stay put (`v0.9.6` ->
+`4ced794`, `v0.9.7` -> `dfb8826`) Tags stay
 put (`v0.9.6` → `4ced794`, `v0.9.7` → this record's commit).
