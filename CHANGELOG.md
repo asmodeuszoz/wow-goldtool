@@ -6,6 +6,78 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.11.0 — the LIVE price IN the recipe cell: the stored min keeps its cell and hover, the live pair rides beside it, the two live NULLs stay two honest chips · 2026-11-22 · tag `v0.11.0`
+
+A feature release answering the deferred question v0.9.9 and ADR 0020 recorded
+("live price IN the cell = next release's honest question") — with a producer on
+it now: the price stage (v0.9.6, ADR 0017) ALREADY writes `price_min_now` beside
+the stored `price_min` (schema 7's OWN columns, its own stamp pair); the recipe
+door was reading only the stored half.
+
+Added
+
+- **The live twin in the by-value joins** (`feat(db) ff99bce`): `SQL_LIVE_NAME_PRICE`
+  widens to `price_min_now, price_now_at, price_now_missing_at` in the SAME SELECT
+  (one read per row — no second query, ADR 0014's one-code-path), `LiveNamePrice`
+  mirrors them, and BOTH joins (`join_recipe_reagent` + the crafted join in `recipes_rows`)
+  fill live copper + live money words (Rust's ONE formatter, ADR 0015's pair) + the
+  TWO stamps. The stamps are not decoration: the two NULLs mean different things and
+  only they keep them apart — `price_now_missing_at` set = "looked, the AH offers
+  NOTHING right now" (ADR 0017's third state), both stamps NULL = "the live price was
+  never refreshed yet". Measured over the fixture's own set (fresh DB, ZERO real-host):
+  stored `18490 ↔ 1g 84s 90c` (the RUN's seed) with live `17490 ↔ 1g 74s 90c` /
+  `16490 ↔ 1g 64s 90c` — live differs 5, "no auction right now" 1, "not refreshed yet"
+  4, and the 2 enchanting crafts (crafted id NULL) carry NO live noise; reagents 11 of
+  19 join a row (4 live pairs, 4 price-less, 3 not refreshed). The Blacksmithing door
+  answers BOTH states side by side in 2 rows (crafted 40 = missing-stamped, crafted 60
+  = live differs) — the shape the new CI step reads.
+- **The recipe tab's cell draws it** (`feat(ui) 0690f38`): the money IN a cell stays
+  the STORED min with its exact-copper hover (ADR 0015 untouched); the LIVE money span
+  (`class="live"`) rides beside it ONLY when the two DIFFER — its hover keeps the EXACT
+  live copper, live == stored adds NOTHING (a second identical number is noise); the
+  two honest chips `no auction right now` (`live-missing`) / `live price not refreshed
+  yet` (`live-none`) ride the stamps; NO live noise at all for an id the DB has no row
+  for (the joins wrote no live fields — `not in your DB` / `the DB never saw this id`
+  stay the honest words); ONE conditional note sentence in the ADR 0020 pattern (cell
+  = STORED vs live = LAST ASK, no numbers — numbers ride the cells), shown only when
+  a live part fired. CSS names the EXACT trio `.live` / `.live-none` / `.live-missing`
+  (parse + grep witnesses only, the launch-audit rule — the webview never rendered in
+  the build room).
+- **CI grew ONE step (43 → 44 step-lines + plant one)**: `cargo run -- recipes
+  --profession Blacksmithing --icons --limit 3` reads BOTH live states in ONE answer
+  with ZERO requests added (the door is LOCAL, ADR 0012's rule — the fields come from
+  the price stage's OWN press above): fresh mirror measured BEFORE the block landed,
+  driver generated from these very steps — **47/47 commands rc 0, ZERO NONZERO**
+  (`TOTAL_STEPS=47`); the step's RUN: `matching 2`, spell 202 crafted 40 stored
+  `20622 ↔ 2g 6s 22c` with `crafted_now_missing_at` 1795366692 set (missing state,
+  its OWN copied bytes ride: b64 2 596 chars, stamp 1795366661), spell 683 crafted 60
+  live `18622 ↔ 1g 86s 22c` DIFFERENT from stored `20622` with `crafted_now_at`
+  stamped — and spell 683's crafted icon stays its honest "no copied bytes" state.
+
+Changed
+
+- **ADR 0023** records the decision (the four parts: one read carries the twin / the
+  two NULLs stay two answers named by the stamps / the cell rule / the conditional
+  note); ADR 0020's deferred bullet gets the pointer — the SEARCH-hit cell stays
+  stored-only (`HIT_COLUMNS` and the Hit money pair measured UNCHANGED, its wire-shape
+  deferral still stands where recorded); ADR 0021 gets the pointer that its join now
+  carries the live trio (READ, no schema hop, ZERO new requests).
+- **docs/DATABASE.md** names the READ beside the live-column paragraph: the columns are
+  schema `7`'s OWN (born with ADR 0016, written at ADR 0017) — THIS release READS them,
+  the schema stays `8` (no hop, no new column).
+- `vendor_buy` and `price_trend_normal` stay NULL UNTOUCHED (ADR 0016's honest grounds:
+  NO producer ever wrote them — this release reads `price_min_now`'s twin, never fills
+  the other two); the trio contract's NULL-vs-0 split and ADR 0015's money rule
+  (words NEVER beside auction COUNTS — no count moved) ride unchanged.
+- The version banner moves `0.10.0 → 0.11.0` (Cargo.toml + lock, `chore`): a FEATURE
+  release — a new cell shape, new door fields READ, a new CI step — not a patch over
+  the old shape (contrast v0.10.1, which left the banner put through its patch chain).
+  Schema stays `8`.
+
+Refs: ADR 0023, ADR 0017 (the producer side already measured there), ADR 0016's trio
+contract, ADR 0015's money rule, ADR 0020's deferred question, ADR 0021's by-value
+join, ADR 0012's local-door rule, [docs/DEVLOG.md](./docs/DEVLOG.md), tag `v0.11.0`.
+
 ## v0.10.1 — the paging doors ride one rule: `--offset` without `--limit` answers, twice · 2026-11-22 · tag `v0.10.1`
 
 A patch era: v0.10.0's post-tag map measured a defect class that lives on TWO doors and

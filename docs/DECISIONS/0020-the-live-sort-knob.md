@@ -44,7 +44,12 @@ drift. Other sorts keep their note BYTE-IDENTICAL.
   money pair would have to grow per-row live fields (a WIRE shape change); the knob's promise is
   the ORDER, the cell stays the stored min the hover-copper belongs to (ADR 0015's money rides the
   copper it derives from — a live cell would need its own pair, next release's honest question).
-  The note carries the sentence instead, this release.
+  The note carries the sentence instead, this release. **Pointer (v0.11.0, ADR 0023):** the
+  question SHIPPED in the RECIPE tab — the live pair rides IN the recipe cell (that door's
+  join already owns the row, so the twin grew on the join's OWN read: ZERO requests, ZERO
+  new columns). THIS deferral still stands for the SEARCH-hit cell: measured UNCHANGED at
+  v0.11.0 (`HIT_COLUMNS` and the Hit money pair did not move — the wire-shape deferral
+  remains exactly where it was recorded here).
 * **`--priced` reading the live column** — untouched: the filter is the stored-min rule documented
   since v0.9.1; the knob is an ORDER, not a FILTER.
 * **Ties broken by id instead of name** — rejected: every other price sort ties by name already;

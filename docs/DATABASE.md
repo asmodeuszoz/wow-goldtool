@@ -420,6 +420,21 @@ copies' 28-key set holds `vendor_sell` only, upstream lists exactly FOUR doors; 
 has ever written it"; in `price_min_now` it now splits into refreshed / checked-price-less /
 never-asked, the ADR 0006 pattern with its OWN stamp pair.
 
+**v0.11.0 (ADR 0023) READS this twin where a join already pays** — no column, no hop
+(schema stays `8`: the live trio is schema 7's OWN, born with ADR 0016 and written at
+ADR 0017, THIS release reads it): `SQL_LIVE_NAME_PRICE` widens to `price_min_now,
+price_now_at, price_now_missing_at` in the SAME SELECT the recipe joins already pay
+(one read per row — the by-value joins cannot meet a row a write moved mid-read, and
+ZERO new queries/requests, ADR 0014's ONE-path rule), and `RecipeReagent` /
+`RecipeRow` carry the live copper + money words (the ONE formatter again, ADR 0015)
++ the two stamps. The recipe tab's cell draws the pair by the stamps, never merging
+them: live money beside the STORED money ONLY when they differ, `no auction right
+now` for a set `price_now_missing_at` (ADR 0017's third state), `live price not
+refreshed yet` for both-NULL stamps, nothing for live == stored, NO live fields at
+all for an id with no DB row. The search-hit shape did NOT move (`HIT_COLUMNS` +
+the Hit money pair stay v0.9.4's — ADR 0020's deferral, measured unchanged);
+`vendor_buy` / `price_trend_normal` stay NULL (ADR 0016).
+
 
 ## Query recipes
 

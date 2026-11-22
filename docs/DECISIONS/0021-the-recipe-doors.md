@@ -213,3 +213,12 @@ CLOSED by ADR 0022 in v0.10.1 (the patch chain `9f4da68` fix(query) + `2a41ce3` 
 rc 4 → rc 0 delta on both door steps was measured against the PINNED v0.10.0 binary over
 one shared fresh fixture (22 DB-only doors BYTE-IDENTICAL, the two paging doors show the
 delta). No redaction parser was invented for a class that can no longer occur.
+
+v0.11.0 (ADR 0023) grows the SAME join, not a new one: `SQL_LIVE_NAME_PRICE` widens
+to `price_min_now` + its TWO stamps in the very SELECT the join already pays (one
+read per row — the join still cannot meet a row a write moved mid-read, ZERO new
+requests), and `RecipeReagent` / `RecipeRow` carry the live copper + money words +
+stamps to the cell; the tab draws the live pair beside the stored money ONLY when
+they differ and names the two NULL states from the stamps (ADR 0017's third state
+vs never-refreshed). READ only — no schema hop (the columns are schema 7's), `vendor_buy`
+/ `price_trend_normal` still NULL (ADR 0016's grounds hold unchanged).

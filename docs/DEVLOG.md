@@ -5,6 +5,113 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-22 · v0.11.0 — the LIVE price IN the recipe cell: the stored min keeps its cell and hover, the live pair rides beside it, the two NULLs stay two honest chips
+
+### What forced it
+
+The user's fifth ask ("the crafted cell should show what the AH offers NOW, not just
+the stored min") and the question v0.9.9 + ADR 0020 recorded as DEFERRED — "showing
+the live price IN the cell = next release's honest question" — because the SEARCH-hit
+cell would have needed a wire-shape change (`HIT_COLUMNS` + a per-row live money pair).
+The deferral found its producer-side answer where the row was already owned: the
+RECIPE door joins by value through the item rows its own DB holds (ADR 0021), and
+ADR 0017's price stage ALREADY writes `price_min_now` beside the stored min (schema
+7's OWN columns, its own stamp pair). BEFORE witness (measured, the v0.10.1 era's
+own mirror): the `recipes --limit 40` answer carried `crafted_price_copper` + money
+ONLY — no live fields anywhere, and the fixture already offered the states: id 25
+stored 17520 / live 16520, id 40 live NULL WITH `price_now_missing_at` SET, id 12809
+BOTH stamps NULL (the price stage never asked it — `tooltip_at` NULL rides its pending
+rule). The two NULLs mean DIFFERENT things: showing one answer for both would be the
+lie ADR 0006 refuses.
+
+### The decision (ADR 0023, four parts)
+
+One read carries the twin (ADR 0014: `SQL_LIVE_NAME_PRICE` widens to `price_min_now,
+price_now_at, price_now_missing_at` in the SAME SELECT — both by-value joins already
+call `live_name_price_of` ONCE, so the joins cannot meet a row a write moved mid-read;
+no second query). The two NULLs stay TWO answers named by the STAMPS: `price_now_missing_at`
+set = "looked, the AH offers NOTHING right now" (ADR 0017's third state); both stamps
+NULL = "live price not refreshed yet" (this record never met the price stage — ADR 0016's
+never-written pattern restated). The cell rule: money IN the cell stays the STORED min
+with its exact-copper hover (ADR 0015 + the hover rule untouched); the LIVE money span
+rides beside it ONLY when the two DIFFER (live == stored adds NOTHING — a second identical
+number is noise; the hover keeps the exact live copper, the words come from Rust's ONE
+formatter); NO live noise at all for an id the DB has no row for (the joins wrote none —
+the caller guards). ONE conditional note sentence in the ADR 0020 pattern (NO numbers —
+numbers ride the cells) names cell = STORED vs live = LAST ASK, shown ONLY when a live
+part fired. What it does NOT do: no schema hop (schema stays `8`, the columns are schema
+7's), `vendor_buy` / `price_trend_normal` stay NULL UNTOUCHED (ADR 0016's grounds hold —
+this release READS `price_min_now`'s twin, never fills the other two), the SEARCH-hit
+cell stays stored-only (ADR 0020's deferral measured UNCHANGED — `HIT_COLUMNS` did not
+move).
+
+### Measured (pre-tag)
+
+* builds: exit 0, the FOUR named warnings (`PendingSql` privacy, unread `Tooltip` fields,
+  `open_db`, `catalogue`) every commit — the incremental-clear hard-link line the FS
+  artifact of the clear-the-cache mechanic, never a fifth named warning (the mirror's 44
+  cargo builds print FOUR + the FS line each; cargo counts it in its summary).
+* AFTER (fixture set, fresh DB + fresh fixture process, ZERO real-host requests — every
+  crawl door carried `--fixture`, the doors are LOCAL): `recipes --limit 40` answers 12
+  rows with stored `18490 ↔ 1g 84s 90c` (the RUN's seed) and live `17490 ↔ 1g 74s 90c`
+  (id 25) / `16490 ↔ 1g 64s 90c` (id 60) — live differs 5, `no auction right now` 1 (id 40,
+  `price_now_missing_at` set), `not refreshed yet` 4, and the TWO enchanting crafts
+  (crafted id NULL) carry NO live noise at all; reagents 11 of 19 join a row (4 live pairs
+  beside the stored money, 4 price-less states, 3 not refreshed yet). Fixture RUN pairs
+  moved honestly (20622 / 18490 / 17520 / 18908 seen across the RUNs — the fixture seeds
+  prices per RUN, the RULE (ADR 0015) did not).
+* the Blacksmithing door carries BOTH states side by side in 2 rows (the shape the new
+  CI step reads): spell 202 crafted 40 stored `20622 ↔ 2g 6s 22c` with `crafted_now_missing_at`
+  1795366692 SET and its OWN copied bytes beside it (b64 2 596 chars, icon stamp 1795366661);
+  spell 683 crafted 60 live `18622 ↔ 1g 86s 22c` DIFFERENT from stored `20622` with
+  `crafted_now_at` 1795366692, and its crafted icon stays the honest "no copied bytes"
+  state (the DB never copied 60's icon) — four field kinds ride in ONE answer, none merged.
+* CI grew ONE step (**43 → 44 step-lines** + plant one, verified by step-line parse —
+  the naive grep counts the comments' own `cargo run` mentions, 46 raw, not used):
+  `cargo run -- recipes --profession Blacksmithing --icons --limit 3`, ZERO requests
+  (the door is LOCAL, ADR 0012's rule). Fresh mirror measured BEFORE the ci block landed,
+  driver generated FROM these very steps (port-stripped compare EQUAL): **47/47 commands
+  rc 0, ZERO NONZERO** (`TOTAL_STEPS=47` = 44 step-lines + plant + fixture start + sleep,
+  fresh fixture process on the block's own port, DB born 8); the stage presses kept their
+  measured answers UNCHANGED (budget-3 4 requests / 3 of 8 files / 5 rows / `rate_limited 1`
+  · resumed-from-3 5 / 5 / 7 / complete · re-pull 8 / 8 files / 8 answered the SAME copy /
+  0 written) — the new step spends ZERO GETs, the tallies cannot move.
+* UI witnesses ride the launch-audit rule (no display in this build room): `node --check`
+  PARSES the grown app.js (a PARSE witness, not a rendered claim), grep witnesses name the
+  EXACT live trio drawn — `class="live"` span + the two `chip_word` chips (`live-missing` /
+  `live-none`) — and app.css styles the SAME three class names; the conditional note fires
+  ONLY when a live part fired (`live_shown` reset per door run, measured by grep of the 6
+  sites). The rendered tab stays never-claimed.
+* limits kept: the SEARCH-hit shape did not move (the mirror's `search sword --offset 4`
+  step answers `total 0` + `hits []` IDENTICALLY to the v0.10.1 era's mirror; the diff
+  touched no `HIT_COLUMNS` line — grep of the chain), money words never ride an auction
+  COUNT (no count moved), `vendor_buy` / `price_trend_normal` NULL untouched (the CI card
+  step answers them null — the trio's NULL-vs-0 split rides put), schema answers `8` in
+  the mirror DB (born 8 — no hop), the real host saw NOTHING, `tests/__pycache__/` stayed
+  out of every commit (explicit paths, the .gitignore gap honored).
+
+### Chain
+
+`ff99bce` feat(db) (the SELECT widens, both joins fill copper + money + the two stamps) →
+`0690f38` feat(ui) (`live_cell` + the conditional note + the CSS trio `.live` / `.live-none`
+/ `.live-missing`) → `b03be1b` ci (the 44th step reads both live states, ZERO requests) →
+`e1500fd` chore (banner 0.10.0 → 0.11.0 — a FEATURE release: new cell shape + new door fields
+READ + new step; contrast the v0.10.1 and v0.9.1 patch eras that LEFT it put — this release
+earns the move, recorded not slipped) → this record carries the annotated tag `v0.11.0`.
+
+### CI ladder
+
+The v0.10.1 verification-fold push measured WHILE this chain built: **45045533751** —
+**success, 5/5 in 11 min 4 s** (2026-11-22T16:44:44Z → 16:55:48Z — quality 2 m 6 s · linux
+5 m 32 s · test 5 m 58 s · macos 5 m 39 s · windows 11 m 1 s), exactly ONE run id for that
+head, no CANCELLED sibling, no rerun. The era's own mid-chain feature push (head `0690f38`)
+started **45046599075**, IN FLIGHT at record time — its verdict lands FORWARD in this era's
+verification fold, NEVER chased here (ADR 0011's ordering rule; every push in this era waited:
+the chain pushed only with no run in flight, and the record's chain+tag push waits for
+`45046599075` to complete). This record's chain+tag push starts the NEXT run, measured in
+the fold — the ladder never chases a tag, tags stay put (`v0.10.0` → `e4d3447`, `v0.10.1` →
+`09c8d77`, `v0.11.0` → this record's commit).
+
 ## 2026-11-22 · v0.10.1 — the paging doors ride one rule: `--offset` alone answers, twice
 
 ### What forced it
