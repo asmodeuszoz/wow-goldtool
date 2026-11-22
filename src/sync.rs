@@ -908,6 +908,10 @@ pub fn sync_prices(client: Client, conn: &Connection, mut budget: RateBudget, id
                 None => {
                     // measured third state, live id 200 today: `fields.price` is
                     // literal null - the door LOOKED and the AH offers NOTHING now.
+                    // COUNTED like the 404 arm: the first mechanism run measured the
+                    // stamp on disk but a lying `missing 0` in the report (the stamp
+                    // existed, the counter did not move) - fixed the same breath.
+                    report.missing = report.missing + 1;
                     match mark_price_missing_at(conn, id, unix_now()) {
                         Err(problem) => return Err(problem),
                         Ok(_) => {},
