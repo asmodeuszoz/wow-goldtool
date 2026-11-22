@@ -52,6 +52,27 @@ SELECT's tail). A bare `OFFSET ?` is refused outright.
 * `stats`/the pending queues keep their single `LIMIT ?` shape untouched (they never
   page past an OFFSET — measured: no OFFSET clause in their SQL).
 
+## CI row (measured green, tag pinned)
+
+**45044360477** (the chain+tag push `c94f6b0..09c8d77`, head = the TAGGED tree): **success, 5/5
+in 9 min 45 s** (2026-11-22T16:31:58Z → 16:41:43Z — quality 2 m 27 s · linux 6 m 38 s · test 7 m
+18 s · macos 7 m 20 s · windows 9 m 42 s), exactly ONE run id for that head, no CANCELLED sibling,
+no rerun. The tag stays put: `v0.10.1` → `09c8d77`; the earlier era's tag stays put too (`v0.10.0`
+→ `e4d3447`). The verification fold's own push starts the NEXT run, measured in the NEXT record —
+ADR 0011's ordering rule, the ladder never chases a tag.
+
+## Post-tag (measured FORWARD, folded in the DEVLOG's v0.10.1 entry)
+
+The mirror replayed the GROWN block on a fresh fixture process + a DB born 8: **46/46 commands
+rc 0, ZERO NONZERO**. The exit map re-ran GROWN (fresh fixture 9617, fresh seed DB, fresh EMPTY
+DB, DEAD 9997, the scratch 404-file server 9558): **87 doors `0`×58 · `2`×17 · `3`×6 · `4`×6**,
+with the SIX paging doors answering rc 0 — the class this ADR kills cannot recur. Over the USER's
+own 19 258-row file (opens + LOCAL doors, ZERO requests): `search sword --offset 3` answers the
+REST — **220 hits of `total 223`** rc 0 — `recipes --offset 1238` 2 rows of `matching 1 240`,
+`--offset 1240` an EMPTY set rc 0, `--profession Enchanting --offset 150` 2 of `matching 152`; and
+the pinned v0.10.0 binary answers **8 read-only doors BYTE-IDENTICAL** on the same file (md5-equal,
+1 098 B … 81 428 B) — the fix moves nothing that does not page past an OFFSET without a LIMIT.
+
 ## Chain and witnesses
 
 `9f4da68` fix(query) (the rule + the search door rides it) → `2a41ce3` fix(db) (the

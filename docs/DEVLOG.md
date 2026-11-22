@@ -83,6 +83,27 @@ fact recorded where it stands). Earlier run folded in v0.10.0's own fold: 450405
 record's chain+tag push starts the NEXT run, measured FORWARD in the NEXT record — the ladder
 never chases a tag, tags stay put (`v0.10.0` → `e4d3447`, `v0.10.1` → this record's commit).
 
+### Post-tag verification — MEASURED on fresh ports: 46/46 green, the map grown, the real file's doors answer the REST
+
+All FRESH ports/processes and FRESH DBs; the real host saw NOTHING (every crawl door carried
+`--fixture`, the paging doors are LOCAL — ZERO requests); the user's OWN file was read through
+its OWN doors, never crawled.
+
+| probe | answer |
+| ----- | ------ |
+| mirror replay — driver generated FROM the GROWN committed block (port-stripped compare EQUAL **43/43** step-lines + plant one), fresh fixture PROCESS on 8765, fresh DB `post102/fixture.sqlite` born 8 | **46/46 commands rc 0, ZERO NONZERO** (`TOTAL_STEPS=46` = 43 step-lines + plant + fixture start + sleep); the stage presses re-measured: budget-3 **4 requests / 3 of 8 files / 5 rows / `rate_limited 1` / `complete false`** · resumed **`from 3` / 5 requests / 5 files / 7 rows / `complete true`** · re-pull **8 requests / 8 files / 8 answered the same copy / 0 written**; the RUN's money pair `17520 ↔ 1g 75s 20c` beside all 12 reagent slots; the two paging steps rc 0 — `recipes --offset 10` answering 2 rows of `matching 12` (first spell 3024) and `search sword --offset 4` answering `total 0` + `hits []` (no sword row there: the door's own no-row-past-the-end shape, never a 4) — the mirror's builds print the FOUR named warnings plus the hard-link FS line (the incremental-clear mechanic's artifact, never a fifth named warning) |
+| exit map RE-RUN GROWN — fresh fixture 9617 + fresh seed DB + fresh EMPTY DB + DEAD 9997 + the scratch 404-file server 9558 | **87 doors: `0`×58 · `2`×17 · `3`×6 · `4`×6**; the SIX paging doors answer rc 0 exactly as ADR 0022's contract says (`recipes --offset 10/2/12`, `--profession Alchemy --offset 1`, `search sword --offset 3`, `search map102 --offset 1`); the empty-table pair still answers 4/4, the bogus-profession filter answers 4 (`Jewelcrafting` is not in the set's words), the whole-door refusals still answer 2/2, the 404-FILE abort answers 3/3 (no summary line); one ordering fact recorded honestly: `item 900000000 --cached` answered rc 0 because an EARLIER map step tombstoned that id (the card answers the row the DB OWNS) — the gone-upstream pair `item 127555` / `--cached` still answers 4/4 |
+| the user's OWN file, read by the new binary (opens + LOCAL doors, ZERO requests, NO crawl) | two `status` opens rc 0/0, status **BYTE-IDENTICAL**; tallies intact: schema 8, **19 258** rows / **4 231** `vendor_sell` / **4 287** samples, `recipe` + `recipe__crafted` present with the **1 240** rows the v0.10.0 era's recorded real-host witness wrote (nothing re-fetched here); the fix's own doors over the REAL data: `search sword --offset 3` answers the REST — **220 hits of `total 223`** rc 0 — `search shortsword --offset 26 --limit 5` 2 rows of total 28, `recipes --offset 1238` 2 rows of `matching 1 240`, `recipes --offset 1240` an **EMPTY set rc 0** (never a 4), `recipes --profession Enchanting --offset 150` 2 rows of `matching 152` |
+| the pinned pair over the REAL file (the v0.10.0 binary at the tagged tree `e4d3447` vs the new binary, read-only doors, ZERO requests) | **8 doors BYTE-IDENTICAL, md5-equal both sides**: `status` 1 098 B · `stats --icons --limit 6` 37 648 B · `item 25 --cached` 2 950 B · `search sword --limit 2 --offset 1` 979 B · `search sword --limit 4 --offset 10` 1 729 B · `recipes --limit 40` 81 428 B · `recipes --limit 4 --offset 1236` 4 802 B · `watch list` 707 B — the fix moves NOTHING that does not page past an OFFSET without a LIMIT, on the user's own 19 258-row file |
+| the fixture-pair pinned audit cited from the chain (the v0.10.0 binary vs the new binary, ONE shared fresh fixture, TWO fresh DBs) | **22 DB-only doors BYTE-IDENTICAL**, the two paging doors show exactly the rc delta **4 → 0**, the working pair md5-equal both sides (1 629 B / 182 B / 185 B), and BOTH DBs answer the same tallies (schema 8 / 5 items / 4 priced / 12 recipe rows — no schema delta behind the fix) |
+| limits kept | no schema move (stays 8, both scratch DBs and the user's file answer 8), no UI line moved (nothing new to parse — the webview stayed untouched, so the rendered look is never claimed), the real host saw nothing but the deliberately recorded witnesses of earlier eras, `tests/__pycache__/` out of every commit, every fixture/scratch server killed after its run |
+
+**45044360477** (this release's chain+tag push `c94f6b0..09c8d77`, head `09c8d77…` = the TAGGED
+tree): **success, 5/5 in 9 min 45 s** (16:31:58Z → 16:41:43Z — quality 2 m 27 s · linux 6 m 38 s ·
+test 7 m 18 s · macos 7 m 20 s · windows 9 m 42 s), exactly ONE run id for that head, no CANCELLED
+sibling, no rerun. The fold's own push starts the NEXT run, measured in the NEXT record — the
+ladder never chases a tag, tags stay put (`v0.10.0` → `e4d3447`, `v0.10.1` → `09c8d77`).
+
 ## 2026-11-22 · v0.10.0 — the recipe doors: every job with every recipe, the second source fetched, read locally ever after
 
 ### What forced it
