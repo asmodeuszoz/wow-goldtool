@@ -157,6 +157,25 @@ jobs:
           # a user's own edits cannot fight each other
           cargo run -- sync --stage tooltip --fixture http://127.0.0.1:8765 --budget 8
           cargo run -- sync --stage tooltip --fixture http://127.0.0.1:8765
+          # the REFRESH stage (v0.9.6, ADR 0017): one live ask per record that ALREADY
+          # holds a tooltip copy - the door is the TOOLTIP door, and the fixture now
+          # answers its fields.price with the shape measured live 2026-11-21 (docs/API.md:
+          # keys available,market,min,realms,region,scope,updated_at; the developers page
+          # says tooltips cache ~5 min "because they carry a live Auction House price").
+          # The fixture's grounds, named where they live (tests/fixture_api.py): rows 25
+          # and 60 answer a min that MOVES with the fixture's RUN (14 000+/13 000+) while
+          # their stored detail price is 15 000+ - so the replay can SEE price_min_now
+          # differ from price_min on the SAME row instead of asserting they match; row 40
+          # answers the WHOLE fields.price as literal null, the fixture twin of the
+          # measured live id 200 third state, so the stage CHECKS it (price_now_missing_at,
+          # value stays NULL, nothing invented); 12809 holds no tooltip copy (its tooltip
+          # answered 404 above) and 127555 no detail stamp, so the queue never points at
+          # either. Budgeted once then pressed again: the SECOND ask-count is zero - the
+          # pending rule puts refreshed OR checked-empty rows out, one request per copied
+          # record EVER - and both presses exit 0 with the third state COUNTED (missing 1
+          # plus its note, fix(sync)'s counter, not just stamped).
+          cargo run -- sync --stage price --fixture http://127.0.0.1:8765 --budget 4
+          cargo run -- sync --stage price --fixture http://127.0.0.1:8765
           cargo run -- set-item 25 vendor_sell=606
           cargo run -- add-item "name=CI Test Mug" quality=Rare "tooltip_html=a plain CI sword mug"
           cargo run -- delete-item 60
