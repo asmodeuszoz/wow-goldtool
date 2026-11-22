@@ -6,6 +6,57 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.9.7 — the panel gets the AH frame: seven activity tabs, the same verbs under the skin · 2026-11-21 · tag `v0.9.7`
+
+Added
+
+- **Seven activity tabs** (ADR 0018): the crammed page (EIGHT cards stacked at once) becomes
+  `Overview · Search · Sync · Item card · Writes · Live look · Analytics` on a nameplate strip
+  inside the panel's top edge. The twin-refresh button JOINS the Writes tab — the four DB verbs and
+  the twin refresh are ONE activity (both send ZERO requests). One truth in app.js (`show_tab`)
+  keeps exactly one tab visible (`tab-off` display:none — the layout enforces the rule, hidden
+  buttons get no events); the strip rides the delegated-handler pattern the hits table already
+  used; the first paint is PAINTED by the static classes so it never waits on script.
+- **The Auction House frame — CSS-ONLY**: deep blue-black room with light falling from the top,
+  AH-panel fields with bronze trim and a gold inner hairline, the AH's corner ORNAMENTS as three
+  borders (`main::before`/`main::after` L-brackets), nameplate tabs (uppercase, letter-spaced, lit
+  tab gold with a gold underline), parchment-gold headers, squarer radii. NO Blizzard asset copied
+  — only the SILHOUETTE (panel + gold trim + tabs) is borrowed, in plain CSS; still no webfonts,
+  no remote assets, no generated images (the offline rule keeps its teeth).
+
+Fixed
+
+- **The live note's dangling fragment** (`fix(ui)`): the live card's success path ended with
+  `+ hits_link` — an identifier with NO definition anywhere (grep counted ONE occurrence: the use
+  site), so the note building ALWAYS threw a `ReferenceError` and the card answered with raw error
+  text instead of the door's note. Measured with node both ways (the original expression throws;
+  the FIXED real line runs and RETURNS the note), fixed FORWARD: the honest sentence the fragment
+  promised but never delivered — every live hit row already carries its own upstream `view` link.
+
+Honest about what did NOT move
+
+- **Zero Rust**: the release's diff names 5 files (ui/×3 + Cargo.toml/lock banner); `SCHEMA_VERSION`
+  stays `7`, no hop; the wire doors answer byte-identical across the release (mirror replay + exit
+  maps re-run on FRESH ports post-tag, landing FORWARD in the verification fold — ADR 0011's rule:
+  the CI block cannot see the webview, and this release did not touch it either: still 33 step-lines
+  + plant one).
+- **What cannot be witnessed here, recorded as such**: the window's LOOK (no display on this FS —
+  never claimed), and the embed: the binary maps the ui FILENAMES in plaintext (`index.html` ×14,
+  `app.css` ×1) but tauri v2 COMPRESSES the content (content greps answer 0) — this CORRECTS the
+  v0.9.6-era phrasing "the green run re-embedded the edited files" where quoted in this record:
+  the greppable witness is the filename map + green build, not the content bytes.
+- The crawl buttons stay the five (list · pull-all · details:watch · details:hits · Cancel) —
+  icons/tooltip/price stages stay CLI-side, notes unchanged; quality chips keep the GAME's hues
+  (a fact stays a fact); money rules ride UNTOUCHED (ADR 0015); icons stay DB-bytes data URIs
+  (ADR 0008/0014); the attribution footer stays OUTSIDE the tabs so it reaches every screen.
+- bends recorded, not swept: the FIRST build after `fix(ui)` skipped the house's
+  `rm -rf target/debug/incremental` mechanic and the FS's spurious hard-linking warning counted as
+  a fifth line ("5 warnings" in that summary) — the FOUR named warnings were always exactly four,
+  re-measured with the mechanic the same breath.
+
+Chain: `35342b9` feat(ui) tabs → `24971fe` fix(ui) live note → `5c7eb09` feat(ui) frame skin →
+`c6d2b18` chore banner → this record carries the tag.
+
 ## v0.9.6 — the live min buyout: ADR 0016's first producer, one live ask per copied record · 2026-11-21 · tag `v0.9.6`
 
 Added

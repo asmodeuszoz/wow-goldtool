@@ -5,6 +5,83 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-21 · v0.9.7 — the AH frame and the tabs: the shape the user asked for, the same verbs under it
+
+### What forced it — the user's own words
+
+"I want this app to look like the blizzard default wow auction house frame. Multiple tabs for
+different activities instead of cramming everything into one tab." Today the panel IS crammed:
+EIGHT cards stacked in one page (status · search · sync · item card · the DB's own writes · twin
+refresh · live look · analytics) with a two-column >=980 px grid for three of them, and a flat
+round-cornered dark-card skin the AH silhouette never had. The ask is a LOOK plus a STRUCTURE:
+borrow the AH's shape, split the activities.
+
+### The decision (full text in ADR 0018)
+
+SEVEN activity tabs on a nameplate strip: Overview · Search · Sync · Item card · Writes · Live look
+· Analytics — eight cards map to seven because the twin-refresh button JOINS the Writes tab (the
+four DB verbs and the twin refresh are ONE activity: both send ZERO requests, ADR 0013/0010).
+`show_tab` in app.js is the ONE visibility truth (one section visible, the rest `tab-off`
+display:none — hidden buttons get no events, the layout enforces the rule); the strip rides the
+delegated-handler pattern the hits table already used; index.html PAINTS the default overview
+statically so first paint never waits on script (boot re-asserts — recorded, not leaned on). The
+frame is CSS-ONLY: bronze trim + gold inner hairline + corner ORNAMENTS as two border Ls
+(main::before/::after), nameplate tabs (uppercase letter-spaced, lit tab gold, gold underline strip),
+parchment-gold headers, deep blue-black room. Rejected and said so: Blizzard ART (their property —
+only the silhouette is borrowed), raster/generated assets and webfonts (offline rule), tab state in
+Rust (the engine never learns the window exists, ADR 0002/0014), moving the watch toggle off the hit
+rows (marking IS the search activity), growing panel stage-buttons this release (the verbs stay the
+five the v0.9.6 record scoped; stage buttons are future work, not slipped in).
+
+### Chain
+
+`35342b9` feat(ui) (the page splits: nav strip, data-tab on all 8 sections, static paint, show_tab/
+tab_click/handler/boot re-assert) -> `24971fe` fix(ui) (the live note's dangling fragment, below) ->
+`5c7eb09` feat(ui) (the AH frame skin) -> `c6d2b18` chore (banner 0.9.7, Cargo.lock rides) -> this
+record carries the tag. Zero Rust lines across the chain (measured: git diff --stat names 5 files).
+
+### A product defect found reading, fixed FORWARD, measured both ways
+
+The live card's success note ended with `+ hits_link` - an identifier with NO definition anywhere
+(grep counted ONE occurrence: the use site), so building the note ALWAYS threw a ReferenceError and
+the card answered raw error text instead of the door's note. node (this FS) measures both ways: the
+ORIGINAL expression throws `ReferenceError: hits_link is not defined`; after the fix the REAL line is
+extracted from app.js, run through new Function, and RETURNS the note with no throw; grep now counts
+hits_link ZERO times and node --check parses. The fix states the truth the fragment promised and never
+delivered: every live hit row already carries its own upstream `view` link. No link invented, ONE ask
+unchanged. An identifier scan surfaced only this code-level hit — recorded honestly: the scanner is
+heuristic (prose apostrophes mispair), its value is the confirmed hit, NOT a proof of absence.
+
+### Pre-tag verification — the witnesses this machine HAS (ADR 0011's rule for a webview)
+
+| probe | answer |
+| ----- | ------ |
+| builds through the chain | exit 0 every commit, the FOUR named warnings; one bend recorded: the first fix(ui) build skipped `rm -rf target/debug/incremental` and the FS's spurious hard-linking cache line made that summary say "5 warnings" — FOUR named, re-measured with the mechanic the same breath |
+| `node --check` app.js | parses (a PARSE witness — the webview's runtime is NOT claimed: no display here, recorded) |
+| class contract old-vs-new app.css | EVERY class app.js emits still styled: ZERO dropped (the crude scan's new list = frame/tab classes + comment noise); brace-balanced; money rules UNTOUCHED (money_cell, tabular, cursor:help, hover contract), quality chips + bars keep the GAME's hues byte-for-byte |
+| `git diff --stat e4c6f3f..c6d2b18` | 5 files: ui/ x3 + Cargo.toml + Cargo.lock — zero `.rs`, SCHEMA_VERSION stays 7 (grep), fixture/CI untouched (no ci commit: the block stays 33 step-lines + plant one) |
+| embed witness, honest form | the binary maps the ui FILENAMES in plaintext (`index.html` x14, `app.css` x1) but tauri v2 COMPRESSES the content (greps for the NEW strings answer 0) — this CORRECTS the v0.9.6-era phrasing "re-embedded the edited files" where this record quotes it: greppable = filename map + green build; content embedding is not greppable; the RENDERED window is only observable at launch (no display — recorded, never claimed) |
+| refusal/doors/exit maps | stay the v0.9.6 facts BY CONSTRUCTION (zero Rust); re-measured post-tag on FRESH ports (mirror replay 33/33 + plant, exit-map re-runs) landing FORWARD in the verification fold |
+
+### Bends, recorded where they stand — nothing swept
+
+* the build-mechanic count above (five LINES vs FOUR named: the FS's own cache warning line rode a
+  summary that skipped the incremental-clear);
+* no fixture/CI commit was planned or made (the block cannot see the webview — ADR 0011 — and
+  the release proves the wire stayed via POST-tag replays instead of growing the block);
+* the v0.9.6-era "re-embedded" phrasing became measurable and got corrected HERE, not retro-tagged
+  anywhere (tags stay put; the era's own record keeps its words).
+
+### CI ladder
+
+**44970667747** (v0.9.6's CI-fold push `0c450ba..e4c6f3f`, head `e4c6f3f...`): **success, 5/5 in 7 min
+30 s** (01:16:24Z -> 01:23:54Z — quality 2 m 00 s · test 4 m 42 s · linux 5 m 24 s · macos 7 m 12 s ·
+windows 7 m 28 s), EXACTLY ONE run id for that head, no CANCELLED sibling, no rerun (matched by
+id/head_sha; the run's own .attempt reads null on this API — the ladder's habit). It was IN FLIGHT while
+that fold waited, and its verdict folds HERE, FORWARD, this record — every recorded push through v0.9.6
+is green. v0.9.7's own chain+tag push starts a run that lands FORWARD in the NEXT record, never chased.
+Tags stay put (`v0.9.6` -> `4ced794`, `v0.9.7` -> this record's commit).
+
 ## 2026-11-21 · v0.9.6 — the live min buyout: ADR 0016's first producer, and the door that answers NOW
 
 ### What forced it — the door that was always live
