@@ -156,5 +156,20 @@ build answered in THEIR era, and this era's record rides forward with them.
 claims follow the set, ZERO steps moved) → this record carries the tag. The measured tally rode
 every commit: FOUR named → THREE (`523dfcc`) → TWO (`7b3bdb0`) → ONE (`6333783`) → **ZERO**
 (`316bb0e`), with `cargo build` at rc `0` each time and the hard-link FS line answering ZERO
-times in this era's builds. Post-tag measurements land FORWARD in the fold, never chased here
-(ADR 0011's ordering rule).
+times in this era's builds. ## Post-tag (measured FORWARD, folded into the DEVLOG's v0.11.1 entry)
+
+The four fixes were claims about what the COMPILER accepts; the fold measured them where the
+answers live, and every claim held:
+
+| claim in this ADR | measured |
+| ----------------- | -------- |
+| no SQL constant moved | the 44-step mirror replay off the UNCHANGED block (port-stripped compare EQUAL **44/44 step-lines**) answers **47/47 rc 0, ZERO NONZERO**, with the stage presses UNCHANGED (budget-3 3/5/4 + `rate_limited 1` · resumed-3 5/7/5 complete · re-pull 8 files / 8 same-copy / 0 written) |
+| no door's rc moved | the exit map re-run GROWN on fresh ports: **89 doors `0`×60 · `2`×17 · `3`×6 · `4`×6, ZERO mismatches** — the same totals as v0.11.0's map |
+| no answer shape or content moved | the PINNED pair (the v0.11.0 binary at the tagged tree `59b0185` — whose OWN build is the BEFORE witness, answering the FOUR named warnings verbatim — vs the new binary, one shared fresh fixture, two fresh DBs): **25 DB-only doors, ZERO content delta**, recipes doors INCLUDED (unlike v0.11.0's pair, no live-key strip was needed — no key was added), the three stamp-carrying doors raw-EQUAL on a same-second re-measure with ZERO non-stamp field differing |
+| the wire's unread keys riding the wire moves no answer | the user's OWN 19 258-row file, both binaries over the SAME file: **10 of 10 doors md5-equal** (1 098 B … 21 061 B), tallies INTACT (19 258 / 4 231 vendor_sell / 4 287 samples / 1 240 recipe rows), `price_min_now` 0 / `price_now_missing_at` 0 on this host so the REAL joined rows keep answering `live price not refreshed yet` (3/3 crafted, 3/3 reagents, Blacksmithing matching **250** REAL rows), `vendor_buy` / `price_trend_normal` **0/0** |
+| the named set died for the build, not for this filesystem | the chain+tag run **45058168649** (head = the tagged tree `3f20b51`) success 5/5 in 9 m 25 s, and its OWN `cargo build` dev + release jobs printed NO named warning — while the era's local builds answer ZERO named and the `hard linking … incremental cache` notice rode SOME mirror builds ("`generated 1 warning`" = that notice alone, never a fifth named) |
+
+What stays put after the fold: schema `8`, ZERO ui line (nothing NEW to parse, so no parse witness
+was owed), ZERO fixture change, ZERO CI step (44 step-lines + plant one), tags put
+(`v0.11.1` → `3f20b51`), and the ladder line owed by the previous era (45049266077, success 5/5 in
+8 m 2 s) recorded in THIS era's chain rather than chased.
