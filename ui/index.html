@@ -13,14 +13,30 @@
   </header>
 
   <main>
-    <section class="card" id="status-card">
+    <!-- v0.9.7 (ADR 0018): seven activity tabs replace the one crammed page.
+         The tab strip is the panel's nameplate row; each section names its tab
+         with data-tab, and app.js keeps exactly one tab visible. The default
+         (overview) is PAINTED by the static classes, so the first paint of the
+         window never waits on the script. The footer with the developer-terms
+         attribution stays OUTSIDE the tabs: it must reach every screen. -->
+    <nav class="tabs" id="tabs">
+      <button class="tab tab-on" id="tab-overview" data-tab="overview" type="button">Overview</button>
+      <button class="tab" id="tab-search" data-tab="search" type="button">Search</button>
+      <button class="tab" id="tab-sync" data-tab="sync" type="button">Sync</button>
+      <button class="tab" id="tab-card" data-tab="card" type="button">Item card</button>
+      <button class="tab" id="tab-writes" data-tab="writes" type="button">Writes</button>
+      <button class="tab" id="tab-live" data-tab="live" type="button">Live look</button>
+      <button class="tab" id="tab-stats" data-tab="analytics" type="button">Analytics</button>
+    </nav>
+
+    <section class="card" id="status-card" data-tab="overview">
       <h2>Catalogue status</h2>
       <div class="grid" id="status-grid"></div>
       <div class="note" id="status-note"></div>
       <button class="act" id="btn-refresh" type="button">Re-read</button>
     </section>
 
-    <section class="card wide" id="search-card">
+    <section class="card wide tab-off" id="search-card" data-tab="search">
       <h2>Search the local DB</h2>
       <div class="fields" id="search-fields">
         <input class="field" id="search-text" type="text" placeholder="name contains" />
@@ -59,7 +75,7 @@
       <div class="note" id="search-note"></div>
     </section>
 
-    <section class="card" id="sync-card">
+    <section class="card tab-off" id="sync-card" data-tab="sync">
       <h2>Sync</h2>
       <div class="note" id="sync-note">idle — the last crawl is remembered in the DB, so a stopped run resumes</div>
       <div class="sync-actions">
@@ -71,7 +87,7 @@
       </div>
     </section>
 
-    <section class="card" id="item-card">
+    <section class="card tab-off" id="item-card" data-tab="card">
       <h2>Item card</h2>
       <div class="fields" id="card-fields">
         <input class="field" id="card-id" type="text" placeholder="item id" />
@@ -82,7 +98,7 @@
       <div class="note" id="card-note">the card reads the DB: it answers offline, prices are shown as the game&#8217;s money with the exact copper in each hover, the live min buyout row reads "no price" until sync --stage price refreshed it (a CLI-side stage, and the door can also answer that the AH offers nothing right now), and "Re-check online" is the only button that touches the API</div>
     </section>
 
-    <section class="card" id="edit-card">
+    <section class="card tab-off" id="edit-card" data-tab="writes">
       <h2>The DB's own writes</h2>
       <div class="fields" id="edit-fields">
         <input class="field" id="edit-id" type="text" placeholder="item id" />
@@ -125,7 +141,7 @@
         (the row keeps its bytes so bringing it back restores everything)</div>
     </section>
 
-    <section class="card" id="twin-card">
+    <section class="card tab-off" id="twin-card" data-tab="writes">
       <h2>Copies: reword the twins (sends no request)</h2>
       <div class="fields" id="twin-fields">
         <button class="act" id="btn-twin-refresh" type="button">Reword the copies</button>
@@ -138,7 +154,7 @@
         search both read what it wrote.</div>
     </section>
 
-    <section class="card wide" id="live-card">
+    <section class="card wide tab-off" id="live-card" data-tab="live">
       <h2>Live search: ask the API once</h2>
       <div class="fields" id="live-fields">
         <input class="field" id="live-text" type="text" placeholder="one human ask, for example Worn Shortsword" />
@@ -156,7 +172,7 @@
         the answer, not only the footer</div>
     </section>
 
-    <section class="card wide" id="stats-card">
+    <section class="card wide tab-off" id="stats-card" data-tab="analytics">
       <h2>Price analytics</h2>
       <button class="act" id="btn-stats" type="button">Read the DB</button>
       <div class="bars" id="stats-bars"></div>

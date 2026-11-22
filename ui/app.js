@@ -13,6 +13,33 @@ var sync_busy = false;
 var last_hits = [];
 var watched = [];
 
+// v0.9.7 (ADR 0018): the one crammed page became seven activity tabs. The switch
+// is ONE truth here: exactly one section with a data-tab is visible, the rest wear
+// tab-off (display:none in app.css). Buttons inside a hidden section keep their
+// listeners - a hidden button cannot be clicked (display:none gets no events), so
+// "one activity at a time" is enforced by the layout, not by disabling handlers.
+// Nothing in here touches a verb: every still-visible button lands in the SAME
+// cli_ok(argv) path ADR 0014 locked (a click and a cargo line stay one code path).
+var active_tab = "overview";
+
+function show_tab(tab) {
+  active_tab = tab;
+  var sections = document.querySelectorAll("section[data-tab]");
+  for (var i = 0; i < sections.length; i = i + 1) {
+    sections[i].classList.remove("tab-off");
+    if (sections[i].dataset.tab !== active_tab) { sections[i].classList.add("tab-off"); }
+  }
+  var tabs = document.querySelectorAll("button.tab[data-tab]");
+  for (var j = 0; j < tabs.length; j = j + 1) {
+    tabs[j].classList.remove("tab-on");
+    if (tabs[j].dataset.tab === active_tab) { tabs[j].classList.add("tab-on"); }
+  }
+}
+
+function tab_click(button) {
+  if (button.dataset.tab !== active_tab) { show_tab(button.dataset.tab); }
+}
+
 // Escape once, everywhere: names from the API go into text nodes, not markup.
 function esc(text) {
   return String(text)
@@ -930,6 +957,13 @@ document.getElementById("hits").addEventListener("click", function (event) {
   if (node.dataset.id !== undefined) { toggle_watch(node); }
 });
 
+// The tab strip rides the same delegated pattern: the button carries its tab's
+// name, the strip itself answers nothing.
+document.getElementById("tabs").addEventListener("click", function (event) {
+  var node = event.target;
+  if (node.dataset.tab !== undefined) { tab_click(node); }
+});
+
 
 
 // The cards are never empty: at startup the app reads its own DB (status, the watch
@@ -937,6 +971,11 @@ document.getElementById("hits").addEventListener("click", function (event) {
 // calls, which is what makes boot() the witness of the launch audit: the Rust side
 // logs every verb that reaches it.
 async function boot() {
+  // the painted default is overview (static classes in index.html); this call
+  // re-asserts it from the ONE truth here and is the boot witness that the
+  // tab code ran to the end (a throw above it would leave the first paint,
+  // which the static classes already got right)
+  show_tab(active_tab);
   await refreshStatus();
   await refreshWatched();
   await runStats();
