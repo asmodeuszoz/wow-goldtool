@@ -13,7 +13,9 @@ Opening the file is one code path for every entry point: `Connection::open` (rus
 bundled SQLite — no system library needed), then either `check_schema` refuses a foreign
 or stale-schema file, or `execute_batch(SCHEMA_SQL)` writes it and stamps
 `schema_version` into `meta`. The schema is idempotent, so a fresh process (CLI or GUI)
-can always attach; `open_db` and `open_db_at` are the two doors into that helper.
+can always attach; `db_path` (who picks the file, the four-way rule above) and `open_db_at`
+(who opens it and stamps `schema_version`) are the two doors into that helper — measured at
+v0.11.1, when the wrapper that used to bundle the two died with no call site (ADR 0024).
 
 **Seven stale shapes are migrated instead of refused** (v0.9.0 grew the chain to four;
 v0.9.5 grew it to five; v0.9.6 grew it to six again; v0.10.0 grew it to seven): the file on disk

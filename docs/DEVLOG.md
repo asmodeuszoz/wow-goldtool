@@ -5,6 +5,94 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-22 · v0.11.1 — patch: the FOUR named build warnings die BY NAME, the set shrinks FOUR to ZERO, and NOTHING was muted
+
+### What forced it
+
+The user's ask: "lets work on those warnings, fix them and if not fixable mute them." For
+sixteen milestones the set was a CONTRACT, not a surprise: `docs/DEVELOPMENT.md`, `docs/DEVLOG.md`
+and ADR 0011's `-D warnings` bullet named the same FOUR on every build — `PendingSql`'s privacy,
+`Tooltip`'s unread fields, `open_db`, `catalogue`. A patch era that leaves them standing while
+the docs keep calling them planned is the drift this era must not ship, so all FOUR were taken
+down BY NAME. The ask's second branch never had to be used: each of the four is a name the tree
+no longer needs, and rustc itself proves which name that is.
+
+### The four warnings, rustc's own words, off the last green build
+
+* `type 'PendingSql' is more private than the item 'pending_plan'` — `src/stats.rs:199`, "reachable
+  at visibility `pub(crate)`", note "type `PendingSql` is only usable at visibility `pub(self)`"
+  at `src/stats.rs:191` (`private_interfaces`, on by default).
+* `multiple fields are never read` — `src/models.rs:142:9`, fields in `pub struct Tooltip`: `id`,
+  `kind`, `name`, `quality`, `version`, `build`, `icon_url`, `links`, `attribution`; the read two
+  are `html` and `fields`; rustc's own note says derived `Debug`/`Clone` are "intentionally
+  ignored during dead code analysis".
+* `function 'open_db' is never used` — `src/db.rs:490:8`.
+* `function 'catalogue' is never used` — `src/sync.rs:909:8`.
+
+The `hard linking … incremental cache` notice that rode the PREVIOUS era's builds answered
+**ZERO times** across this era's builds — every build here still starts by removing
+`target/debug/incremental`, so the FS artifact's absence is measured, not silenced, and it was
+never a fifth named warning.
+
+### The decision (ADR 0024 — four fixes, zero mutes, every rejected mute recorded)
+
+Each fate is the NARROWEST true thing the tree can say, and each rode with its claim where the
+survivor lives. 1 — `pending_plan`'s claim was the lie (both `use crate::stats` lists leave the
+name out, all FOUR callers are this module's own queue doors), so the function stops claiming
+`pub`; widening `PendingSql` instead would put a queue-plan type on a surface nothing consumes.
+2 — `Tooltip` narrows to the two keys a reader reads (`html` for the copy stage, `fields` for the
+price stage's `price.min`); the mirror already types ONLY what has a reader TWICE in this file
+(`TooltipFields` types only `price`, the recipe shapes the same) and ADR 0021 called a
+stored-without-reader field dead code, so the eight unread keys ride the wire the way serde had
+always read them; `docs/API.md` keeps the whole measured key list, which is where probe records
+live. The cost is recorded in the struct's comment, not hidden: `id` was serde's required-key
+check, and NOTHING compares a tooltip's own id against the one in the request URL. 3 — `open_db`
+died as a wrapper whose contract ("every entry point goes through this") stopped being true when
+the entry points moved to `db_path` + `open_db_at`; its body was character-for-character the live
+door's, so the schema rules, the refusal and the fresh-file write did not move. 4 — `catalogue`
+died AS its import names: `sync.rs`'s `use crate::stats` line named `coverage` and `Coverage`
+ONLY for that one-line delegation, so leaving either behind would have traded a dead-code warning
+for an unused-import one — the swap ADR 0011's "the set is expected" rule refuses. `coverage`'s
+own comment now carries the promise the removed wrapper owned ("used by `status`, the `stats` verb
+and the UI footer"), so no claim was buried with a grave.
+
+### Measured (pre-tag)
+
+* builds: exit `0` at EVERY commit, and the named tally SHRANK one per commit — FOUR at the base
+  (`e1dc5c6`), **THREE** after `523dfcc`, **TWO** after `7b3bdb0`, **ONE** after `6333783`,
+  **ZERO** after `316bb0e` (each measured with the era's cache-clear mechanic; the tally is the
+  honest delta of this era, and the FOUR-named contract that held every era since v0.8.0 DIES
+  HERE — later builds answer FEWER than FOUR by construction, not by accident).
+* diff scope (`git diff e1dc5c6..316bb0e`, measured with the last fix in hand, this era's Rust):
+  FOUR files, 40 insertions / 49 deletions —
+  `src/stats.rs` (the visibility claim + `coverage`'s moved promise), `src/models.rs` (the mirror
+  narrowing), `src/db.rs` (the wrapper + its dangling doc reference), `src/sync.rs` (the wrapper +
+  its orphaned import names). `Cargo.toml` / `Cargo.lock` answer an EMPTY diff (a PATCH era — the
+  banner stays put at `0.11.0`, the v0.9.1 / v0.10.1 shape), `tests/` an EMPTY diff (no fixture
+  delta: there is no behavior delta to smoke), `ui/` ZERO lines, ZERO SQL constant moved
+  (`SCHEMA_SQL` itself never changed — the two `SCHEMA_SQL` / `meta_set` hits inside the diff are
+  the REMOVED wrapper's own body copy), ZERO schema or migration line, ZERO money-formatter line,
+  ZERO request-rule line.
+* CI: **ZERO steps moved** — the block stays 44 step-lines + plant one (14 `- name:` steps and
+  46 raw `cargo run` mentions measured on both sides of the edit, the same parse the prior eras
+  used rather than the naive grep). Two claims in the workflow were LIVE lies after this era and
+  are corrected in the same era: the header comment ("this build's four dead-code warnings … are
+  intended") and the lint step's NAME ("this build's warnings are the plan"). Both keep their
+  history (FOUR through v0.11.0, ZERO from v0.11.1) and ADR 0011's reason the gate stays off —
+  clippy answers 0 errors and hundreds of its OWN advice lines, so `-D warnings` would still lie.
+
+### Chain
+
+`523dfcc` fix(stats) · `7b3bdb0` fix(models) · `6333783` fix(db) · `316bb0e` fix(sync) · `092ab61` ci
+(the two warning claims, ZERO steps) · record + tag `v0.11.1`. Post-tag audits (the 44-step mirror
+replay on fresh ports, the exit map re-run grown at 89 doors, the pinned v0.11.0 binary vs the new
+one, the user's own file read read-only) land FORWARD in this era's fold, never chased here. The
+ladder line the previous era owed lands HERE: the v0.11.0 fold push's own run measured **45049266077**
+success 5/5 in **8 min 2 s** (17:24:24Z → 17:32:26Z, one run id, no CANCELLED sibling) — waited for
+BEFORE this chain pushed, per ADR 0011's ordering rule.
+
+---
+
 ## 2026-11-22 · v0.11.0 — the LIVE price IN the recipe cell: the stored min keeps its cell and hover, the live pair rides beside it, the two NULLs stay two honest chips
 
 ### What forced it

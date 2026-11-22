@@ -67,6 +67,13 @@ file, four of them false, one of them (the smoke block) audited and true.
   build's dead-code set (`catalogue`, `open_db`, `pending_plan`'s private `PendingSql`, `Tooltip`'s
   unread fields) as intended. `-D warnings` would make the workflow contradict that document, i.e.
   lie. So clippy runs informational, at its measured 0 errors / 600 warnings.
+  *Pointer, v0.11.1 ([ADR 0024](./0024-the-four-named-warnings-die-by-name.md)): the set this
+  bullet depends on is ZERO from here on — all four died BY NAME, none muted — and the gate still
+  stays off, because what would make `-D warnings` lie is clippy's own advice, not our dead code.
+  The rule this bullet carries is what made that era able to FIX names instead of muting them: a
+  warning outside the expected set is either a new truth to ride or a swap to refuse, and one swap
+  was live here — removing `catalogue` while leaving the `coverage` / `Coverage` import names it
+  alone used would have traded this dead-code warning for an unused-import one.*
 * **Cut the matrix to Linux.** Rejected for this patch (kept as an option the user may still choose):
   the three-target matrix is the documented promise that the flat layout builds everywhere, and
   narrowing it is a different decision than fixing the names. If a target turns out to be

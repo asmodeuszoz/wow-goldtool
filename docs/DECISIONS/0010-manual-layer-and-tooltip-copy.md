@@ -93,6 +93,14 @@ walk can bring back.
   keeps `fields` as a `Value` so a key upstream adds cannot break a build, and only `html` is
   read — that is exactly the dead-code notice docs/DEVELOPMENT.md names (ADR 0009's precedent:
   print/keep the measured mirror, read what the door needs).
+  *Pointer, v0.11.1 ([ADR 0024](./0024-the-four-named-warnings-die-by-name.md)): that precedent
+  kept the mirror whole so rustc could name nine unread fields, and this era took them down BY
+  NAME instead of muting them — the struct now types ONLY `html` (the copy stage's reader) and
+  `fields` (ADR 0017 gave it one: the price stage reads `price.min`), and the eight unread keys
+  ride the wire serde ignores. The promise this bullet owned, "a key upstream adds cannot break
+  a build", did NOT move with the names: serde ignoring an untyped key is the same promise, now
+  carried the way `TooltipFields` and the recipe shapes already carried it, and the door's whole
+  measured key list — the record this bullet was the mirror of — lives in `docs/API.md`.*
 * **Render the tooltip's `html` as markup in the card.** Rejected: it is upstream's own body.
   Pasting it into the page would let upstream write the card (its `class` names, its `<img>`);
   the card prints it as escaped TEXT, like every other API text (docs/DATABASE.md's rule that

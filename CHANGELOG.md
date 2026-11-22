@@ -6,6 +6,81 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.11.1 — the FOUR named build warnings die BY NAME: the named set shrinks FOUR to ZERO, and not one of them was muted · 2026-11-22 · tag `v0.11.1`
+
+A patch era answering "fix them and if not fixable mute them": the FOUR named warnings
+that rode every build since v0.8.0 (`PendingSql`'s privacy, `Tooltip`'s unread fields,
+`open_db`, `catalogue`) all died BY NAME. Every one of the four was fixable — a mute was
+available for each and every rejected mute is recorded in ADR 0024, so the ask's second
+branch never had to be taken. No behavior, no wire, no schema and no answer moved: the
+era is the compiler's own verdicts made true.
+
+Fixed
+
+- **`pending_plan` stops claiming `pub`** (`fix(stats) 523dfcc`): rustc's `private_interfaces`
+  warning said the signature cannot be honored — the fn reaches `pub(crate)` while its return
+  type `PendingSql` is usable only `pub(self)`. Both `use crate::stats` lists leave the name
+  out and its FOUR callers are this module's own queue doors, so the function (not the type)
+  is what narrowed; widening `PendingSql` was rejected because nothing outside consumes a
+  queue-plan type. The named tally goes FOUR → **THREE**.
+- **`Tooltip` narrows to the keys a reader reads** (`fix(models) 7b3bdb0`): nine fields rustc
+  called dead (`id, kind, name, quality, version, build, icon_url, links, attribution`) die,
+  `html` (the copy stage's) and `fields` (the price stage's `price.min`) stay. The mirror
+  already types ONLY what has a reader twice in this file (`TooltipFields` types only `price`,
+  the recipe shapes the same), ADR 0021 already called a stored-without-reader field dead code,
+  and `docs/API.md` keeps the whole measured key list, so the documentation duty rides where
+  probe records live. The honest cost is recorded where the struct lives, not hidden: `id` was
+  serde's required-key check, nothing compares a tooltip's own id against the request URL's,
+  and a non-object body still fails to parse and still aborts its stage. The tally THREE → **TWO**.
+- **`open_db` dies** (`fix(db) 6333783`): a wrapper bundling `db_path` with a body
+  character-for-character identical to `open_db_at`'s, with zero call sites — the entry points
+  resolve through `db_path` (`cli.rs`'s `open_at`, `cmd_status`) and the GUI reaches the same
+  door through `cli_ok`'s argv (ADR 0014). Its comment's "every entry point goes through this"
+  stopped being true when they moved, and `open_db_at`'s own comment named the dead function,
+  so it was rewritten in the same breath. Muting it would have kept a second, unreachable copy
+  of the schema rules — the drifting truth `docs/DATABASE.md` exists to prevent. Tally TWO → **ONE**.
+- **`catalogue` dies WITH its import names** (`fix(sync) 316bb0e`): the sync module's one-line
+  `return coverage(conn)` re-export lost its caller (`cli.rs` reads `stats.rs`'s `coverage`
+  directly), and `sync.rs`'s `use crate::stats` line named `coverage` + `Coverage` ONLY for it
+  — leaving either behind would have traded this dead-code warning for an unused-import one, the
+  swap ADR 0011's "the set is expected" rule refuses. The removed wrapper's promise ("used by
+  `status` and the UI footer") moved onto `coverage`'s own comment, so no claim was buried with
+  a grave. Tally ONE → **ZERO**: this era's builds answer NOTHING named, and the `hard linking
+  … incremental cache` notice — the FS artifact of the clear-the-cache mechanic, never a fifth
+  named warning — answered ZERO times across this era's builds.
+
+Changed
+
+- **ADR 0024** records the four fates: fix-vs-mute per warning, the witnesses (call sites,
+  readers, serde's derives), and the rejected alternative for each — including keeping `id` to
+  preserve serde's required-key check, and every `#[allow(...)]` that was available and not
+  chosen. It also states what did NOT move: ZERO SQL constant, wire shape, schema, exit code,
+  money formatter, UI line or request-rule line, and the trio's NULL-vs-0 truth (ADR 0016)
+  untouched.
+- **`docs/DEVELOPMENT.md`** keeps its v0.8.0 census as history and names the current ZERO;
+  **`docs/DATABASE.md`**'s "two doors into the schema helper" now names the doors that exist —
+  `db_path` (who picks the file) and `open_db_at` (who opens and stamps it).
+- **`ci.yml` moves ZERO steps** (44 step-lines + plant one, measured 14 `- name:` steps / 46 raw
+  `cargo run` mentions on both sides): this era has no behavior delta to smoke. Its two LIVE
+  claims are corrected because they would lie from here on — the header comment ("this build's
+  four dead-code warnings … are intended") and the lint step's NAME — while keeping the history
+  (FOUR through v0.11.0, ZERO from v0.11.1) and ADR 0011's reason the `-D warnings` gate stays
+  off (clippy answers 0 errors and hundreds of its OWN advice lines).
+- The version banner stays put at `0.11.0` — a PATCH era, the v0.9.1 / v0.10.1 shape: `Cargo.toml`
+  and `Cargo.lock` answer an EMPTY diff. `tests/` too (no fixture delta to smoke), `ui/` ZERO lines.
+
+Removed
+
+- The two wrappers (`sync::catalogue`, `db::open_db`), `Tooltip`'s nine unread fields, and
+  `pending_plan`'s unhonored `pub`. The era's whole Rust diff is FOUR files / 40 insertions /
+  49 deletions (`git diff e1dc5c6..HEAD`), and the only `SCHEMA_SQL` / `meta_set` lines inside
+  it are the REMOVED wrapper's own body copy — the schema constant itself never moved.
+
+Chain: `523dfcc` fix(stats) · `7b3bdb0` fix(models) · `6333783` fix(db) · `316bb0e` fix(sync) ·
+`092ab61` ci (the two claims, ZERO steps) · record + tag `v0.11.1`. Post-tag audits (the 44-step mirror
+replay, the exit map grown at 89 doors, the pinned v0.11.0 binary vs the new one, the user's own
+file read read-only) land FORWARD in this era's fold.
+
 ## v0.11.0 — the LIVE price IN the recipe cell: the stored min keeps its cell and hover, the live pair rides beside it, the two live NULLs stay two honest chips · 2026-11-22 · tag `v0.11.0`
 
 A feature release answering the deferred question v0.9.9 and ADR 0020 recorded
