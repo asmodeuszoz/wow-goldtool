@@ -16,8 +16,12 @@ name: CI
 # `use` lists, explicit `return`), so such a gate would be red for a style reason
 # and not a bug. A rustfmt-clean tree would be its own deliberate milestone.
 # The linter runs INFORMATIONAL: `cargo clippy` answers 0 errors and hundreds of
-# warnings, and this build's four dead-code warnings (docs/DEVELOPMENT.md names the
-# set) are intended, so a `-D warnings` gate would lie about our own plan.
+# warnings, so a `-D warnings` gate would lie about our own plan. The build's OWN
+# named warning set rode FOUR through v0.11.0 (`PendingSql` privacy, unread `Tooltip`
+# fields, `open_db`, `catalogue` - docs/DEVELOPMENT.md keeps that history, ADR 0011
+# was the rule that made the set expected) and died entirely at v0.11.1, where ADR 0024
+# fixed all four BY NAME rather than muting them - `cargo build` now answers nothing
+# named. The gate stays off for clippy's own advice, never for our dead code.
 
 on:
   push:
@@ -82,7 +86,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
-      - name: Lint (informational — this build's warnings are the plan, see docs/DEVELOPMENT.md)
+      - name: Lint (informational — clippy's own advice; our named set died at v0.11.1, see docs/DEVELOPMENT.md)
         run: cargo clippy --all-targets
 
   test:
