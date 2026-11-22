@@ -1,17 +1,25 @@
-/* WoW Goldtool — dark, modern, card-based. No webfonts, no remote assets:
- * the whole point of the app is answering offline. */
+/* WoW Goldtool — v0.9.7 (ADR 0018): the Auction House frame.
+ * A CSS-ONLY imitation of the SHAPE the game's own AH UI is built from: dark
+ * blue-black fields, brass/gold trim with corner brackets, nameplate tabs.
+ * NO Blizzard assets are copied - the game's art is Blizzard's property and
+ * this is a community tool; only the silhouette (panel + gold trim + tabs) is
+ * borrowed, drawn in plain CSS. Same offline rule as every release: no webfonts,
+ * no remote assets, no generated images - the app answers offline and the
+ * window must too. */
 
 :root {
-  --bg: #0f141c;
-  --panel: #161e29;
-  --panel-2: #1c2634;
-  --edge: #2a3950;
-  --text: #e8edf4;
-  --muted: #93a1b3;
-  --gold: #f0b427;
-  --gold-soft: rgba(240, 180, 39, 0.16);
-  --danger: #e5534b;
-  --radius: 14px;
+  --bg: #0a0c11;                        /* the room behind the frame */
+  --field: #15181f;                     /* the AH panel field */
+  --field-2: #1b212b;                   /* raised inner field (inputs, sub-panels) */
+  --edge: #453728;                      /* bronze hairline trim */
+  --edge-lit: #7c6144;                  /* lit brass (hover trim) */
+  --gold: #e2be6a;                      /* nameplate gold (labels, numbers) */
+  --gold-hair: rgba(226, 190, 106, 0.18);   /* the frame's inner gold hairline */
+  --parch: #eadca2;                     /* section headers: parchment gold */
+  --text: #e8ead6;                      /* cool warm-white body */
+  --muted: #9aa6b0;                     /* secondary body copy */
+  --danger: #e0584a;                    /* ember: a FAILURE, never price-absence */
+  --radius: 5px;                        /* AH panels are squarer than cards */
 }
 
 * { box-sizing: border-box; }
@@ -19,53 +27,115 @@
 body {
   margin: 0;
   color: var(--text);
-  background: var(--bg);
+  /* the room: deep blue-black with a soft light falling from the top */
+  background: linear-gradient(180deg, #0d1119 0%, var(--bg) 55%, #080a0d 100%);
   font-family: system-ui, -apple-system, "Segoe UI", "Noto Sans", sans-serif;
   display: flex;
   flex-direction: column;
   min-height: 100vh;
 }
 
+/* the nameplate row: brand + tagline over a double trim (dark + gold hairline) */
 header.top {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 18px 26px 12px;
+  padding: 16px 26px 12px;
   border-bottom: 1px solid var(--edge);
+  box-shadow: 0 2px 0 var(--gold-hair);
 }
 .brand { font-size: 21px; font-weight: 650; letter-spacing: 0.4px; }
 .brand-gold { color: var(--gold); }
 .tagline { color: var(--muted); font-size: 13px; }
 
+/* ---- the frame itself ----
+ * main is the one big AH panel: a bordered field with a gold inner hairline,
+ * and the two corner brackets the frame answers with - ::before the top-left
+ * L, ::after the bottom-right L - the AH's corner ornaments in three borders.
+ * ONE active tab at a time: main is a plain single column now (the v0.9.3-era
+ * two-column grid was the "everything crammed" layout this release replaces). */
 main {
   flex: 1;
+  position: relative;
   display: grid;
   grid-template-columns: 1fr;
   align-content: start;
   gap: 16px;
-  padding: 16px 22px;
+  padding: 18px 24px 22px;
+  background: linear-gradient(180deg, #161b24, #11151c);
+  border: 1px solid var(--edge);
+  box-shadow: inset 0 0 1px var(--gold-hair), 0 0 0 1px rgba(0, 0, 0, 0.6);
 }
-@media (min-width: 980px) {
-  main {
-    display: grid;
-    grid-template-columns: 1.4fr 1fr;
-    grid-template-areas:
-      "search status"
-      "search sync";
-  }
-  #search-card { grid-area: search; }
-  #status-card { grid-area: status; }
-  #sync-card { grid-area: sync; }
+main::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  width: 26px;
+  height: 26px;
+  border-top: 2px solid var(--gold);
+  border-left: 2px solid var(--gold);
+  pointer-events: none;
+}
+main::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 26px;
+  height: 26px;
+  border-bottom: 2px solid var(--gold);
+  border-right: 2px solid var(--gold);
+  pointer-events: none;
 }
 
+/* ---- tabs: the strip is the panel's nameplate row; one tab lit at a time.
+ * app.js show_tab() is the ONE truth (v0.9.7, ADR 0018); the static classes
+ * in index.html PAINT the default so the first paint never waits on script. */
+.tab-off { display: none; }
+nav.tabs {
+  display: flex;
+  gap: 4px;
+  padding: 10px 14px 12px;
+  background: linear-gradient(180deg, #1c222c, #14181f);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  border-bottom: 2px solid rgba(226, 190, 106, 0.3);   /* gold nameplate underline */
+}
+button.tab {
+  cursor: pointer;
+  color: var(--muted);
+  background: #12161d;
+  border: 1px solid var(--edge);
+  border-radius: 4px;
+  padding: 7px 13px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+}
+button.tab:hover { color: var(--parch); border-color: var(--edge-lit); }
+button.tab.tab-on {
+  color: var(--gold);
+  background: var(--field-2);
+  border-color: rgba(226, 190, 106, 0.45);
+}
+
+/* ---- sections (one visible tab's worth at a time) ---- */
 .card {
-  background: var(--panel);
+  background: var(--field);
   border: 1px solid var(--edge);
   border-radius: var(--radius);
   padding: 16px 18px;
-  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 1px var(--gold-hair), 0 10px 22px rgba(0, 0, 0, 0.45);
 }
-h2 { font-size: 15px; letter-spacing: 0.3px; color: var(--text); margin: 2px 0 10px; }
+h2 {
+  font-size: 15px;
+  letter-spacing: 0.3px;
+  color: var(--parch);
+  margin: 2px 0 10px;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6);
+}
 
 .note, #search-note, #status-note {
   color: var(--muted);
@@ -75,15 +145,16 @@ h2 { font-size: 15px; letter-spacing: 0.3px; color: var(--text); margin: 2px 0 1
 .note b { color: var(--gold); }
 .note.bad { color: var(--danger); font-size: 13px; }
 
-/* status grid: label/value pairs */
+/* status grid: label/value pairs - values gold, tabular (numbers keep the
+ * ADR 0015 contract: copper under the money, hovers unchanged) */
 .grid {
   display: grid;
   grid-template-columns: auto auto;
   gap: 4px 18px;
   padding: 10px 12px;
   border: 1px solid var(--edge);
-  border-radius: 10px;
-  background: var(--panel-2);
+  border-radius: 8px;
+  background: var(--field-2);
 }
 .grid span { font-size: 13px; }
 .grid b { color: var(--gold); font-variant-numeric: tabular-nums; }
@@ -98,9 +169,9 @@ h2 { font-size: 15px; letter-spacing: 0.3px; color: var(--text); margin: 2px 0 1
 }
 .field {
   color: var(--text);
-  background: var(--panel-2);
+  background: var(--field-2);
   border: 1px solid var(--edge);
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 7px 10px;
   font-size: 13px;
 }
@@ -109,14 +180,14 @@ h2 { font-size: 15px; letter-spacing: 0.3px; color: var(--text); margin: 2px 0 1
 button.act {
   cursor: pointer;
   color: var(--text);
-  background: var(--panel-2);
+  background: var(--field-2);
   border: 1px solid var(--edge);
-  border-radius: 8px;
+  border-radius: 6px;
   padding: 7px 12px;
   font-size: 13px;
 }
 button.act:disabled { color: var(--muted); }
-button.act:hover { border-color: var(--gold); }
+button.act:hover { border-color: var(--gold); color: var(--parch); }
 button.act.running { color: var(--gold); font-weight: 650; }
 
 /* results */
@@ -127,10 +198,10 @@ table.hits {
   margin: 0;
 }
 th.col-id, th.col-name, th.col-icon, th.col-quality, th.col-price {
-  color: var(--text);
+  color: var(--parch);
   border-bottom: 1px solid var(--edge);
   padding: 6px 9px;
-  background: var(--panel-2);
+  background: var(--field-2);
   font-weight: 600;
 }
 td {
@@ -141,18 +212,19 @@ td {
 td.namecell { color: var(--text); }
 td.namecell a { color: var(--gold); text-decoration: none; font-size: 11px; margin: 0 0 0 6px; }
 #hits tr td { color: var(--muted); }
-#hits tr:hover td { background: var(--panel-2); }
+#hits tr:hover td { background: var(--field-2); }
 
-/* v0.9.3 (ADR 0014): the list icon cell. The image is the DB's OWN bytes as a data
-   URI - never a hotlink (ADR 0008's rule), which is why an icon-less row shows a
-   placeholder glyph instead of a broken-image box. 24 px in the hits table, 20 px in
-   the mini analytics rows: the measured icon copies average 2 327 bytes (min 1 385,
-   max 3 268), so a row costs about 3.1 K chars once encoded, and the doors bound how
-   many ride (the UI asks 40 hits and 6 extremes). */
+/* v0.9.3 (ADR 0014): the list icon cell. The image is the DB's OWN bytes as a
+ * data URI - never a hotlink (ADR 0008's rule), which is why an icon-less row
+ * shows a placeholder glyph instead of a broken-image box. 24 px in the hits
+ * table, 20 px in the mini analytics rows; the measured icon copies average
+ * 2 327 bytes, and the doors bound how many ride (40 hits, 6 extremes). */
 td.iconcell { width: 34px; padding: 3px 6px; text-align: center; }
 .listicon { width: 24px; height: 24px; object-fit: contain; image-rendering: pixelated; vertical-align: middle; }
 .noicon { color: var(--muted); font-size: 13px; }
 
+/* quality chips: these colors are the GAME's quality facts - not restyled to
+ * the frame, a fact stays a fact (v0.5.2's hues ride unchanged) */
 .chip {
   display: inline-block;
   color: var(--text);
@@ -171,9 +243,9 @@ td.iconcell { width: 34px; padding: 3px 6px; text-align: center; }
 .pricecell { font-variant-numeric: tabular-nums; }
 .pricecell.muted { color: var(--muted); }
 
-/* v0.9.4 (ADR 0015): money in the cell, the exact copper in its hover. tabular-nums
-   keeps the digits of a money column (g / s / c) aligned the way a price column must
-   be, and cursor: help says the hover is carrying the number under the money. */
+/* v0.9.4 (ADR 0015): money in the cell, the exact copper in its hover. tabular-
+ * nums keeps g/s/c digits aligned; cursor: help says the hover carries the
+ * number. The WORDS are Rust's money_text, never UI maths (ADR 0015). */
 .moneycell { font-variant-numeric: tabular-nums; cursor: help; }
 
 /* sync */
@@ -184,7 +256,7 @@ td.iconcell { width: 34px; padding: 3px 6px; text-align: center; }
 .rowact {
   cursor: pointer;
   color: var(--muted);
-  background: var(--panel-2);
+  background: var(--field-2);
   border: 1px solid var(--edge);
   border-radius: 6px;
   padding: 2px 7px;
@@ -193,28 +265,25 @@ td.iconcell { width: 34px; padding: 3px 6px; text-align: center; }
 }
 .rowact:hover { border-color: var(--gold); color: var(--gold); }
 
-/* item card */
+/* item card: the DB's rows; the manual-layer marks in gold (v0.8.0, ADR 0010),
+ * upstream's description copy stays TEXT (escaped in JS, markup-neutral by rule) */
 .cardbox {
   display: grid;
   grid-template-columns: 1fr;
   gap: 2px;
   padding: 10px 12px;
   border: 1px solid var(--edge);
-  border-radius: 10px;
-  background: var(--panel-2);
+  border-radius: 8px;
+  background: var(--field-2);
 }
 .cardrow { display: grid; grid-template-columns: auto auto; gap: 14px; }
 .cardbox span { color: var(--muted); font-size: 12.5px; }
 .cardbox b { color: var(--text); font-size: 13px; font-variant-numeric: tabular-nums; }
-/* the manual layer (v0.8.0, ADR 0010): a field the USER stated carries the DB's own
-   stamp next to it, and upstream's description copy prints as escaped TEXT - the
-   tooltip body is upstream's markup, and pasting it here would let upstream write
-   the card, so it stays text (docs/DATABASE.md's "values are data, not markup"). */
 .cardbox i { color: var(--gold); font-size: 11.5px; font-style: normal; }
 
-/* card extras (v0.6.0): the icon comes from the DB as a data URI (never a hotlink),
-   the trend is one bar per stored sample - flex bottom-aligned so bar heights are
-   the sample percentage of the window max (docs/DATABASE.md, ADR 0008). */
+/* card extras (v0.6.0): the icon comes from the DB as a data URI (never a
+ * hotlink), the trend is one bar per stored sample - bottom-aligned flex,
+ * heights are the sample's percentage of the window max (docs/DATABASE.md, ADR 0008) */
 .iconimg { width: 56px; height: 56px; object-fit: contain; image-rendering: pixelated; }
 .trendbox { display: flex; align-items: flex-end; gap: 4px; height: 48px; min-width: 10px; }
 .trendcol { width: 10px; max-width: 30%; background: var(--gold); border-radius: 2px 2px 0 0; }
@@ -244,6 +313,8 @@ table.mini .noicon { font-size: 12px; }
 table.mini td.pricecell { text-align: right; color: var(--gold); }
 #btn-stats { margin: 8px 0 0; }
 
+/* footer: the developer-terms attribution - it stays OUTSIDE the tabs so it
+ * reaches every screen (docs/API.md's rule: the link is required in every answer) */
 footer {
   padding: 12px 22px;
   border-top: 1px solid var(--edge);
