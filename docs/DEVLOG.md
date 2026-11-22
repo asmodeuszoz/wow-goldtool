@@ -105,8 +105,20 @@ nothing) → `51121c9` ci (31 → 33 steps + plant one, replayed green BEFORE co
 
 **44962724652** (head `8e79e97…`, v0.9.5's CI-history fold push): **success, 5/5 in 8 min 37 s**
 (23:37:44Z → 23:46:21Z), attempt 1, no supersession — the verdict ADR 0016 left pending, folded
-FORWARD here. This release's own chain+tag push and fold pushes land FORWARD in the folds below
-this record; tags stay put (`v0.9.5` → `23ceb4e`, `v0.9.6` → this record's commit).
+FORWARD here. **44968797491** (v0.9.6's chain+tag push `8e79e97..4ced794`, head `4ced794…` — the
+TAGGED tree): **success, 5/5 in 9 min 15 s** (2026-11-22T00:53:13Z → 01:02:28Z — quality 1 m 50 s
+· test 4 m 40 s · linux 5 m 24 s · macos 6 m 25 s · windows 9 m 12 s); matched by `id`/`head_sha`
+(the run's own `.attempt` field reads null on this API — the ladder's measured habit), EXACTLY ONE
+run id for that head and no CANCELLED sibling: no supersession event, no rerun submitted. **44969661861**
+(v0.9.6's verification-fold push `4ced794..0c450ba`, head `0c450ba…`): **success, 5/5 in 9 min 17
+s** (01:04:00Z → 01:13:17Z — quality 1 m 40 s · test 4 m 37 s · linux 5 m 14 s · macos 6 m 39 s ·
+windows 9 m 14 s), one run id for that head, no supersession — the CI fold GREW on the same breath
+it pushed (honest: this fold waited for the branch to be clear, and the wait's verdict landed
+green, so it folded HERE, and only the CI fold's OWN push stays FORWARD). The fold itself stayed
+LOCAL while 44968797491 was in flight (the observed rule: a fresh push cancels the branch's in-flight
+run). Every recorded push through v0.9.6
+is green, straight or after an honest resubmission of the SAME head. Tags stay put (`v0.9.5` →
+`23ceb4e`, `v0.9.6` → `4ced794`).
 
 ## 2026-11-21 · v0.9.5 — the price homes: FOUR columns own FOUR questions, carved now, filled later
 

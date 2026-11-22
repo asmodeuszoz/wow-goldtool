@@ -118,7 +118,14 @@ BEFORE committing) → `b920e7d` chore (banner 0.9.6) → this record carries th
 Joining ADR 0016's ladder: the v0.9.5 verification fold's own push ran **44962724652** (head
 `8e79e97…`, the CI-history fold): **success, 5/5 in 8 min 37 s** (23:37:44Z → 23:46:21Z), attempt
 1, no supersession — folded FORWARD here, never chased. v0.9.6's chain+tag push `8e79e97..4ced794`
-(head `4ced794…` — the TAGGED tree) started **run 44968797491**: IN FLIGHT when the verification
-fold committed (observed rule again: a fresh push would cancel the branch's in-flight run, so the
-fold stayed LOCAL until it resolved), and its verdict folds FORWARD in the CI-history fold below
-this record. Tags stay put (`v0.9.5` → `23ceb4e`, `v0.9.6` → `4ced794`).
+(head `4ced794…` — the TAGGED tree) ran **44968797491**: **success, 5/5 in 9 min 15 s** (00:53:13Z
+→ 01:02:28Z — quality 1 m 50 s · test 4 m 40 s · linux 5 m 24 s · macos 6 m 25 s · windows 9 m 12
+s), EXACTLY one run id for that head, no CANCELLED sibling, no rerun submitted (`.attempt` reads
+null on this API, so the ladder matches by `id`/`created_at`/`head_sha` — the pattern it already
+keeps); it was IN FLIGHT when the verification fold committed, and the fold waited, honestly,
+rather than cancelling it. Its own push — the verification fold's, `4ced794..0c450ba`
+(head `0c450ba…`) — ran **44969661861**: **success, 5/5 in 9 min 17 s** (01:04:00Z → 01:13:17Z —
+quality 1 m 40 s · test 4 m 37 s · linux 5 m 14 s · macos 6 m 39 s · windows 9 m 14 s), one run id,
+no supersession; the fold waited (staying LOCAL while the branch flew) and GREW with this verdict
+before pushing, so only the CI fold's OWN push lands FORWARD in the next record. Tags stay put
+(`v0.9.5` → `23ceb4e`, `v0.9.6` → `4ced794`).
