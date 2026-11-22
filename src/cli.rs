@@ -9,7 +9,7 @@ use crate::errors::AppError;
 use crate::errors::AppResult;
 use crate::errors::ErrorKind;
 
-use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_b64_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, money_of, next_manual_id, open_db_at, price_min, price_market, raw_json_of, refresh_twins, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, tooltip_text_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, RefreshTally, SyncState, unix_now};
+use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_b64_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, money_of, next_manual_id, open_db_at, price_min, price_market, price_min_now_of, raw_json_of, refresh_twins, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, tooltip_text_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, RefreshTally, SyncState, unix_now};
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
@@ -377,6 +377,32 @@ pub fn card_money_parts(detail: ItemDetail) -> Vec<String> {
     return parts;
 }
 
+/// The LIVE price observation beside the aged stored money words (v0.9.6, ADR
+/// 0017): `sync --stage price` writes price_min_now through the live tooltip
+/// door, and the card shows what it says NOW next to what the stored copy said
+/// when the detail crawl copied it. money_of rides it like every other copper
+/// (ADR 0015's rule: money words beside every copper answer, and NOT beside the
+/// auction COUNTS - price_available/price_realms stay counts). Two keys, no
+/// price_now_at fragment yet: the when-stamp's only readers are the pending
+/// rule SQL and the write itself, so the wire grows the stamp when a reader
+/// wants it, not before (recorded in ADR 0017). The pair comes from the DB,
+/// like the icon parts do, so the LIVE card and the CACHED card show the same
+/// observation: the door is the DB's, not the payload's.
+pub fn card_price_now_parts(conn: &Connection, id: i64) -> AppResult<Vec<String>> {
+    let live: Option<i64> = match price_min_now_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(found) => found,
+    };
+    let live_json: String = match money_of(live.clone()) {
+        None => "null".to_string(),
+        Some(words) => json_text(words.clone()),
+    };
+    let mut parts: Vec<String> = [].to_vec();
+    parts.push(fragment("price_min_now".to_string(), json_opt_int(live)));
+    parts.push(fragment("price_min_now_money".to_string(), live_json));
+    return Ok(parts);
+}
+
 /// The manual layer and the tooltip copy on the card (v0.8.0, ADR 0010): the
 /// card carries EVERY door's three states, so "the crawl has not reached it" and
 /// "a user already said something about it" stay different answers. manual_overrides
@@ -536,6 +562,13 @@ pub fn cached_card(conn: &Connection, id: i64) -> AppResult<String> {
                 for one in money {
                     parts.push(one.clone());
                 }
+                let live_price: Vec<String> = match card_price_now_parts(conn, id) {
+                    Err(problem) => return Err(problem),
+                    Ok(found) => found,
+                };
+                for one in live_price {
+                    parts.push(one.clone());
+                }
                 let extras: Vec<String> = match card_icon_parts(conn, id) {
                     Err(problem) => return Err(problem),
                     Ok(found) => found,
@@ -580,6 +613,13 @@ pub fn cached_card(conn: &Connection, id: i64) -> AppResult<String> {
             parts.push(fragment("item".to_string(), json_item(detail.clone())));
             let money: Vec<String> = card_money_parts(detail.clone());
             for one in money {
+                parts.push(one.clone());
+            }
+            let live_price: Vec<String> = match card_price_now_parts(conn, id) {
+                Err(problem) => return Err(problem),
+                Ok(found) => found,
+            };
+            for one in live_price {
                 parts.push(one.clone());
             }
             let extras: Vec<String> = match card_icon_parts(conn, id) {
@@ -951,6 +991,13 @@ pub fn cmd_item(inv: &Invocation) -> AppResult<String> {
                     for one in money {
                         parts.push(one.clone());
                     }
+                    let live_price: Vec<String> = match card_price_now_parts(&conn, number) {
+                        Err(problem) => return Err(problem),
+                        Ok(found) => found,
+                    };
+                    for one in live_price {
+                        parts.push(one.clone());
+                    }
                     let extras: Vec<String> = match card_icon_parts(&conn, number) {
                         Err(problem) => return Err(problem),
                         Ok(found) => found,
@@ -1039,6 +1086,13 @@ pub fn cmd_item(inv: &Invocation) -> AppResult<String> {
             parts.push(fragment("item".to_string(), json_item(detail.clone())));
             let money: Vec<String> = card_money_parts(detail.clone());
             for one in money {
+                parts.push(one.clone());
+            }
+            let live_price: Vec<String> = match card_price_now_parts(&conn, number) {
+                Err(problem) => return Err(problem),
+                Ok(found) => found,
+            };
+            for one in live_price {
                 parts.push(one.clone());
             }
             let extras: Vec<String> = match card_icon_parts(&conn, number) {

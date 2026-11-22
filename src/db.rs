@@ -1858,6 +1858,38 @@ pub fn write_price_now(conn: &Connection, id: i64, copper: i64, at: i64) -> AppR
     }
 }
 
+/// Reading the live observation back (v0.9.6, ADR 0017): the refresh wrote the
+/// column, and the CARD door grows it the same breath (a column nobody reads is
+/// fine on disk - the pending rule SQL already reads it - but a Rust accessor
+/// nobody calls would be a dead-code warning the house does not sweep).
+pub const SQL_PRICE_MIN_NOW_OF: &str = "SELECT price_min_now FROM item WHERE id = ?";
+
+/// The live min buyout the refresh stage last saw - or None for "never
+/// refreshed" AND for "checked as price-less right now" alike: the card door
+/// does not tell those two apart yet (the stamp pair does, on disk, and grows
+/// its own fragment when the UI asks for the when - recorded decision, this
+/// release ships the value and its money words only).
+pub fn price_min_now_of(conn: &Connection, id: i64) -> AppResult<Option<i64>> {
+    let mut stmt = match conn.prepare(SQL_PRICE_MIN_NOW_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(None),
+        Ok(Some(row)) => return match row.get(0) {
+            Err(problem) => Err(AppError::db(format!("{}", problem))),
+            Ok(found) => Ok(found),
+        },
+    }
+}
+
 // The price stage's third state (v0.9.6, ADR 0017): "we asked and the door
 // offered NOTHING right now" (measured live 2026-11-21: id 200's `fields.price`
 // is literal null) - the mark twin of mark_icon_missing_at and mark_tooltip_missing_at,
