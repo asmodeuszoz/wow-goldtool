@@ -25,8 +25,11 @@ v1..v4 the v0.9.0 batch of two `ALTER`s (`tooltip_text`/`tooltip_lc`, the readab
 ADR 0017's producer), and v1..v6 all get THIS build's stamp pair — `price_now_at INTEGER`,
 `price_now_missing_at INTEGER` (ADR 0017: the price refresh stage's own three states), with
 the `meta` stamp moving to `7` in the same breath (measured pre-tag on a schema-6 scratch
-copy: the pair lands NULL, rows intact, a SECOND open re-migrates NOTHING; the user's own
-6-file hop lands FORWARD in the post-tag verification fold). Refusing any file would throw
+copy: the pair lands NULL, rows intact, a SECOND open re-migrates NOTHING; measured post-tag the user's OWN file
+went 6 → 7 in place — 19 258 rows / 4 231 vendor_sell intact, its samples ride its OWN fresh detail
+writes (4 286 at this audit, the newest id 22384 @ 23:51:43Z UTC), and BOTH new stamps are
+NULL on every row (no producer ever touched the live catalogue: the price stage ran against
+fixture mirrors only)). Refusing any file would throw
 away a 19 258-row catalogue on the excuse of a schema bump. A migrated file's **column order
 differs from a fresh file's** (ALTER appends, SCHEMA_SQL lists the new columns mid-table —
 the trio sits BEFORE `raw_json` in a fresh CREATE and AFTER `deleted_at`… at the END in a

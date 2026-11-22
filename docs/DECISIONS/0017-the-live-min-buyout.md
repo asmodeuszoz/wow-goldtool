@@ -117,6 +117,8 @@ BEFORE committing) → `b920e7d` chore (banner 0.9.6) → this record carries th
 
 Joining ADR 0016's ladder: the v0.9.5 verification fold's own push ran **44962724652** (head
 `8e79e97…`, the CI-history fold): **success, 5/5 in 8 min 37 s** (23:37:44Z → 23:46:21Z), attempt
-1, no supersession — folded FORWARD here, never chased. This release's own pushes land FORWARD in
-the verification and CI folds below this record; tags stay put (`v0.9.5` → `23ceb4e`, `v0.9.6` →
-this record's commit).
+1, no supersession — folded FORWARD here, never chased. v0.9.6's chain+tag push `8e79e97..4ced794`
+(head `4ced794…` — the TAGGED tree) started **run 44968797491**: IN FLIGHT when the verification
+fold committed (observed rule again: a fresh push would cancel the branch's in-flight run, so the
+fold stayed LOCAL until it resolved), and its verdict folds FORWARD in the CI-history fold below
+this record. Tags stay put (`v0.9.5` → `23ceb4e`, `v0.9.6` → `4ced794`).
