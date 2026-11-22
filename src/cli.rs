@@ -806,6 +806,23 @@ pub fn cmd_sync(inv: &Invocation) -> AppResult<String> {
             }
         }
     }
+    // A TARGETED ask on a WHOLE-door stage is a usage error, not a silently
+    // ignored flag (ADR 0004's contract: a wrong ask answers 2, it never quietly
+    // does something else). The recipes stage fetches the second source's FILES -
+    // eight whole files, never per-record doors - so `--ids`/`--watch` name nothing
+    // here (the icons/tooltip/price stages above DO take targets: those re-ask
+    // PER-RECORD doors the crawl already owns). Measured BEFORE this fix on the
+    // real host: `sync --stage recipes --ids 25` answered rc 0 with the WHOLE pull
+    // (8 files, 1 240 entries), i.e. the flag did nothing the report said - the
+    // refusal is what makes the ask answer what it means.
+    if inv.stage == "recipes" {
+        if inv.id_list.len() > 0 {
+            return Err(AppError::usage("sync --stage recipes fetches WHOLE files of the second source's set: --ids names nothing there (a recipe row is fetched, never re-asked per record) - drop --ids or use the detail/icons/tooltip/price stages".to_string()));
+        }
+        if inv.watch {
+            return Err(AppError::usage("sync --stage recipes fetches WHOLE files of the second source's set: --watch names nothing there (a recipe row is fetched, never re-asked per record) - drop --watch or use the detail/icons/tooltip/price stages".to_string()));
+        }
+    }
     let conn: Connection = match open_at(inv) {
         Err(problem) => return Err(problem),
         Ok(value) => value,
