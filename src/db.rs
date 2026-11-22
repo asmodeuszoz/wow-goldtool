@@ -485,38 +485,17 @@ pub fn bind_sql(conn: &Connection, sql: &str, params: Vec<Value>, expected: usiz
     }
 }
 
-/// Open the DB file and make sure the schema is on disk. Every entry point (CLI
-/// subcommand, Tauri command) goes through this.
-pub fn open_db(app_data_dir: Option<String>) -> AppResult<Connection> {
-    let target: DbTarget = db_path(app_data_dir);
-    let already_there: bool = match exists(&target.path) {
-        Ok(value) => value,
-        Err(_) => false,
-    };
-    match Connection::open(&target.path) {
-        Err(problem) => return Err(AppError::db(format!("cannot open {}: {}", target.path, problem))),
-        Ok(conn) => {
-            if already_there {
-                match check_schema(&conn) {
-                    Err(problem) => return Err(problem),
-                    Ok(_) => return Ok(conn),
-                }
-            }
-            match conn.execute_batch(SCHEMA_SQL) {
-                Err(problem) => return Err(AppError::db(format!("schema rejected: {}", problem))),
-                Ok(_) => {},
-            }
-            match meta_set(&conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
-                Err(problem) => return Err(problem),
-                Ok(_) => return Ok(conn),
-            }
-        },
-    }
-}
-
-/// Open the DB file at an explicit path: the CLI's `--db` flag and the test
-/// harness hand this a path, the GUI hands it app_data_dir. Same schema
-/// rules as `open_db`, just without the path resolution.
+/// Open the DB file at an explicit path. The path this gets is already resolved:
+/// `db_path` answers the four-way rule (`--db PATH` beats `WGT_DB` beats the Tauri
+/// appDataDir beats the HOME default, docs/DATABASE.md) and hands this the path it
+/// picked; the test harness and the audits hand a scratch path directly. Opening is
+/// ONE code path for every entry point (v0.11.1, ADR 0024): the CLI resolves through
+/// `db_path` then calls this (`cli.rs`'s `open_at` and its two direct calls), and the
+/// GUI reaches the same door through `cli_ok`'s argv (ADR 0014's one-code-path), so
+/// the wrapper that used to bundle `db_path` plus this died with no caller - rustc
+/// called it never used, and the two doors into the schema helper are `db_path` (who
+/// picks the file) and `open_db_at` (who opens and stamps it), exactly as DATABASE.md
+/// now says.
 pub fn open_db_at(path: String) -> AppResult<Connection> {
     let already_there: bool = match exists(&path) {
         Ok(value) => value,
