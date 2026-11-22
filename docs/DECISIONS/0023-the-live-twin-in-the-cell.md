@@ -84,6 +84,33 @@ UI witnesses are the launch-audit rule's: `node --check` PARSES the grown app.js
 grep names the EXACT 3 classes in app.js and the SAME 3 in app.css — the rendered
 tab stays never-witnessed (no display in this build room).
 
-Post-tag: the CI row and the verification fold are measured FORWARD (this era's
-mirror is 47 commands = 44 step-lines + plant + fixture start + sleep); the ladder
-never chases a tag, tags stay put.
+## CI row (measured green, tag pinned)
+
+**45048079898** (this release's chain+tag push `0690f38..59b0185`, head = the TAGGED tree):
+**success, 5/5 in 7 min 28 s** (2026-11-22T17:11:55Z → 17:19:23Z — quality 2 m 3 s · linux 6 m
+37 s · test 6 m 29 s · macos 7 m 24 s · windows 6 m 35 s), exactly ONE run id for that head,
+no CANCELLED sibling, no rerun. The era's mid-chain feature-push run (head `0690f38`) measured
+where it stands: **45046599075 success 5/5 in 10 min 42 s** (16:56:24Z → 17:07:06Z). The tag
+stays put: `v0.11.0` → `59b0185`. The verification fold's own push starts the NEXT run,
+measured in the NEXT record — the ladder never chases a tag (ADR 0011's ordering rule;
+every push in this era waited for the prior run to complete).
+
+## Post-tag (measured FORWARD, folded in the DEVLOG's v0.11.0 entry)
+
+The mirror replayed the GROWN block on a fresh fixture process + a DB born 8: **47/47 commands
+rc 0, ZERO NONZERO** (`TOTAL_STEPS=47` = 44 step-lines + plant + fixture start + sleep), the
+stage presses UNCHANGED; the new step read BOTH live states in one RUN (`16181 ↔ 1g 61s 81c`
+stored; crafted 40 missing-stamped + its OWN copied bytes 2 596 B64; crafted 60 live `14181 ↔
+1g 41s 81c` differs). The exit map re-ran GROWN (fresh 9622, DEAD 9997, 404-file server 9559):
+**89 doors `0`×60 · `2`×17 · `3`×6 · `4`×6, ZERO mismatches** — the live doors ride rc 0, the
+era moved NO rc semantics. The pinned pair (v0.10.1 binary @ `09c8d77` vs the new one, ONE
+shared fixture, TWO fresh DBs): **19 non-recipes DB-only doors BYTE-IDENTICAL**, and EVERY
+recipes door proved `new answer MINUS the live keys ≡ pinned answer` — the release ADDED
+fields where and ONLY where it said, nothing MOVED (both DBs: schema 8 / 5 items / 2
+`price_min_now` / 1 `price_less` / 12 recipe rows). Over the USER's own file (opens + LOCAL
+doors, ZERO requests): `price_min_now` / `price_now_missing_at` answer **0 / 0** — the price
+stage never re-pressed THIS host, so the REAL joined rows honestly answer `live price not
+refreshed yet` (never the price-less word); `vendor_buy` / `price_trend_normal` 0/0 (ADR
+0016's grounds hold); 6 read-only doors BYTE-IDENTICAL vs the pinned binary (md5-equal,
+1 098 B … 37 648 B); the real `recipes` answers are struct-equal-after-strip on real 1 240-row
+data.

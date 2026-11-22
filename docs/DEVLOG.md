@@ -112,6 +112,31 @@ the chain pushed only with no run in flight, and the record's chain+tag push wai
 the fold — the ladder never chases a tag, tags stay put (`v0.10.0` → `e4d3447`, `v0.10.1` →
 `09c8d77`, `v0.11.0` → this record's commit).
 
+### Post-tag verification — MEASURED on fresh ports: 47/47 green, the map grown 89 doors, the pinned strip-proof, the real file answers HONEST
+
+All FRESH ports/processes and FRESH DBs; the real host saw NOTHING (every crawl door carried
+`--fixture`; the paging/live doors are LOCAL — ZERO requests); the user's OWN file was read
+through its OWN doors (opens + LOCAL, ZERO requests), never crawled.
+
+| probe | answer |
+| ----- | ------ |
+| mirror replay — driver generated FROM the GROWN committed block (port-stripped compare EQUAL **44/44** step-lines + plant one), fresh fixture PROCESS on 8765, fresh DB `post111/fixture.sqlite` born 8 | **47/47 commands rc 0, ZERO NONZERO** (`TOTAL_STEPS=47` = 44 step-lines + plant + fixture start + sleep); the stage presses UNCHANGED: budget-3 **4 requests / 3 of 8 files / 5 rows / `rate_limited 1` / `complete false`** · resumed **`from 3` / 5 / 5 / 7 rows / `complete true`** · re-pull **8 / 8 files / 8 answered the SAME copy / 0 written**; this RUN's stored pair `16181 ↔ 1g 61s 81c` beside the live pair — the new step rc 0 reading BOTH states in one answer: crafted 40 `crafted_now_missing_at` 1795367781 SET + its OWN copied bytes (b64 2 596 chars, icon stamp 1795367748), crafted 60 live `14181 ↔ 1g 41s 81c` DIFFERENT from stored `16181` with `crafted_now_at` stamped; mirror builds print the FOUR named warnings + the hard-link FS line (44/44 — the incremental-clear mechanic's artifact, never a fifth named) |
+| exit map RE-RUN GROWN — fresh fixture 9622 + fresh seed DB + fresh EMPTY DB + DEAD 9997 + the scratch 404-file server 9559 | **89 doors: `0`×60 · `2`×17 · `3`×6 · `4`×6**, ZERO mismatches; the TWO live doors answer rc 0 (the era moved NO rc semantics — the answer GREW fields instead); over the seeded table `recipes --limit 40` reads crafted live-pair 5 / crafted missing-state 1 / not-refreshed-yet 4 / reagent price-less 4, and the Blacksmithing door 2 rows carry crafted live 1 + missing 1 side by side; the empty-table pair still 4/4, the bogus filter still 4 (`Jewelcrafting` not in the set), the whole-door refusals still 2/2, the 404-FILE abort 3/3 no summary line; the tombstone-ordering door (`item 900000000 --cached`) rides rc 0 HONESTLY: an earlier door tombstoned the id, the card answers the row the DB OWNS (ADR 0010) — the gone-upstream pair 127555 still answers 4/4 |
+| pinned pair — the v0.10.1 binary (worktree at the tagged tree `09c8d77`, built 4-warnings-green) vs the new binary, ONE shared fresh fixture process 9623, TWO fresh DBs | **19 non-recipes DB-only doors BYTE-IDENTICAL** (rc + md5 both sides); **every SIX recipes door shows the exact proof** `new answer MINUS the live keys ≡ pinned answer` (rc 0/0 each): spell/row ORDER, names, dataset words, stored copper + money, icon states (copied bytes AND the honest no-bytes state) all did not MOVE — the release ADDED fields where and ONLY where it said (`price_now_copper/price_now_money/price_now_at/price_now_missing_at` + crafted mirrors); both DBs answer identical tallies (schema 8 / 5 items / 2 `priced_now` / 1 `price_less` / 12 recipe rows — no schema delta, no value drift behind the fix) |
+| the user's OWN file, read by the new binary (opens + LOCAL doors, ZERO requests, NO crawl) | two `status` opens rc 0/0 **BYTE-IDENTICAL**; tallies intact: schema 8 / **19 258** rows / **4 231** `vendor_sell` / **4 287** samples / **1 240** recipe rows; the live twin measured HONESTLY on the real file: `price_min_now` **0**, `price_now_missing_at` **0** — the price stage never re-pressed THIS host, so the columns are the THIRD state (never-refreshed-yet), NOT a price-less state — and the REAL doors answer exactly that: `recipes --limit 3` joined rows carry `live price not refreshed yet` (crafted 3/3, reagents 8/8), `--profession Blacksmithing --icons --limit 3` answers `matching 250` real rows with the same honest chips (fixture NEVER invented here); `vendor_buy` / `price_trend_normal` still **0/0** (ADR 0016's grounds hold on the real file unchanged); the PINNED v0.10.1 binary vs the new one OVER THAT FILE: **6 read-only doors BYTE-IDENTICAL md5-equal** (`status` 1 098 B · `stats --icons --limit 6` 37 648 B · `item 25 --cached` 2 950 B · the two search pairs 979 B / 1 729 B · `watch list` 707 B — the search/card shape did not move AT ALL), and the real `recipes` answers are struct-equal-after-strip (the live keys are ALL the delta, on real 1 240-row data) |
+| limits kept | no schema move (stays 8: scratch DBs and the user file answer 8), no UI line moved SINCE the feat(ui) commit (nothing new to parse — the rendered look never claimed, `node --check` was the PARSE witness), the real host saw NOTHING but the deliberately recorded witnesses of earlier eras, `tests/__pycache__/` stayed out of every commit (explicit paths), every fixture/scratch server killed after its run and the ports re-verified free; one harness-noise note recorded honestly: the wait loop's `gh run watch --exit` on 45046599075 exited **1** while that run itself COMPLETED success — the harness quirk, the ladder lost nothing, chased nothing |
+
+**Ladder where it stands (all measured, never chased):** **45046599075** (the era's mid-chain
+feature-push head `0690f38`): **success, 5/5 in 10 min 42 s** (2026-11-22T16:56:24Z → 17:07:06Z —
+quality 1 m 43 s · linux 5 m 13 s · test 5 m 45 s · macos 7 m 45 s · windows 10 m 40 s), exactly
+ONE run id for that head, no CANCELLED sibling, no rerun — it landed WHILE the record + chore +
+docs grew (nothing pushed while it flew). **45048079898** (this release's chain+tag push
+`0690f38..59b0185`, head = the TAGGED tree `59b0185…`): **success, 5/5 in 7 min 28 s** (17:11:55Z
+→ 17:19:23Z — quality 2 m 3 s · linux 6 m 37 s · test 6 m 29 s · macos 7 m 24 s · windows 6 m 35
+s), exactly ONE run id, no sibling. The fold's own push starts the NEXT run — measured in the
+NEXT record: the ladder never chases a tag, tags stay put (`v0.10.0` → `e4d3447`, `v0.10.1` →
+`09c8d77`, `v0.11.0` → `59b0185`).
+
 ## 2026-11-22 · v0.10.1 — the paging doors ride one rule: `--offset` alone answers, twice
 
 ### What forced it
