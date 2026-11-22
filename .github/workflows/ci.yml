@@ -246,6 +246,45 @@ jobs:
           # says which is which beside every hit). Step count 33 -> 34 `cargo run --`,
           # plant line one.
           cargo run -- search detail --where all --sort price-now --limit 8
+          # the SECOND source's stage + its local door (v0.10.0, ADR 0021): the recipe
+          # set is NOT the API's - the API has no professions door (five probed paths
+          # answer 404 today, docs/API.md + ADR 0021 measure them) and its recipe cards
+          # name no job, no skill, no materials (0 of 716 copies say "Requires Materials");
+          # the only MEASURED carrier of the materials is ReagentRoute's MIT dataset
+          # (docs/API.md's second-source section carries the REAL counts: 8 classic files,
+          # 1 240 entries, 2 843 484 bytes fetched today). CI never runs the real set -
+          # the fixture serves TINY hand-built measured-shape rows (12 entries in 8 files)
+          # whose ids are the fixture's OWN item rows, so every join state the door ships
+          # is asserted HERE: a crafted id WITH a row (its DB-side name is the detail
+          # stage's overwrite "Fixture Detail 25" - the set's own crafted_item_name rides
+          # BESIDE it, never instead), a crafted id nobody ever priced (127555 detail-404ed
+          # above -> money null + the UI's "no price", never 0c), a reagent id the DB never
+          # saw (2589/5113 -> in_db false + "not in your DB" beside the set's words) and
+          # the enchanting entries whose recipe names NO crafted item at all (the REAL set
+          # carries exactly 133 such entries, docs/API.md records it). Pressed THREE times
+          # the way every other stage is pressed: budgeted (3 files, 4 requests - the fixture
+          # gates the stage's FIRST request, the retry path rides), then RESUMED at file 3
+          # and COMPLETED (5 more files, 7 rows), then the RE-PULL answers EIGHT 304s and
+          # writes NOTHING (the file ETags ride the meta table, the UPSERT keeps the 12 rows
+          # the first two presses wrote - ADR 0003/0011's reuse discipline kept for the
+          # second host). There is NO per-record third state IN the stage: a 404 FILE is
+          # the source moving, and the stage ABORTS rc 3 (measured on a scratch audit
+          # server, never committed here as a green step); the door-side third states are
+          # READ facts the reader above names. The four door steps answer the 12 rows with
+          # ZERO requests (the local-door rule ADR 0012 keeps for search and stats): `--limit
+          # 40` echoes matching 12, `--profession Alchemy` binds the dataset's OWN word, the
+          # Enchanting step carries `--icons` so the copied bytes ride beside the null-crafted
+          # rows, and Cooking shows the 127555 join. The empty-table refusal (rc 4 BEFORE
+          # this stage ran) is measured on a scratch DB, and the whole exit map re-runs
+          # post-tag with the two new doors grown honestly. Step count 34 -> 41 step-lines,
+          # plant line stays one.
+          cargo run -- sync --stage recipes --fixture http://127.0.0.1:8765 --budget 3
+          cargo run -- sync --stage recipes --fixture http://127.0.0.1:8765
+          cargo run -- sync --stage recipes --fixture http://127.0.0.1:8765
+          cargo run -- recipes --limit 40
+          cargo run -- recipes --profession Alchemy --limit 3
+          cargo run -- recipes --profession Enchanting --icons --limit 4
+          cargo run -- recipes --profession Cooking --limit 3
           # money (v0.9.4, ADR 0015): this release adds NO step and NO request. Money
           # is DERIVED at answer time from the copper the doors above already carry
           # (schema stays 5, so there is nothing to refresh and nothing to migrate),
