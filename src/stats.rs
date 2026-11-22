@@ -195,8 +195,13 @@ struct PendingSql {
 
 /// The limit is a bound parameter so a CLI number never becomes SQL text; the queue
 /// SQL is a parameter too now: the detail queue and the icon queue share the paging
-/// mechanics (v0.6.0).
-pub fn pending_plan(sql: String, limit: Option<i64>) -> PendingSql {
+/// mechanics (v0.6.0). Module-private on its own head (v0.11.1, ADR 0024): the four
+/// queues are the ONLY callers, all four of them in this module, so the signature
+/// never owed a `pub` - rustc's `private_interfaces` warning said exactly that
+/// (a `pub` function handing back a `pub(self)` type is a claim the module cannot
+/// honor), and widening `PendingSql` instead would have put a queue-plan type on a
+/// surface nothing outside this file ever asked for.
+fn pending_plan(sql: String, limit: Option<i64>) -> PendingSql {
     let more: String = if limit.is_some() { " LIMIT ?".to_string() } else { "".to_string() };
     let mut params: Vec<Value> = [].to_vec();
     match limit {
