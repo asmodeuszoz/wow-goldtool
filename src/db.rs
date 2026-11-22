@@ -2441,7 +2441,7 @@ pub fn write_recipe(conn: &Connection, file_profession: String, entry: RecipeEnt
 pub const SQL_RECIPE_ROWS: &str = "SELECT spell_id, profession, recipe_name, crafted_item_id, crafted_item_name, skill_required, skill_tier, trivial_low, trivial_high, reagents_json, acquisition, acquisition_note, source FROM recipe ";
 pub const SQL_RECIPE_COUNT: &str = "SELECT COUNT(1) FROM recipe ";
 pub const SQL_RECIPE_ORDER: &str = "ORDER BY profession ASC, (skill_required IS NULL) ASC, skill_required ASC, spell_id ASC";
-pub const SQL_LIVE_NAME_PRICE: &str = "SELECT name, price_min FROM item WHERE id = ? AND deleted_at IS NULL";
+pub const SQL_LIVE_NAME_PRICE: &str = "SELECT name, price_min, price_min_now, price_now_at, price_now_missing_at FROM item WHERE id = ? AND deleted_at IS NULL";
 
 #[derive(Serialize, Clone)]
 pub struct RecipeReagent {
@@ -2452,6 +2452,14 @@ pub struct RecipeReagent {
     pub db_name: Option<String>,
     pub price_copper: Option<i64>,
     pub price_money: Option<String>,
+    /// v0.11.0 (ADR 0023): the LIVE twin beside the stored min - the copper AND
+    /// its money words ride together (ADR 0015's contract needs BOTH sides, and
+    /// the compiler caught the missing twin the same way it caught E0063 at v0.10.0),
+    /// and the STAMPS carry the two different NULLs apart (ADR 0017's own rule).
+    pub price_now_copper: Option<i64>,
+    pub price_now_money: Option<String>,
+    pub price_now_at: Option<i64>,
+    pub price_now_missing_at: Option<i64>,
     pub icon_b64: Option<String>,
     pub icon_at: Option<i64>,
 }
@@ -2473,6 +2481,14 @@ pub struct RecipeRow {
     pub crafted_db_name: Option<String>,
     pub crafted_price_copper: Option<i64>,
     pub crafted_price_money: Option<String>,
+    /// v0.11.0 (ADR 0023): the crafted item's LIVE twin - the cell shows the
+    /// STORED min money and this beside it when the two differ, and the stamps
+    /// keep the two different NULLs apart (the AH offered nothing at the last ask
+    /// vs this record's live price was never refreshed yet).
+    pub crafted_price_now_copper: Option<i64>,
+    pub crafted_price_now_money: Option<String>,
+    pub crafted_now_at: Option<i64>,
+    pub crafted_now_missing_at: Option<i64>,
     pub crafted_icon_b64: Option<String>,
     pub crafted_icon_at: Option<i64>,
     pub reagents: Vec<RecipeReagent>,
@@ -2505,6 +2521,16 @@ pub struct RawRecipe {
 pub struct LiveNamePrice {
     pub name: Option<String>,
     pub price_min: Option<i64>,
+    /// v0.11.0 (ADR 0023): the LIVE twin the price stage wrote beside the stored
+    /// min (ADR 0017's two columns of one kind), read in the SAME pass so the
+    /// recipe joins cannot meet a row a write moved mid-read. The STAMPS ride
+    /// because the two NULLs mean different things (ADR 0006/0016's rule):
+    /// `price_now_missing_at` set = "looked, the AH offers NOTHING right now",
+    /// both stamps NULL = "never asked yet" - the join fills words, a door or a
+    /// cell NEVER merges them.
+    pub price_min_now: Option<i64>,
+    pub price_now_at: Option<i64>,
+    pub price_now_missing_at: Option<i64>,
 }
 
 /// The live name + min price of an id, ONLY when its row is visible (the
@@ -2527,7 +2553,22 @@ pub fn live_name_price_of(conn: &Connection, id: i64) -> AppResult<Option<LiveNa
             Err(problem) => Err(AppError::db(format!("{}", problem))),
             Ok(name) => match row.get(1) {
                 Err(problem) => Err(AppError::db(format!("{}", problem))),
-                Ok(copper) => Ok(Some(LiveNamePrice { name: name, price_min: copper })),
+                Ok(copper) => match row.get(2) {
+                    Err(problem) => Err(AppError::db(format!("{}", problem))),
+                    Ok(now_copper) => match row.get(3) {
+                        Err(problem) => Err(AppError::db(format!("{}", problem))),
+                        Ok(now_at) => match row.get(4) {
+                            Err(problem) => Err(AppError::db(format!("{}", problem))),
+                            Ok(now_missing_at) => Ok(Some(LiveNamePrice {
+                                name: name,
+                                price_min: copper,
+                                price_min_now: now_copper,
+                                price_now_at: now_at,
+                                price_now_missing_at: now_missing_at,
+                            })),
+                        },
+                    },
+                },
             },
         },
     }
@@ -2549,6 +2590,10 @@ pub fn join_recipe_reagent(conn: &Connection, reagent: Reagent, with_icons: bool
         db_name: None,
         price_copper: None,
         price_money: None,
+        price_now_copper: None,
+        price_now_money: None,
+        price_now_at: None,
+        price_now_missing_at: None,
         icon_b64: None,
         icon_at: None,
     };
@@ -2559,6 +2604,10 @@ pub fn join_recipe_reagent(conn: &Connection, reagent: Reagent, with_icons: bool
             out.db_name = live.name;
             out.price_copper = live.price_min;
             out.price_money = money_of(live.price_min);
+            out.price_now_copper = live.price_min_now;
+            out.price_now_money = money_of(live.price_min_now);
+            out.price_now_at = live.price_now_at;
+            out.price_now_missing_at = live.price_now_missing_at;
             match with_icons {
                 false => {},
                 true => {
@@ -2649,6 +2698,10 @@ pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: b
                     crafted_db_name: None,
                     crafted_price_copper: None,
                     crafted_price_money: None,
+                    crafted_price_now_copper: None,
+                    crafted_price_now_money: None,
+                    crafted_now_at: None,
+                    crafted_now_missing_at: None,
                     crafted_icon_b64: None,
                     crafted_icon_at: None,
                     reagents: [].to_vec(),
@@ -2673,6 +2726,10 @@ pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: b
                                 row.crafted_db_name = live.name.clone();
                                 row.crafted_price_copper = live.price_min.clone();
                                 row.crafted_price_money = money_of(live.price_min.clone());
+                                row.crafted_price_now_copper = live.price_min_now.clone();
+                                row.crafted_price_now_money = money_of(live.price_min_now.clone());
+                                row.crafted_now_at = live.price_now_at.clone();
+                                row.crafted_now_missing_at = live.price_now_missing_at.clone();
                                 match with_icons {
                                     false => {},
                                     true => {
