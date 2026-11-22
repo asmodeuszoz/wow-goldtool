@@ -502,6 +502,14 @@ async function runCard(live) {
         line = line + ", and no description copy yet (the tooltip stage will ask once)";
       }
     }
+    // v0.9.6 (ADR 0017): the live row's sentence, in the user's own words. The
+    // refresh stage is CLI-side (the panel has no button for it, gui.rs verified)
+    // - the card shows what the stage wrote WHEN the CLI ran it, and says so.
+    if (found.price_min_now !== null && found.price_min_now !== undefined) {
+      line = line + " — live min buyout refreshed by sync --stage price through the tooltip door (it carries a live AH price); it can differ from the stored min above, which ages with the copy";
+    } else if (found.tooltip_at !== null && found.tooltip_at !== undefined) {
+      line = line + " — no live price yet: sync --stage price asks this copied record once (it may also CHECK the record as price-less — the door's own third state, the DB's stamps keep that apart)";
+    }
     if (found.history && found.history.length > 1) {
       line = line + ", and the price has " + found.history.length + " samples (trend drawn on the card, each bar's hover carries that sample's money)";
     } else if (found.history && found.history.length === 1) {
@@ -554,6 +562,24 @@ function render_card(found) {
   rows.push(["market price", item.price ? item.price.market : null, "", found.price_market_money]);
   rows.push(["available", item.price ? item.price.available : null, ""]);
   rows.push(["vendor sell", item.vendor_sell, "vendor_sell", found.vendor_sell_money]);
+  // v0.9.6 (ADR 0017): the LIVE observation beside the AGED stored rows above.
+  // price_min_now is what sync --stage price saw when it re-asked the tooltip
+  // door (the door carries a live Auction House price - docs/API.md measures
+  // fields.price and upstream's own developers page says tooltips cache ~5 min
+  // "because they carry a live Auction House price"); the stored min above is
+  // what the copy said when the detail crawl fetched it. The two DIFFER,
+  // measured on the mech run: stored row 25 kept min 17190 while the live row
+  // read 16190 - money_cell rides the live copper like every other money row
+  // (hover: the exact copper, ADR 0015). A NULL here means "never refreshed OR
+  // the door answered that the AH offers NOTHING right now" (measured third
+  // state, live id 200): the card door does not split those two yet - its
+  // stamps pair does, on disk - so money_cell's muted "no price" plus the
+  // note's sentence are the honest reading, and the row label says which
+  // stage fills it. The label matters: the panel has no button for this
+  // stage (gui.rs builds the window and draws no card, reads no column;
+  // verified before this claim), so a value only the CLI stage wrote shows
+  // up when the CLI ran - the card never pretends the panel did anything.
+  rows.push(["live min buyout", found.price_min_now, "", found.price_min_now_money]);
   if (item.weapon) {
     rows.push(["damage", item.weapon.damage_min + "-" + item.weapon.damage_max, ""]);
     rows.push(["dps / speed", item.weapon.dps + " / " + item.weapon.speed, ""]);
