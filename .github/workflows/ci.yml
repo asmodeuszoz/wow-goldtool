@@ -231,6 +231,21 @@ jobs:
           cargo run -- search sword --where description --icons
           cargo run -- stats --icons
           cargo run -- stats
+          # the live sort knob (v0.9.9, ADR 0020): --sort price-now orders rows by the
+          # LIVE min buyout the price stage above wrote - rows 25/60 refreshed, row 40
+          # checked price-less: its price_min_now stays NULL and sorts WITH the never-
+          # refreshed tail (the stamps keep the two kinds of NULL apart; the order does
+          # not care and does not guess). Measured on this mirror with BOTH binaries at
+          # this very ask: v0.9.8 falls back to the default order (12809, 25, 40, 60 -
+          # name wins the stored 18 106 tie), v0.9.9 answers the live order 60 BEFORE
+          # 25 (live 16 106 vs 17 106). The plain-default doors above stay BYTE-IDENTICAL
+          # old-vs-new (`search detail --where all --limit 8` md5 equal) - the knob rides
+          # ONLY the new key. ZERO requests leave this step (search reads the DB), so the
+          # fixture's GET tallies cannot move; money keeps its ADR 0015 rule (the price
+          # COLUMN is the stored min, the ORDER reads the live column, and the UI note
+          # says which is which beside every hit). Step count 33 -> 34 `cargo run --`,
+          # plant line one.
+          cargo run -- search detail --where all --sort price-now --limit 8
           # money (v0.9.4, ADR 0015): this release adds NO step and NO request. Money
           # is DERIVED at answer time from the copper the doors above already carry
           # (schema stays 5, so there is nothing to refresh and nothing to migrate),
