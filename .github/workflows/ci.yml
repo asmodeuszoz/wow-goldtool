@@ -285,6 +285,19 @@ jobs:
           cargo run -- recipes --profession Alchemy --limit 3
           cargo run -- recipes --profession Enchanting --icons --limit 4
           cargo run -- recipes --profession Cooking --limit 3
+          # v0.10.1 (ADR 0022): the paging doors ride ONE composition rule, and these
+          # two steps are green BECAUSE it holds - they are the measured defect class
+          # (`--offset` WITHOUT `--limit`): before the fix each answered rc 4 carrying
+          # SQLite's raw `near "OFFSET": syntax error` refusal. Both doors are LOCAL
+          # (ZERO requests, no new GET in the tally): over the fixture's 12 recipe rows
+          # `recipes --offset 10` answers 2 rows of matching 12 and `search sword
+          # --offset 4` answers the tail of the store's own sword rows (an EMPTY tail
+          # is still rc 0 - the door's no-row-past-the-end shape, never a 4). Measured
+          # on a fresh mirror BEFORE this block landed (driver generated from these
+          # very steps): the pair rc 4 -> rc 0 against the v0.10.0 binary. Step count
+          # 41 -> 43 step-lines, plant line stays one.
+          cargo run -- recipes --offset 10
+          cargo run -- search sword --offset 4
           # money (v0.9.4, ADR 0015): this release adds NO step and NO request. Money
           # is DERIVED at answer time from the copper the doors above already carry
           # (schema stays 5, so there is nothing to refresh and nothing to migrate),
