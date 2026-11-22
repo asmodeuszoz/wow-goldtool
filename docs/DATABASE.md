@@ -15,25 +15,25 @@ or stale-schema file, or `execute_batch(SCHEMA_SQL)` writes it and stamps
 `schema_version` into `meta`. The schema is idempotent, so a fresh process (CLI or GUI)
 can always attach; `open_db` and `open_db_at` are the two doors into that helper.
 
-**Six stale shapes are migrated instead of refused** (v0.9.0 grew the chain to four;
-v0.9.5 grew it to five; v0.9.6 grew it to six again): the file on disk saying `schema_version
-= 1` (the user's own catalogue, 19 258 rows, still never touched by a refusal), `2`, `3`, `4`,
-`5` or `6` differs from this build by additive steps only, so `check_schema` chains them: v1
-gets v0.5.3's one `ALTER` first, v1/v2 the v0.6.0 batch, v1/v2/v3 the v0.8.0 batch of eight,
-v1..v4 the v0.9.0 batch of two `ALTER`s (`tooltip_text`/`tooltip_lc`, the readable twin, ADR
-0012), v1..v5 the v0.9.5 trio (ADR 0016: carved, and `price_min_now` FILLED from v0.9.6 by
-ADR 0017's producer), and v1..v6 all get THIS build's stamp pair — `price_now_at INTEGER`,
-`price_now_missing_at INTEGER` (ADR 0017: the price refresh stage's own three states), with
-the `meta` stamp moving to `7` in the same breath (measured pre-tag on a schema-6 scratch
-copy: the pair lands NULL, rows intact, a SECOND open re-migrates NOTHING; measured post-tag the user's OWN file
-went 6 → 7 in place — 19 258 rows / 4 231 vendor_sell intact, its samples ride its OWN fresh detail
-writes (4 286 at this audit, the newest id 22384 @ 23:51:43Z UTC), and BOTH new stamps are
-NULL on every row (no producer ever touched the live catalogue: the price stage ran against
-fixture mirrors only)). Refusing any file would throw
+**Seven stale shapes are migrated instead of refused** (v0.9.0 grew the chain to four;
+v0.9.5 grew it to five; v0.9.6 grew it to six again; v0.10.0 grew it to seven): the file on disk
+saying `schema_version = 1` (the user's own catalogue, 19 258 rows, still never touched by a
+refusal), `2`, `3`, `4`, `5`, `6` or `7` differs from this build by additive steps only, so `check_schema`
+chains them: v1 gets v0.5.3's one `ALTER` first, v1/v2 the v0.6.0 batch, v1/v2/v3 the v0.8.0
+batch of eight, v1..v4 the v0.9.0 batch of two `ALTER`s (`tooltip_text`/`tooltip_lc`, the
+readable twin, ADR 0012), v1..v5 the v0.9.5 trio (ADR 0016: carved, and `price_min_now` FILLED
+from v0.9.6 by ADR 0017's producer), v1..v6 THIS build's stamp pair — `price_now_at INTEGER`,
+`price_now_missing_at INTEGER` (ADR 0017: the price refresh stage's own three states) — and
+v1..v7 the v0.10.0's `CREATE TABLE recipe` + `CREATE INDEX recipe__crafted` (ADR 0021: one
+table, two doors — the dataset's rows arrive where a refusal would throw away a 19 258-row
+catalogue on the excuse of a schema bump), with the `meta` stamp moving to `8` in the same
+breath (measured pre-tag on a schema-7 scratch copy: the table + index land, rows intact,
+a SECOND open re-migrates NOTHING). Refusing any file would throw
 away a 19 258-row catalogue on the excuse of a schema bump. A migrated file's **column order
 differs from a fresh file's** (ALTER appends, SCHEMA_SQL lists the new columns mid-table —
 the trio sits BEFORE `raw_json` in a fresh CREATE and AFTER `deleted_at`… at the END in a
-migrated file, and v0.9.6's pair sits BETWEEN them) — every reader in the code names columns
+migrated file, and v0.9.6's pair sits BETWEEN them; the new `recipe` TABLE is separate, so
+its position cannot drift at all) — every reader in the code names columns
 explicitly and nothing reads positions. A file **newer** than this build is still refused —
 that direction cannot be guessed at (measured consequences: a pinned v0.7.0 binary refuses a
 schema-4 file, a pinned v0.8.1 binary refuses THIS release's schema-7 file with `database on
@@ -41,10 +41,11 @@ disk uses schema 7, this build wants 4`, file untouched — and it refused the 6
 way through v0.9.5).
 See [ADR 0006](./DECISIONS/0006-checked-missing-third-state.md),
 [ADR 0008](./DECISIONS/0008-icon-storage-third-stage.md),
-[ADR 0010](./DECISIONS/0010-manual-layer-and-tooltip-copy.md) and
-[ADR 0016](./DECISIONS/0016-the-price-homes.md).
+[ADR 0010](./DECISIONS/0010-manual-layer-and-tooltip-copy.md),
+[ADR 0016](./DECISIONS/0016-the-price-homes.md) and
+[ADR 0021](./DECISIONS/0021-the-recipe-doors.md).
 
-## Schema (`schema_version = 7`)
+## Schema (`schema_version = 8`)
 
 ```sql
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
@@ -87,7 +88,7 @@ CREATE TABLE item (
 CREATE TABLE watch (id INTEGER PRIMARY KEY, added_at INTEGER, note TEXT);
 
 CREATE TABLE sync_state (
-  kind TEXT PRIMARY KEY,            -- "list" | "detail" | "icons" | "tooltip" | "price"
+  kind TEXT PRIMARY KEY,            -- "list" | "detail" | "icons" | "tooltip" | "price" | "recipes"
   status TEXT,                      -- idle | complete | stopped | ceiling | partial | cancelled
   page INTEGER,                     -- absolute page cursor (list); 0 for the id-queue stages
   done INTEGER,                     -- records handled during the most recent run
@@ -102,21 +103,53 @@ CREATE TABLE price_history (
   price_min INTEGER,                --   INTO price_history with item_id = 999 and no such
   price_market INTEGER              --   item row SUCCEEDED) - the guard is the Rust order
 );                                  --   inside upsert_detail (ADR 0007)
+CREATE TABLE recipe (                  -- v0.10.0 (ADR 0021): the SECOND source's rows
+  spell_id INTEGER PRIMARY KEY,        --   the set's OWN id space (classic ids: the
+  profession TEXT,                     --   files speak `spell_id 2339` .. `2455`, NOT the
+  recipe_name TEXT,                    --   forever-beta space a probe measured today)
+  crafted_item_id INTEGER,             -- NULL = the set states NO crafted item at all
+  crafted_item_name TEXT,              --   (measured: 133 of the real set's 1 240 entries,
+  skill_required INTEGER,              --   all 133 `Enchanting`); a crafted id WITHOUT an
+  skill_tier TEXT, trivial_low INTEGER,--   item row is the OTHER answer (10 of 1 105
+  trivial_high INTEGER,                --   distinct crafted ids today) - the door ships
+  reagents_json TEXT,                  --   BOTH, `crafted_db_name` null + the set's own
+  learned_json TEXT,                   --   words beside it, never an invented name
+  acquisition TEXT, acquisition_note TEXT,
+  source TEXT                          -- the set's OWN provenance words, verbatim
+);
 CREATE INDEX item__name_lc ON item (name_lc);              -- v0.2.0
 CREATE INDEX price_history__item ON price_history (item_id); -- v0.6.0 fresh CREATE and the v1/v2 -> v3 migration
 CREATE INDEX item__detail ON item (detail_synced_at);      -- v0.5.3
 CREATE INDEX item__rank ON item (quality_rank, item_level);
 CREATE INDEX item__price ON item (price_min);
+CREATE INDEX recipe__crafted ON recipe (crafted_item_id);  -- v0.10.0 fresh CREATE and the 7 -> 8 hop
 ```
 
 Stage-1 (the `?page=` list crawl) fills the summary columns and `list_etag`; stage-2 (`/item/<id>`)
 fills the price/stat columns, `icon_url`, `raw_json`, `detail_etag`; stage-3 (the record's own
 icon FILE) fills `icon_blob`/`icon_at`; stage-4 (`/api/v1/tooltip/forever/item/<id>`) fills
-`tooltip_html`/`tooltip_at`/`tooltip_etag`. A NULL price column means "not fetched yet", which is
-distinct from "fetched and not on the AH" — the difference is visible in the UI and in
-`cargo run -- stats`. On top of every stage's write sits the manual layer: `manual_overrides`
+`tooltip_html`/`tooltip_at`/`tooltip_etag`; the REFRESH stage (v0.9.6, ADR 0017) fills `price_min_now`
+or the `price_now_missing_at` stamp through the tooltip door's `fields.price`. The RECIPE stage
+(v0.10.0, ADR 0021) is the only stage on the SECOND source: eight conditional GETs
+(one per `<profession>_recipes.json`, `meta` key `recipe_etag_<file>` carries the file's
+ETag — the per-record `<x>_etag` columns above never name it), each answer UPSERTing its
+entries into `recipe` (`ON CONFLICT (spell_id) DO UPDATE`, so a re-pull that answers 304
+writes NOTHING and a re-pull that answers 200 keeps the rows, never twins them). `reagents_json`
+is the entry's OWN array (`[{item_id,item_name,count},…]`, verbatim); `learned_json` is stored
+for a later reader and has NO reader yet (ADR 0021 records this — the door's chip reads the
+entry's plain `acquisition` word). A NULL `crafted_item_id` means "the set states no crafted
+item", which is NOT the same as "the DB never saw this id" — the first is the dataset's own
+truth, the second is a join fact the door reports with `in_db`/`crafted_db_name`). A NULL
+price column in `item` still means "not fetched yet", distinct from "fetched and not on the
+AH" — the difference is visible in the UI and in `cargo run -- stats`, and the recipes door
+keeps the SAME split: an unpriced reagent answers "no price", never 0c (ADR 0015/0016's
+rules, restated in ADR 0021).
+On top of every stage's write sits the manual layer: `manual_overrides`
 merges LAST (ADR 0010), so a field the user stated survives the next crawl while the columns the
-crawl owns keep refreshing.
+crawl owns keep refreshing. The manual layer and tombstones never reach `recipe`: the manual
+verbs own ONE whitelist of `item` fields (ADR 0010's door), and a recipe row is FETCHED, never
+stated — ADR 0021 records this, and `recipes --ids`/`--watch` on the stage answer 2 for the
+same reason (a recipe row has no per-record door to re-ask).
 
 **A detail record has three states** (v0.5.3, [ADR 0006](./DECISIONS/0006-checked-missing-third-state.md)):
 
@@ -263,6 +296,7 @@ revalidation state per page under a key convention:
 | `list-page-<n>-etag` | last ETag of that page | sent back as `If-None-Match` on every re-crawl |
 | `list-page-<n>-more` | `1`/`0` — the page's `has_more` | a `304` has no body, so the crawl needs the hint to know whether to walk on |
 | `list-page-<n>-count` | the page's `count` | the crawl keeps `total` honest across `304`s |
+| `recipe_etag_<file>` | last ETag of that recipe FILE | v0.10.0 (ADR 0021): the SECOND source's conditional GETs, one key per file (`alchemy_recipes.json` .. `tailoring_recipes.json`); a re-pull sends it back as `If-None-Match`, pays a real `304` and writes NOTHING |
 
 Targeted detail runs (v0.5.0) keep the same rules and add two readers: `item ID --cached`
 answers the card from `raw_json` with **no request at all** (`not-found` when the row has no

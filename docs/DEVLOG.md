@@ -5,6 +5,122 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-22 · v0.10.0 — the recipe doors: every job with every recipe, the second source fetched, read locally ever after
+
+### What forced it
+
+The user's third ask ("pull every job with every recipe … a new tab … Icons, descriptions,
+items needed"), plus the question underneath it: "search for APIs that give this for wow
+forever". Measured, that question has a SPLIT answer, and the split is what shaped the
+release (all facts below measured the SAME day, docs/API.md carries them):
+
+* TheWoWDB has **no professions door**: `/api/v1/forever/{professions,profession,jobs,skills,
+tradeskills}` all answer `404`; its developers page still names exactly FOUR doors.
+* Its recipe CARDS exist (716 rows of `item_type "Recipe"` in the mirror's own copy, 699 of
+  716 tooltip copies say "Teaches you how to…") but a card names NO profession, NO skill
+  number, NO materials — **0** copies anywhere contain "Requires Materials" — and the
+  `?q=Recipe` search door answers NAMES only (259 ids, undercounting the 716): the names-only
+  trap again, and names cannot fill a tab.
+* Blizzard's own Game Data API answers `404` TODAY (`data/wow/recipe/2424` with the exact
+  namespace a 2025 bug report names, `static-11.1.5_60179-us`; the 11.2.0 guesses also 404).
+  Recorded as a dead end: inventing its shape would invent upstream.
+* ONE measured carrier states job + skill + exact reagents: **ReagentRoute** (MIT, text
+  measured at the repo), plain files at `raw.githubusercontent.com/Nyte-fyre/ReagentRoute/main/
+  data/<profession>_recipes.json` — EIGHT classic files (NO Jewelcrafting: JC rides the set's
+  `*_tbc_recipes.json`, another era), 2 843 484 B fetched whole, **1 240 entries**,
+  `profession` per file, 16 keys on ALL entries (`acquisition_note` on 745), `source` values
+  `cmangos-classic-db` / `cmangos-tbc-db+wago-tools-db2`. The id spaces MEET the DB (classic
+  ids: `spell_id 2339` ↔ `crafted_item_id 2455` Minor Mana Potion). Join measured against the
+  user's OWN file the same day: 1 105 distinct crafted ids → **1 095 have an item row, 10 do
+  not**; **133 entries carry NO crafted id at all, all 133 Enchanting** (an enchant is a slot
+  effect, not an item in a bag); 416 distinct reagent ids → **415 have a row, 1 does not**,
+  **392 already answer a `price_min`**.
+* The other candidate carrier was rejected on measured grounds: Napalmsteak's WoW-Classic-Item-
+  Caches answers `404` at its LICENSE path (no license → not a carrier), and its
+  `Forever Cache.json` keys are `sourceKeys/sourceLabels/sourceTypes` — acquisition words,
+  not reagents.
+
+### The decision (full text in ADR 0021)
+
+Three parts, one per truth. **Fetch stage:** `sync --stage recipes` fetches the eight files
+(one request each, conditional GETs, `meta` key `recipe_etag_<file>`, resume cursor = files
+done, `--budget` bounds FILES) — the dataset is NOT vendored (2.6 MB of an external set in the
+repo would be a second, drifting copy the day the source moves; the docs carry the counts).
+**Local door:** `recipes [--profession] [--limit] [--offset] [--icons]` reads the new `recipe`
+table (schema **7 → 8**, `SQL_MIGRATE_TO_V8` = CREATE + index, ladder case `7 =>`) and joins
+BY VALUE through the item rows this DB already owns — ONE read, ZERO requests (ADR 0012's
+local-door rule restated), empty table `not_found` rc 4 (ADR 0004). **Eighth tab:** job chip,
+recipe name, skill + tier band, one material cell per reagent (DB's OWN icon bytes, `money_cell`
+hover-copper, state chips for what the DB has no row for), the cooked item through its own card;
+the Sync tab grows `Recipes: fetch the set` on the SAME `runSync(stage)` loop, deliberately NOT
+chained into pull-all, and `Watch the cooked items` batches one `watch add` over the cooked ids
+of the shown rows, skipping the two un-watchable kinds rather than inventing them.
+
+The honesty of the tab is the point: the words come from the FETCHED set, the icons/prices come
+THROUGH the item rows this DB owns, and the two ride SIDE BY SIDE — an unjoined reagent keeps
+the set's words + "not in your DB", an enchanting craft says it has NO crafted item, and the
+tab's note names which source owns which word.
+
+### Bends and defects found on the way (recorded, not swept)
+
+* **A money word without its number was a bug the compiler caught**: `RecipeRow.crafted_price_
+copper` existed in the struct but the builder had no start and the join site filled only the
+words — E0063 fired before anything could ship. `fix(db) be9e934` lands the start (`None`) and
+the join's clone of `live.price_min` beside the words.
+* **A targeted ask on a whole-door stage did nothing the report said**: measured on the REAL
+  host BEFORE the fix, `sync --stage recipes --ids 25` answered rc 0 with the WHOLE 8-file pull
+  (1 240 entries written — the real set's own number). `fix(cli) 24e02bc` makes `--ids`/`--watch`
+  on this stage answer 2 (ADR 0004's contract: a wrong ask answers 2, it never quietly does
+  something else), and the refusal sits before `open_at`/`build_client` so it spends ZERO
+  requests (measured on a scratch DB — the fixture saw nothing).
+* **`feat(sync)`'s `Reagent`/`RecipeEntry` typed with only the keys the door reads**, serde
+  ignoring the set's other measured keys — v0.8.0's "cannot break a build" promise keeps its
+  teeth for a second source.
+* **The stage's own first REAL-host run wrote 1 240 rows in 8 requests (rc 0)** — the tool's
+  witness of the real set, recorded in ADR 0021; CI still runs the fixture's tiny rows (ADR 0011).
+
+### Measured (pre-tag)
+
+* eight files fetched live today: sizes 241 981 · 638 864 · 82 407 · 348 098 · 296 531 · 26 372
+· 518 352 · 690 879 B; per-file `recipe_count` matching the array 113 · 250 · 81 · 152 · 161 ·
+15 · 232 · 236 = 1 240 entries; join facts above against the user's own file the same day;
+* the hop on a schema-7 scratch copy born by the PINNED v0.9.9 binary (list/detail/tooltip
+stages): `7 → 8` additive, 5 item rows / 4 priced intact, `recipe` table + `recipe__crafted`
+index land, 0 recipe rows (the stage never ran), a SECOND open re-migrates NOTHING, and the
+pinned v0.9.9 binary refuses the 8-file `database on disk uses schema 8, this build wants 7`
+rc 4, file untouched;
+* the stage on a fresh mirror (fresh fixture process, fresh DB, driver generated FROM the
+committed 41-step block, 44/44 step-lines rc 0): press 1 budget 3 → 3 files / 5 rows / 4
+requests / `rate_limited 1` / `complete false`; press 2 → `resumed_from 3`, 5 files / 7 rows /
+5 requests / `complete true`; press 3 → 8 files / **8 answered the same copy** / 0 rows / 8
+requests (the reuse discipline kept for the second host);
+* the door (ZERO requests): `matching 12` with 12 rows, money beside every copper answer (8
+pairs `19603 ↔ 1g 96s 3c`), 11 reagent slots riding DB rows (3 `price_copper: null` → money
+null → "no price"), 8 slots `in_db: false` + "not in your DB", 12 crafted slots → 10 ride DB
+rows (`Fixture Detail 25/40/60/12809`, `Conjured Cocoa Choco-Frogo`) and 2 answer `crafted_item_id:
+null` → "no crafted item — enchanting craft"; `--profession Alchemy` matching 2, `--profession
+Enchanting --icons` showing the mirror's OWN copied icon (2 596 base64 chars + `icon_at`) riding
+BESIDE the null-crafted rows, `--profession Cooking` matching 1 through the 127555 join;
+* the two states CI CANNOT run green, measured on scratch instead (ADR 0011's split): `recipes`
+on an empty table → rc 4 BOTH with and without a filter, naming the stage that would run; the
+404-FILE abort on a scratch audit server answering one file 404 → rc 3 naming the file ("the
+second source moved"), no summary line printed;
+* `node --check` parses the grown `app.js` (PARSE witness only), grep witnesses: 8th tab button
++ `data-tab="recipes"` + 3 button ids + 3 wirings, and the CSS names the EXACT classes app.js
+draws (`jobchip skillchip tierchip mat matname mat-none mat-not-in-db cooked cooked-none
+cooked-not-in-db`) — the rendered tab stays never-witnessed (no display, the launch-audit rule);
+* builds: exit 0, FOUR named warnings (`PendingSql` privacy, unread `Tooltip` fields, `open_db`,
+`catalogue`) every commit, the incremental-clear line a FS artifact not a fifth warning.
+
+### Chain
+
+`af864b4` feat(db) (schema 8 fresh + hop 7→8 + ladder case) → `615c561` feat(db) (writer, by-value
+read, typed `Reagent`) → `8061749` feat(sync) (the stage) → `656c116` feat(cli) (the verb +
+`--profession` + stage whitelist) → `be9e934` fix(db) (the copper twin) → `40e97c7` feat(ui)
+(the eighth tab) → `24e02bc` fix(cli) (the whole-door refusal) → `fbb2721` test(fixture) (the
+tiny `/data/` grounds, 12 entries over 8 files) → `c9efa43` ci (41 step-lines) → `c0de045`
+chore (banner 0.10.0) → this record carries the annotated tag `v0.10.0`.
+
 ## 2026-11-21 · v0.9.9 — the live-sort knob: order what the AH offers NOW, the shown cell stays the stored min
 
 ### What forced it

@@ -6,6 +6,177 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.10.0 — the recipe doors: every job with every recipe, icons + money beside the materials · 2026-11-22 · tag `v0.10.0`
+
+Added
+
+- **`sync --stage recipes`, the SIXTH crawl stage and the only one on a SECOND host** (ADR
+  0021): eight conditional GETs, one per classic `<profession>_recipes.json` of the MIT
+  dataset docs/API.md now records (241 981 .. 26 372 B each, **2 843 484 B** and **1 240
+  entries** measured the same day), the file ETags riding `meta` (`recipe_etag_<file>`)
+  so a re-pull pays real `304`s and writes NOTHING, the UPSERT (`ON CONFLICT (spell_id)
+  DO UPDATE`) keeping the rows a re-answered file writes, and the resume cursor being the
+  FILE count already done — the same stop→resume discipline every other stage keeps, kept
+  for a dataset instead of a queue. `--budget` bounds FILES per run. The stage is
+  deliberately NOT chained into "Pull all info" (ADR 0021 records why: the chain's
+  contract is "the catalogue is complete" over the API's doors).
+- **Schema 8: the `recipe` table + the `recipe__crafted` index** — additive, born fresh
+  and arriving by hop (`SQL_MIGRATE_TO_V8`, the ladder's case `7 =>`), so a v0.9.9 file
+  (19 258 rows) migrates in place instead of being refused; measured pre-tag on a
+  schema-7 scratch copy: the table + index land, rows intact, a SECOND open re-migrates
+  NOTHING, and the pinned v0.9.9 binary refuses the new file honest (rc 4, file untouched).
+- **The `recipes` verb — the LOCAL door** (zero requests, the local-door rule ADR 0012
+  set for search and stats): `recipes [--profession NAME] [--limit N] [--offset N]
+  [--icons]` reads the table and joins BY VALUE through the item rows this DB already
+  owns, so the cooked item AND every reagent answer their live name, their money words
+  and their icon. `--profession` rides the dataset's OWN word (measured per file:
+  `Cooking`, `First Aid`, …), bound never interpolated; the count and the rows share ONE
+  WHERE chain (the "showing 40 of 1250" rule cannot drift); an empty table is
+  `not_found` rc 4 — the door says the stage never ran, it never prints a recipe from air
+  (ADR 0004).
+- **The EIGHTH nameplate tab** (ADR 0018's frame kept): one row per recipe — profession
+  chip · recipe name · skill requirement + tier band · one material cell per reagent
+  (icon = the DB's OWN bytes as a data URI, `◇` otherwise; price in money words with the
+  EXACT copper in the hover, via the ONE `money_cell`) · the cooked item through its own
+  card. The Sync tab grows its OWN button `Recipes: fetch the set` on the SAME
+  `runSync(stage)` loop as every other stage button (ADR 0019's shape, ADR 0014's one
+  code path), and `Watch the cooked items` batches ONE `watch add` call over the cooked
+  ids of the shown rows, skipping honestly the two kinds it cannot watch (an
+  enchanting craft has no crafted item; an id the DB never has a row for is refused by
+  the watch verb's own guard).
+- **CI grows SEVEN steps** (34 → 41 step-lines, plant one): the stage pressed THREE times
+  (budgeted 3 files / 5 rows / 4 requests with the fixture's one-429 gate retried, resumed
+  at file 3 and completed 5 more files / 7 rows, then the re-pull answering **8 files,
+  8 answered the same copy, 0 rows written**), and four `recipes` door steps that read the
+  fixture's 12 rows with ZERO requests. Measured mirror answers: `matching 12`, money
+  beside EVERY copper answer (8 pairs at `19603` ↔ `1g 96s 3c`), 11 reagent slots riding
+  DB rows (3 of them `price_copper: null` → money null → the UI's "no price"), 8 slots
+  `in_db: false` with "not in your DB" beside the set's own words, 10 crafted slots riding
+  DB rows (`Fixture Detail 25/40/60/12809` — the detail stage's overwrite, the set's
+  `crafted_item_name` riding BESIDE it) and 2 answering `crafted_item_id: null` → "no
+  crafted item — enchanting craft".
+
+Honest about what did NOT move
+
+- **The API's doors answer nothing about professions or materials** (measured 2026-11-22,
+  docs/API.md's new section): the five probed professions paths answer `404`, 0 of 716
+  recipe-card copies say "Requires Materials", 699 of 716 say "Teaches you how to…", the
+  `?q=Recipe` door answers NAMES only (259 ids, undercounting the 716 type-`Recipe` rows),
+  and Blizzard's own `data/wow/recipe/2424` answers `404` today (the exact namespace its
+  2025 bug report names, plus the 11.2.0 guesses). The tab's job words/skill numbers come
+  from the FETCHED set and its flavor prose — never invented from an API shape.
+- **No Jewelcrafting, no TBC rows, no forever-beta rows** (ADR 0021 + the tab's own note
+  say so): the classic set measured today has EIGHT professions, the set's TBC files are
+  another era, its `*_forever_recipes.json` files another id space (`spell_id 1283400`,
+  `crafted_item_id 279961`) that cannot join these rows.
+- **Money keeps ADR 0015's rule for the new tab**: words beside every copper answer (reagents
+  AND the crafted item), the exact copper in the hover, and NOTHING money-shaped beside an
+  auction COUNT; an unpriced reagent answers "no price", never 0c (ADR 0016's NULL truth
+  restated).
+- **The dataset is FETCHED, never shipped**: 2.6 MB of an external set committed to the repo
+  would be a second, drifting copy the day the source moves; the docs carry the measured
+  counts, the fetched file is the truth, MIT attribution rides the footer, the tab note and
+  docs/API.md.
+- **`learned_json` is stored but has NO reader yet** (ADR 0021): the door's chip reads the
+  entry's plain `acquisition` word; a stored field without a reader is dead code in the door's
+  shape, the reader is a later honest question.
+- **The four named warnings stay four** the whole chain (incremental-clear mechanic every
+  build); `node --check` parses the grown `app.js` (PARSE witness only — the webview never
+  launched in the build room, the launch-audit rule kept).
+
+Fixed
+
+- **`fix(db)`: the crafted join now carries the copper TWIN of its money word** — the field
+  was in `RecipeRow` but the builder had no start and the join site filled only the words,
+  so the compiler caught the missing field (E0063) before a money word could ever ship
+  without its number (ADR 0015's contract needs both sides).
+- **`fix(cli)`: a targeted ask on the recipe stage answers 2, never a whole pull** —
+  measured BEFORE the fix on the REAL host: `sync --stage recipes --ids 25` answered rc 0
+  with the whole 8-file pull (1 240 entries written), the flag doing nothing the report said.
+  The refusal lands before `open_at`/`build_client`, so it spends ZERO requests (measured on
+  a scratch DB, the fixture saw nothing).
+
+## v0.10.0 — the recipe doors: every job with every recipe, fetched once, read locally ever after · 2026-11-22 · tag `v0.10.0`
+
+Added
+
+- **`sync --stage recipes`, the SIXTH crawl stage and the only one on a SECOND host** (ADR
+  0021): the classic recipe set of the MIT second source docs/API.md now records — eight
+  `<profession>_recipes.json` files (measured today: 241 981 .. 26 372 B each, **2 843 484 B**,
+  **1 240 entries**, `recipe_count` matching every array), ONE request each, conditional GETs
+  riding the `meta` table (`recipe_etag_<file>`) so a re-pull pays real 304s and writes NOTHING,
+  the resume cursor being the FILE count already done and `--budget` bounding FILES per run — the
+  same stop→resume discipline every other stage keeps, kept for a dataset instead of a queue.
+  Against the real host the stage wrote **1 240 rows in 8 requests, rc 0** (the tool's own
+  real-set witness, recorded in ADR 0021 and asserted nowhere in CI).
+- **Schema 8: the `recipe` table + the `recipe__crafted` index** — additive, born fresh (SCHEMA_SQL)
+  AND arriving by hop (`SQL_MIGRATE_TO_V8`, the ladder's case `7 =>`), so a v0.9.9 catalogue
+  (19 258 rows) migrates in place instead of being refused. Measured pre-tag on a schema-7
+  scratch copy born by the PINNED v0.9.9 binary: `7 → 8`, 5 rows / 4 priced intact, table +
+  index land, 0 recipe rows, a SECOND open re-migrates NOTHING (byte-identical `status`), and
+  the pinned v0.9.9 refuses the new file honest (rc 4, file untouched).
+- **The `recipes` verb — the LOCAL door** (ZERO requests, the local-door rule ADR 0012 set for
+  search and stats): `recipes [--profession NAME] [--limit N] [--offset N] [--icons]` reads the
+  table and joins BY VALUE through the item rows this DB already owns, so the cooked item AND
+  every reagent answer their live name, their money words and their icon. `--profession` rides the
+  dataset's OWN word (measured per file: `Cooking`, `First Aid`, …), bound never interpolated;
+  the count and the rows share ONE WHERE chain (the "showing 40 of 1250" rule cannot drift);
+  an empty table answers **rc 4** — the door says the stage never ran, it never prints a recipe
+  from air (ADR 0004).
+- **The EIGHTH nameplate tab** (ADR 0018's frame kept): one row per recipe — profession chip ·
+  recipe name · skill requirement + tier band · one material cell per reagent (icon = the DB's
+  OWN bytes as a data URI, `◇` otherwise; price in money words, EXACT copper in the hover via
+  the ONE `money_cell`) · the cooked item through its own card. The Sync tab grows its OWN
+  button `Recipes: fetch the set` on the SAME `runSync(stage)` loop as every other stage button
+  (ADR 0019's shape), NOT chained into "Pull all info" (recorded deferral, ADR 0021), and
+  `Watch the cooked items` batches ONE `watch add` call over the cooked ids of the shown rows,
+  skipping honestly the two kinds it cannot watch.
+- **CI grows SEVEN steps** (34 → 41 step-lines + plant one): the stage pressed three times
+  (budgeted 3 files / 5 rows / 4 requests / `rate_limited 1` → resumed at file 3, 5 more files /
+  7 rows / `complete true` → the re-pull answering 8 files / **8 answered the same copy** /
+  **0 rows written**), and four `recipes` door steps that read the fixture's 12 rows with ZERO
+  requests — money beside every copper answer, the join states by name (`in_db: false` +
+  "not in your DB", `crafted_item_id: null` + "no crafted item — enchanting craft",
+  `price_copper: null` → "no price", the DB-side name `Fixture Detail 25` riding BESIDE the
+  set's own `crafted_item_name`).
+
+Honest about what did NOT move
+
+- **The API answers none of this** (measured 2026-11-22, docs/API.md's new sections): the five
+  probed professions paths answer `404`, 0 of 716 recipe-card copies say "Requires Materials",
+  699 of 716 say "Teaches you how to…", `?q=Recipe` answers NAMES only (259 ids, undercounting
+  the 716), and Blizzard's own `data/wow/recipe/2424` answers `404` today. The tab's job words /
+  skill numbers / material LISTS are the FETCHED set's own — never invented from an API shape.
+- **No Jewelcrafting, no TBC, no forever-beta rows** (ADR 0021 + the tab's note say so): the
+  classic set has EIGHT professions; the set's TBC files are another era; its
+  `*_forever_recipes.json` files carry `game_version "forever-beta"` in an id space
+  (`spell_id 1283400`, `crafted_item_id 279961`) that cannot join these rows.
+- **The join's states are measured, not guessed** (same day, the user's own 19 258-row file):
+  1 105 distinct crafted ids → **1 095 have an item row, 10 do not**; **133 entries carry NO
+  crafted id at all, all 133 Enchanting**; 416 distinct reagent ids → **415 have a row, 1 does
+  not**, **392** already answer a `price_min`.
+- **Money keeps ADR 0015's rule for the new tab**: words beside every copper answer (reagents AND
+  the crafted item), exact copper in the hover, NOTHING money-shaped beside an auction COUNT or
+  a row count; an unpriced reagent answers "no price", never 0c (ADR 0016's NULL truth restated).
+- **The dataset is FETCHED, never shipped**: 2.6 MB of an external set committed to the repo would
+  be a second, drifting copy the day the source moves; the docs carry the counts, the fetched
+  file is the truth, and MIT attribution rides the footer, the tab note and docs/API.md.
+- **`learned_json` is stored but has NO reader yet** (ADR 0021): the door's chip reads the entry's
+  plain `acquisition` word; a stored field without a reader is dead code in the door's shape.
+- **The four named warnings stay four** the whole chain (incremental-clear mechanic every build);
+  `node --check` parses the grown `app.js` (PARSE witness only — the webview never launched in
+  the build room, the launch-audit rule kept).
+
+Fixed
+
+- **`fix(db)` `be9e934`:** the crafted join's money word had NO copper twin — `RecipeRow.crafted_price_copper`
+  existed in the struct but the builder had no start and the join site filled only the words, so
+  the compiler caught the missing field (E0063) before a money word could ship without its number.
+- **`fix(cli)` `24e02bc`:** a targeted ask on a whole-door stage now answers **2**, never a silently
+  ignored flag — measured on the REAL host BEFORE the fix: `sync --stage recipes --ids 25` answered
+  rc 0 with the WHOLE 8-file pull (1 240 entries written), the flag doing nothing the report said.
+  The refusal sits before `open_at`/`build_client`, so it spends ZERO requests (measured on a scratch DB).
+
 ## v0.9.9 — the live-sort knob: order what the AH offers NOW, the shown cell stays the stored min · 2026-11-21 · tag `v0.9.9`
 
 Added

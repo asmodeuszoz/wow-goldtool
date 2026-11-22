@@ -1,6 +1,6 @@
 # TheWoWDB API — notes we rely on
 
-Source of truth: <https://thewowdb.com/developers/> (checked **2026-11-19** and again **2026-11-21** — exactly FOUR doors both times: list, record, search, tooltip). No API key.
+Source of truth: <https://thewowdb.com/developers/> (checked **2026-11-19** and again **2026-11-21** — exactly FOUR doors both times: list, record, search, tooltip; and re-checked **2026-11-22** when the recipe doors landed — still FOUR, and the five probed professions paths answer `404`, see "What the API does NOT answer" below). No API key.
 
 ## Base shape
 
@@ -236,6 +236,73 @@ come from, and it is why the crawl grew a FOURTH door at all ([ADR 0010](./DECIS
   the icon pass is the same order (≈ one request per answered record), and from v0.8.0 so is the
   tooltip-copy pass (≈ 19 258 requests ≈ 2.7 h) — a full "Pull all info" is therefore four legs,
   ≈ 58 k requests, and every one of them resumes where `sync_state` says it stopped.
+
+## What the API does NOT answer (measured **2026-11-22**, the same day the recipe doors landed)
+
+The user asked for "every job with every recipe … icons, descriptions, items needed" and
+asked whether an API gives this for WoW Classic "forever". Measured, the answer is SPLIT, and
+the split is recorded here because it shapes [ADR 0021](./DECISIONS/0021-the-recipe-doors.md):
+
+* **There is no professions door.** `/api/v1/forever/professions`, `/profession`, `/jobs`,
+  `/skills`, `/tradeskills` answer **`404`** today (five paths probed; the developers page
+  still lists exactly FOUR doors — list, record, search, tooltip — and names no fifth).
+* **Recipe CARDS exist upstream but carry no job, no skill, no materials.** The mirror's own
+  copy has **716** rows with `item_type "Recipe"`, **699** of 716 tooltip copies say
+  "Teaches you how to…" (flavor prose), and **0** copies anywhere contain "Requires Materials".
+  The `?q=Recipe` search door answers NAMES only (259 ids — it undercounts the 716 type-`Recipe`
+  rows): the names-only trap again, and names alone cannot fill a tab.
+* **Blizzard's own Game Data API answers `404` today.** `api.blizzard.com/data/wow/recipe/2424`
+  with the exact namespace a 2025 bug report names (`static-11.1.5_60179-us`) answers `404`;
+  the `11.2.0`-shaped guesses answer `404` too. Recorded as a dead end, not a door — inventing
+  its shape would invent upstream, so the tool ships ZERO requests against it.
+
+## The recipe set — the SECOND source (measured **2026-11-22**)
+
+The only measured place that states, per recipe, the profession, the skill number and the
+exact reagents is a plain-JSON dataset, not an API: [ReagentRoute](https://github.com/Nyte-fyre/ReagentRoute)
+(`github.com/Nyte-fyre/ReagentRoute`, fetched at
+`raw.githubusercontent.com/Nyte-fyre/ReagentRoute/main/data/<file>.json`), **MIT** (text measured
+at the repo's `addon/LICENSE`).
+
+```
+GET https://raw.githubusercontent.com/Nyte-fyre/ReagentRoute/main/data/{alchemy,blacksmithing,cooking,enchanting,engineering,first_aid,leatherworking,tailoring}_recipes.json
+```
+
+* **Eight classic files** — the classic set has NO Jewelcrafting file (Jewelcrafting rides the
+  set's `*_tbc_recipes.json` pair, the TBC-Anniversary era, a DIFFERENT era this DB does not
+  keep). Sizes measured the same day, fetched whole: 241 981 · 638 864 · 82 407 · 348 098 ·
+  296 531 · 26 372 · 518 352 · 690 879 B = **2 843 484 B**, one request each, `200` + a real
+  ETag on every one (conditional GETs work, so the stage's ETags ride `meta`).
+* **1 240 entries**, `recipe_count` stated per file matching the array every time
+  (113 · 250 · 81 · 152 · 161 · 15 · 232 · 236). Top level
+  `{profession, recipe_count, recipes[]}`, `profession` per file (measured words:
+  `Alchemy · Blacksmithing · Cooking · Enchanting · Engineering · First Aid · Leatherworking ·
+  Tailoring`), entries carrying **16 keys on ALL 1 240** (`spell_id · craft_spell_id ·
+  spell_name · crafted_item_id · crafted_item_name · required_skill_value · skill_tier ·
+  trivial_low · trivial_high · reagents[{item_id,item_name,count}] · learned_from ·
+  acquisition · source · confidence · auto_granted · vendor_sell_price`) and `acquisition_note`
+  on **745** of them. `source` values measured `cmangos-classic-db` / `cmangos-tbc-db+wago-tools-db2`.
+* **The id spaces MEET the DB** (this is why the join works): the classic files speak classic
+  ids (`spell_id 2339` "Minor Mana Potion" ↔ `crafted_item_id 2455`). Join measured the SAME
+  day against the user's own file (19 258 rows): **1 105 distinct crafted ids**, **1 095 have an
+  item row**, **10 have none**; **133 entries carry NO crafted id at all** — all 133 are
+  `Enchanting` (the craft puts an ENCHANT on a slot, not an item in a bag); **416 distinct
+  reagent ids**, **415 have an item row**, **1 has none**, and **392** of the joined reagents
+  already answer a `price_min`. The stage wrote **1 240 rows** for those 8 files end to end
+  against the real host (rc 0, 8 requests) — the tool's own first real-set witness.
+* **The set's `*_forever_recipes.json` files are NOT this set**: they carry
+  `game_version "forever-beta"` in a DIFFERENT id space (`spell_id 1283400`,
+  `crafted_item_id 279961`) that does not join these rows. Rejected, recorded.
+* **The other candidate carrier was rejected on measured grounds:** Napalmsteak's
+  WoW-Classic-Item-Caches answers `404` at its `LICENSE` path (a carrier with no license is
+  not a carrier), and its `Forever Cache.json` keys are `sourceKeys/sourceLabels/sourceTypes`
+  — ACQUISITION words, not reagents.
+* **Attribution stays REQUIRED** (MIT): the citation rides the UI footer, the Recipes tab's
+  own note and `docs/API.md` here — the same discipline TheWoWDB's terms already force.
+* **The dataset is never vendored into the repo** (2.6 MB of somebody else's set would be a
+  second, drifting copy the day the source moves): the stage FETCHES it, `meta` carries the
+  file ETags, and the counts above are what the docs record — CI asserts only what it RUNS
+  (ADR 0011's rule, kept in ADR 0021).
 
 ## Terms (we comply)
 
