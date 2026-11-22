@@ -298,6 +298,19 @@ jobs:
           # 41 -> 43 step-lines, plant line stays one.
           cargo run -- recipes --offset 10
           cargo run -- search sword --offset 4
+          # v0.11.0 (ADR 0023): the LIVE twin beside the STORED min, read IN the cell's
+          # door. This step adds ZERO requests - the door is LOCAL and the live fields
+          # come from the price stage's OWN press above (by-value joins): Blacksmithing
+          # over the fixture's set answers 2 rows carrying BOTH live states side by
+          # side - crafted 40 with `price_now_missing_at` SET ("looked, the AH offers
+          # NOTHING right now", ADR 0017's third state, stamps keep it apart from
+          # crafted 60's live pair DIFFERENT from the stored min with its own stamp).
+          # The `--icons` press rides the DB's OWN copied bytes. `vendor_buy` /
+          # `price_trend_normal` stay NULL in the answers: NO producer ever wrote them
+          # (ADR 0016's rule - honest NULL, never filled here). Measured on a fresh
+          # mirror BEFORE this block landed (driver generated from these very steps).
+          # Step count 43 -> 44 step-lines, plant line stays one.
+          cargo run -- recipes --profession Blacksmithing --icons --limit 3
           # money (v0.9.4, ADR 0015): this release adds NO step and NO request. Money
           # is DERIVED at answer time from the copper the doors above already carry
           # (schema stays 5, so there is nothing to refresh and nothing to migrate),
