@@ -6,6 +6,49 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.9.8 — the Sync tab grows its stage buttons: icons / descriptions / price refresh, same argv, one honest note each · 2026-11-21 · tag `v0.9.8`
+
+Added
+
+- **Three stage buttons in the Sync tab** (ADR 0019): `Icons: copy the files` · `Descriptions: copy` ·
+  `Price: live refresh` — the stages the v0.9.6/v0.9.7 records had kept CLI-side ("said so, not
+  slipped in") now have doors. All three land in the SAME `runSync(stage)` loop: same chunk of 25,
+  same cancel-at-chunk-end, same `sync_state` resume, same "no progress this chunk → stop" guard, and
+  same `cli_ok(["sync","--stage",X,"--budget",chunk])` argv the cargo line takes — ADR 0014's rule:
+  a click and a `cargo run --` are ONE code path down to the report JSON. A second Price click asks
+  ZERO (ADR 0017's pending rule: one live ask per copied record, EVER, measured on this same verb).
+- **The runSync completion note names the third state when there is one**: `, N answered the stage's
+  own third state (checked once, never asked again)` ONLY when the report carries `missing > 0` —
+  deliberately generic words ("the stage's OWN third state", ADR 0006's pattern): detail = gone
+  upstream, icons/tooltip = file/copy 404, price = the AH offers nothing right now. Reports without
+  that field keep their note BYTE-IDENTICAL — no `missing 0` noise is invented.
+- **Notes moved the SAME breath so none can lie beside the buttons**: the card's static note names
+  the door ("the Sync tab's Price button or the CLI stage") and its API-touch claim gets its honest
+  card-scope ("on the card itself…"); the card's dynamic sentence names the door that exists; the
+  live-row comment replaces the v0.9.6 "the panel has no button for this stage" claim with what is
+  true SINCE this release (gui.rs facts stay: the Rust shell still builds no card, reads no column —
+  the button is webview-side).
+
+Honest about what did NOT move
+
+- **Zero Rust**: the release diff names `ui/index.html` + `ui/app.js` (buttons + notes) + Cargo.toml/lock
+  (banner) — every stage verb, pending rule, stamp and exit code was ALREADY the CLI's; the wire is
+  byte-unchanged BY CONSTRUCTION, and the post-tag replays (mirror replay on fresh ports, wire byte
+  pairs vs the v0.9.7 binary, the 90-door map + 11 extension doors re-run) MEASURE that, landing
+  FORWARD in the verification fold.
+- **Pull-all chain stays list→detail→icons→tooltip, price NOT chained** (ADR 0019's recorded deferral):
+  the chain's contract is "the catalogue is complete", the refresh re-asks a LIVE pair under the
+  once-EVER rule — chaining it would make a second pull-all ask zero and say nothing new; the button
+  is its own activity, said where the chain's note lives, not silently added.
+- The webview itself stays unlaunchable here (no display): `node --check` is a PARSE witness, grep
+  witnesses count 3+3+1 — the rendered panel is recorded as never-witnessed, exactly as ADR 0018 drew
+  the line for the frame.
+- CI block UNCHANGED (still 33 step-lines + plant one): the block already runs the very stage verbs
+  the buttons reach; ADR 0011's rule holds (CI cannot see the webview; the release grew no witness it
+  cannot keep).
+
+Chain: `058d21b` feat(ui) → `d60bc84` chore (banner 0.9.8, lock rides) → this record carries the tag.
+
 ## v0.9.7 — the panel gets the AH frame: seven activity tabs, the same verbs under the skin · 2026-11-21 · tag `v0.9.7`
 
 Added

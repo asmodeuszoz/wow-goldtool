@@ -5,6 +5,78 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-21 · v0.9.8 — the Sync tab grows its stage buttons: icons / descriptions / price refresh, same argv, one honest note each
+
+### What forced it
+
+The v0.9.6 and v0.9.7 records both kept the crawl buttons at FIVE (list / pull-all / details:watch /
+details:hits / Cancel) and said, honestly, that icons/tooltip/price stayed CLI-side — "said so, not
+slipped in". The user asked, one milestone after the other, to undo exactly that scoping: the panel
+should have doors for the stages it already prints notes about. The engine needs NOTHING new —
+`sync --stage icons|tooltip|price` have been the CLI's own verbs since v0.6.0/v0.8.0/v0.9.6; only the
+panel lacked buttons.
+
+### The decision (full text in ADR 0019)
+
+Three buttons in the Sync tab's action row — `Icons: copy the files` / `Descriptions: copy` /
+`Price: live refresh` — ALL THREE wired to the SAME `runSync(stage)` loop the panel already had: same
+chunk of 25, same cancel-at-chunk-end, same `sync_state` resume, same no-progress guard, same
+`cli_ok(["sync","--stage",X,"--budget",chunk])` argv — ADR 0014's rule restated: a click and a cargo
+line are ONE code path down to the report JSON. The Price button is a REFRESH, deliberately NOT chained
+into Pull-all-info: the chain's contract is "the catalogue is complete" (list→detail→icons→tooltip),
+the refresh re-asks a LIVE pair under ADR 0017's once-per-copied-record-EVER rule, and chaining it would
+make a second pull-all ask zero and say nothing new — recorded where the chain's note lives, not
+silently added.
+
+Notes moved the SAME breath so none can lie beside the new buttons: the card's static note names the
+door ("the Sync tab's Price button or the CLI stage", one live ask per copied record ever), its API-touch
+claim gets its honest card-scope ("on the card itself 'Re-check online' is the only button…"); the
+card's dynamic sentence names the door that exists now; the live-row comment replaces the v0.9.6
+"the panel has no button for this stage" claim with what is TRUE SINCE this release — the gui.rs facts
+stay (the Rust shell builds no card, reads no column; the button is webview-side).
+
+The completion note grows ONE clause ONLY when the report carries `missing > 0`:
+", N answered the stage's own third state (checked once, never asked again)" — generic words on
+purpose ("the stage's OWN third state", ADR 0006's pattern): detail = gone upstream, icons/tooltip =
+file/copy 404, price = the AH offers nothing right now. No stage's meaning guessed; reports without the
+field keep their note BYTE-IDENTICAL — no missing-0 noise invented.
+
+### Chain
+
+`058d21b` feat(ui) (buttons + the four honest note moves + the generic clause) -> `d60bc84` chore
+(banner 0.9.8, Cargo.lock rides) -> this record carries the annotated tag. Zero Rust lines across the
+chain (diff names only ui/index.html + ui/app.js + Cargo.toml/lock).
+
+### Pre-tag verification — the witnesses this machine HAS (ADR 0011's rule for a webview)
+
+| probe | answer |
+| ----- | ------ |
+| builds through the chain | exit 0 every commit, the FOUR named warnings (incremental-clear mechanic run every time this release) |
+| `node --check` app.js | parses (a PARSE witness — the webview is NOT claimed launchable here: no display, recorded as such) |
+| grep witnesses | 3 button ids (`btn-icons`/`btn-tooltip`/`btn-price`) in index.html, 3 wirings in app.js, the third-state clause x1; the old "panel has no button" comment claims are GONE (replaced same breath) |
+| `git diff --stat` across the chain | ui/index.html + ui/app.js + Cargo.toml + Cargo.lock — ZERO .rs; SCHEMA_VERSION stays 7; fixture/CI block untouched (still 33 step-lines + plant one: the block ALREADY runs the very stage verbs the buttons reach) |
+| CI ladder (folded as measured) | **44973516964** (v0.9.7's verification-fold push, head `0236479…`): **success, 5/5 in 10 min 58 s** (01:53:08Z -> 02:04:06Z — quality 2 m 09 s · test 5 m 19 s · linux 6 m 28 s · macos 5 m 31 s · windows 10 m 55 s), exactly ONE run id for that head, no CANCELLED sibling, no rerun (matched by id/head_sha; the run's own .attempt reads null — the ladder's habit). It was IN FLIGHT while this chain built (the observed rule: pushes waited, local building did not); its verdict folds HERE, FORWARD, this record. v0.9.8's own chain+tag push starts a run that lands FORWARD in the next record, never chased — same for this release's verification fold |
+
+### Post-tag verification — replays on FRESH ports, real numbers (the verification fold)
+
+_(the fold commit lands after the tag; its tables are folded here once measured — ADR 0011's
+FORWARD rule: this record writes the plan, the fold writes the numbers.)_
+
+| probe | answer |
+| ----- | ------ |
+| mirror replay, driver python-generated FROM the committed block (port-stripped compare EQUAL 33/33), fresh fixture port 9229 (bind-verified free), fresh DB mirror098a.sqlite | 33/33 rc 0 + plant rc 0; GET tally; trio/stamp rows read back — the SAME tallies as the v0.9.7 era expected (block unchanged, zero Rust) |
+| wire byte pairs, v0.9.7 binary (`/tmp/opencode/wgt-v97-pre-panels`, saved pre-release) vs the v0.9.8 binary, SAME DB | `item 25 --cached` / `stats --icons --limit 6` / `search sword --where description --sort price --icons --limit 5` byte-for-byte — the buttons moved ZERO bytes on the wire |
+| exit-map ladder, remapped fresh ports + dead ports, v0.9.8 binary | 90-door map 0x59/2x14/3x6/4x11 and 101-door totals 0x67/2x16/3x7/4x11, abort rc 3 pending intact stamps 0 at that moment, drained dead-port pass recorded AGAIN as weak |
+| pinned refusal pair on the fresh 7-file | v0.9.5 rc 4 "wants 6", v0.8.1 rc 4 "wants 4", files untouched |
+| the user's own file | schema 7, 19 258/4 231/4 286, five price-home/stamp columns NULL on every row, status BYTE-IDENTICAL to the era snapshots — the release cannot move the DB (zero Rust) and the replay proves it did not |
+
+### Bends, recorded where they stand
+
+* none new so far this release: every build ran the incremental-clear mechanic (FOUR named warnings
+  the whole way); the note-move rewrites are the SAME BREATH rule holding, not a bend;
+* the fold stays LOCAL while this release's chain+tag push run flies, waits, grows with its verdict
+  (amend) and only the fold's OWN push lands FORWARD — the pattern recorded since the v0.9.6 era.
+
 ## 2026-11-21 · v0.9.7 — the AH frame and the tabs: the shape the user asked for, the same verbs under it
 
 ### What forced it — the user's own words
