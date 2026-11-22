@@ -183,6 +183,27 @@ annotated tag `v0.10.0`.
 
 ## CI row
 
-v0.10.0's chain+tag push (head = this record's tree, the TAGGED one) and the verification
-fold's own push are measured FORWARD in the verification record and docs/DEVELOPMENT.md's
-ladder; the ladder's earlier rows stay put, tags never move.
+**45040598595** (the chain+tag push `b2cec23..e4d3447`, head = the TAGGED tree): **success, 5/5
+in 10 min 32 s** (2026-11-22T15:51:29Z → 16:02:01Z — quality 2 m 12 s · test 5 m 27 s · linux
+5 m 26 s · macos 5 m 42 s · windows 10 m 29 s), exactly ONE run id for that head. The tag stays
+put: `v0.10.0` → `e4d3447`. The verification fold's own push starts the NEXT run, measured in the
+NEXT record — the ladder never chases a tag (ADR 0011's ordering rule).
+
+## Post-tag: the map grown + one defect FORWARD
+
+The exit map was re-run GROWN (fresh fixture 9612, fresh EMPTY DB, DEAD 9997, the 404-file
+scratch server 9557): **86 doors, `0`×55 · `2`×17 · `3`×6 · `4`×8**, and the strong abort proof
+came from the extension drivers on a DB where pending EXISTS (fresh 9613 + DEAD 9999,
+12 doors `0`×7 · `3`×5): every rc-3 abort leaves pending IDENTICAL and the stamps ZERO, and
+the second host resumes at the file cursor (`resumed_from 2` → 6 more files → complete). The
+drained dead-port passes in the map answered rc 0 with pending already empty — recorded AS the
+weak pass they are, never reported as an abort proof.
+
+**Defect measured post-tag, fix FORWARD (next release):** `--offset` WITHOUT `--limit` composes
+`OFFSET ?` alone — SQLite needs `LIMIT` before it — so `recipes --offset 10` answers rc 4 with
+the RAW clause in its message (`near "OFFSET": syntax error … OFFSET ?`), and the twin measured
+TODAY on the pre-existing search door (`search sword --offset 3`, same rc 4, same raw clause)
+shows it was BORN with v0.9.0's door, never measured until now. One fix FORWARD for BOTH doors:
+emit `LIMIT ? OFFSET ?` with the door's default limit when `--offset` rides alone, and keep the
+raw-SQL text out of a door's answer (ADR 0004's message rule). Nothing here is swept under a
+tag; the tag stayed put while the fix stays FORWARD.

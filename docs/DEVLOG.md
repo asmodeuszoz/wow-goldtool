@@ -121,6 +121,46 @@ read, typed `Reagent`) → `8061749` feat(sync) (the stage) → `656c116` feat(c
 tiny `/data/` grounds, 12 entries over 8 files) → `c9efa43` ci (41 step-lines) → `c0de045`
 chore (banner 0.10.0) → this record carries the annotated tag `v0.10.0`.
 
+### Post-tag verification — MEASURED on fresh ports: 44/44 green, byte pairs identical, the map grown
+
+All FRESH ports and FRESH DBs, every number read off the run that produced it; the real host
+saw NOTHING (every crawl door carried `--fixture`, every bare-verb door rode a DEAD port).
+
+| probe | answer |
+| ----- | ------ |
+| mirror replay — driver generated FROM the GROWN committed block (port-stripped compare EQUAL **41/41** step-lines + plant one), fresh fixture PROCESS on the block's own 8765, fresh DB `post10/fixture.sqlite` born 8 | **44/44 commands rc 0, ZERO NONZERO** (`TOTAL_STEPS=44` = 41 step-lines + plant + fixture start + sleep) |
+| the stage's three presses, post-tag, fresh DB | budget-3: **4 requests / 3 of 8 files / 5 entries / 5 rows / `rate_limited 1` / `complete false`** · resumed: **`resumed_from 3` / 5 requests / 5 files / 7 rows / `complete true`** · re-pull: **8 requests / 8 files / 8 answered the same copy / 0 rows written** — the reuse discipline held for the SECOND host |
+| the local door over the fixture's 12 rows, post-tag | `matching 12` · money pair **`17371 ↔ 1g 73s 71c`** beside 11 reagent slots · 8 `in_db:false` + "not in your DB" · 2 `crafted_item_id:null` + "no crafted item — enchanting craft" · the crafted id whose detail 404ed answers price `null` → "no price" · `--profession` answers 2/2/1 · the `--icons` press rides the DB's OWN bytes: b64 **2 596 chars**, stamp `1795362824` |
+| pinned pre-hop byte pairs — the PINNED v0.9.9 binary (worktree at `b2cec23`, born 7) vs the new binary, ONE shared fresh fixture (9601), TWO DBs | **18 DB-only doors BYTE-IDENTICAL**; the 4 recipes steps: pinned **rc 2** (unknown verb — the documented new-door delta) vs new **rc 0**; pinned DB born 7 = 5 items/4 priced/**no** recipe table, new DB born 8 = 5/4/**12** recipe rows |
+| the user's OWN file by the new binary (opens only, NO crawl) | before: schema 7 / **19 258** rows / **4 231** `vendor_sell` / **4 287** samples / no recipe table → open1 **rc 0** → schema 8 + `recipe` + `recipe__crafted`, **0** recipe rows → open2 **rc 0**, status BYTE-IDENTICAL; the PINNED v0.9.9 binary on that same 8-file answers **rc 4** `wants 7`, file untouched AT 8 |
+| exit map GROWN — fresh fixture 9612 + fresh EMPTY DB + DEAD 9997 + the scratch 404-file server 9557 | **86 doors: `0`×55 · `2`×17 · `3`×6 · `4`×8**; six measured deviations named below (this era's map is GROWN, so its totals are stated as THIS era's — the prior era's 101-door identity stands on the prior folds) |
+| extension drivers — abort where pending EXISTS, fresh DB `ext10.sqlite`, fixture 9613, DEAD 9999 (the STRONG proof the drained map pass could not give) | **12 doors: `0`×7 · `3`×5** — detail abort rc 3, pending **5→5** identical, stamps ZERO → live re-press rc 0 (6 requests / 4 written / 1 checked removed); icons rc 3, pending **4→4** → re-press 0 (5 requests / 3 copied / 1 no-icon); tooltip rc 3, pending **4→4** → re-press 0 (5 / 3 copies / 1 no-tooltip); price rc 3, pending **3→3** → re-press 0 (3 requests / 2 written / 1 price-less, `rate_limited 0`); the SECOND host: budget-2 partial `2 of 8 files, 4 rows, complete false` → dead abort **rc 3 with etag rows 2→2 and `sync_state` IDENTICAL — resumable, nothing marked** → re-press RESUMES `resumed_from 2`: 6 requests / 6 files / 8 entries / 8 rows / `complete true` |
+| the 404-FILE abort, fresh scratch server 9556 (one file 404 — "the second source moved") | **rc 3**, names `cooking_recipes.json`, NO summary line printed; the map's two abort doors rode the fresh 9557 server and answer 3/3 |
+| the map's four DEAD-port crawl doors (detail/icons/tooltip/price) answered **rc 0** | recorded AS THE WEAK PASS IT IS: pending was ALREADY EMPTY after the live presses (the same shape v0.9.6/v0.9.7/v0.9.9 eras recorded) — the strong proof is the line above |
+| `search` bare (no TEXT) answered rc 0 | contract-FREE, measured not assumed: `search` is the LOCAL door, the empty term reads the DB's own LIKE — no request spent, nothing invented |
+
+**A defect the post-tag map found, recorded not swept (fix lands FORWARD, next release):**
+`recipes --offset 10` WITHOUT `--limit` answers **rc 4** with the raw clause in its message —
+`near "OFFSET": syntax error … FROM recipe ORDER BY … OFFSET ?` — SQLite's `OFFSET` requires
+`LIMIT` and `recipes_rows` emits the clauses independently. Its **twin already existed at
+birth**: `search sword --offset 3` answers the SAME rc 4 with the same raw clause (born with
+v0.9.0's search door, never measured until today). The fix FORWARD composes `LIMIT ? OFFSET ?`
+with the door's DEFAULT limit when `--offset` rides alone — BOTH doors fixed in one place, and
+the raw-SQL message never belongs in a door's answer either (ADR 0004's message rule).
+
+**45040598595** (this release's chain+tag push `b2cec23..e4d3447`, head `e4d3447…` = the TAGGED
+tree): **success, 5/5 in 10 min 32 s** (15:51:29Z → 16:02:01Z — quality 2 m 12 s · test 5 m 27 s ·
+linux 5 m 26 s · macos 5 m 42 s · windows 10 m 29 s), exactly ONE run id for that head, no
+CANCELLED sibling, no rerun. The fold's own push starts a run that lands FORWARD in the NEXT
+record — the ladder's rows stay put, tags never move (`v0.10.0` → `e4d3447`).
+
+Housekeeping: every fixture and scratch server killed after its run; the ports re-verified free;
+`tests/__pycache__/` stays out of every commit (the .gitignore gap honored by explicit paths).
+
+Limits kept: the rendered tab is never claimed (no display — `node --check` = PARSE witness), the
+content embedding is compressed (filename map), the real host saw nothing but the two deliberately
+recorded real-host witnesses of the pre-tag era (ADR 0011's split).
+
 ## 2026-11-21 · v0.9.9 — the live-sort knob: order what the AH offers NOW, the shown cell stays the stored min
 
 ### What forced it
