@@ -13,7 +13,7 @@ use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, co
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
-use crate::sync::{sync_icons, sync_detail, sync_list, sync_tooltips, CancelFlag, SyncReport};
+use crate::sync::{sync_icons, sync_detail, sync_list, sync_prices, sync_tooltips, CancelFlag, SyncReport};
 use crate::wowdb::{build_client, get_json, item_url, search_url, ApiResponse, HttpKind, RateBudget, classify, Client, ENV_FIXTURE_KEY};
 use crate::models::{ItemDetail, ManualEdit, SearchResponse};
 
@@ -27,7 +27,7 @@ use std::env::set_var;
 /// What the CLI can answer. Keeping the list here means an unknown verb becomes a
 /// usage error that names what the user actually typed.
 pub fn usage_text() -> String {
-    return "usage: status | sync --stage list|detail|icons|tooltip [--budget N] [--ids A,B,C] [--watch] | search TEXT [--icons --where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--icons --limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | status [--db PATH] [--fixture URL]".to_string();
+    return "usage: status | sync --stage list|detail|icons|tooltip|price [--budget N] [--ids A,B,C] [--watch] | search TEXT [--icons --where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id --limit N --offset N] | stats [--icons --limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | status [--db PATH] [--fixture URL]".to_string();
 }
 
 /// The verbs of one invocation plus its flags. Unknown flags are kept rather than
@@ -710,7 +710,9 @@ pub fn cmd_sync(inv: &Invocation) -> AppResult<String> {
         if inv.stage != "detail" {
             if inv.stage != "icons" {
                 if inv.stage != "tooltip" {
-                    return Err(AppError::usage(format!("sync wants --stage list, detail, icons or tooltip, got {}", inv.stage)));
+                    if inv.stage != "price" {
+                        return Err(AppError::usage(format!("sync wants --stage list, detail, icons, tooltip or price, got {}", inv.stage)));
+                    }
                 }
             }
         }
@@ -775,6 +777,28 @@ pub fn cmd_sync(inv: &Invocation) -> AppResult<String> {
             eprintln!("icons stage: {} icons copied ({} requests)", report.written, report.requests);
         } else {
             eprintln!("icons stage: {} icons copied, {} checked as no-icon-upstream", report.written, report.missing);
+        }
+        return Ok(json_report(report));
+    }
+    if inv.stage == "price" {
+        eprintln!("refreshing the LIVE price: one request per record that already holds a tooltip copy, through the live door the tooltip lives behind (docs/API.md measures its `fields.price`; the developers page states tooltips cache ~5 min 'because they carry a live Auction House price') - the stored copy's price_min AGES, price_min_now is what the door says NOW, and the queue is once-per-record like every other stage's");
+        let wanted: Vec<i64> = match detail_targets(&conn, inv) {
+            Err(problem) => return Err(problem),
+            Ok(value) => value,
+        };
+        if wanted.is_empty() {
+            eprintln!("price stage queue: every copied record whose live price was never refreshed nor checked as price-less");
+        } else {
+            eprintln!("price stage targets: {} records ({} asked by --ids, watch list asked by --watch)", wanted.len(), inv.id_list.len());
+        }
+        let report: SyncReport = match sync_prices(client.clone(), &conn, budget, inv.budget, &cancel, wanted) {
+            Err(problem) => return Err(problem),
+            Ok(value) => value,
+        };
+        if report.missing == 0 {
+            eprintln!("price stage: {} live prices written ({} requests)", report.written, report.requests);
+        } else {
+            eprintln!("price stage: {} live prices written, {} checked as no auction price right now", report.written, report.missing);
         }
         return Ok(json_report(report));
     }

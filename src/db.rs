@@ -37,7 +37,7 @@ use std::time::UNIX_EPOCH;
 /// files chain through v2 to this shape - because the user's own catalogue sits on
 /// disk at v1 and refusing it would throw away 19 258 rows. A file NEWER than this
 /// build is still refused: we cannot know what it holds.
-pub const SCHEMA_VERSION: i64 = 6;
+pub const SCHEMA_VERSION: i64 = 7;
 
 /// Default DB file name, used when WGT_DB does not point somewhere else.
 pub const DB_FILE_NAME: &str = "wow-goldtool.sqlite";
@@ -77,6 +77,7 @@ pub const SCHEMA_SQL: &str = concat!(
     "icon_blob BLOB, icon_at INTEGER, icon_missing_at INTEGER,",
     "manual_at INTEGER, manual_overrides TEXT, edited_at INTEGER, deleted_at INTEGER,",
     "vendor_buy INTEGER, price_min_now INTEGER, price_trend_normal INTEGER,",
+    "price_now_at INTEGER, price_now_missing_at INTEGER,",
     "raw_json TEXT",
     ");",
     "CREATE TABLE watch (id INTEGER PRIMARY KEY, added_at INTEGER, note TEXT);",
@@ -208,6 +209,18 @@ pub const SQL_MIGRATE_TO_V6: &str = concat!(
     "ALTER TABLE item ADD COLUMN vendor_buy INTEGER;",
     "ALTER TABLE item ADD COLUMN price_min_now INTEGER;",
     "ALTER TABLE item ADD COLUMN price_trend_normal INTEGER;",
+);
+
+/// The v6 -> v7 steps (v0.9.6, ADR 0017 "the live min buyout"): the STAMPS the
+/// price refresh stage rides, beside the home ADR 0016 carved but never wrote.
+/// price_min_now keeps NULL until the refresh stage's first write - the stamps
+/// answer the stage's three states (refreshed? checked as "no price right now"?
+/// never looked at?) exactly like the icon pair and the tooltip pair do, and the
+/// pending rule excludes manual rows like every other stage's. Additive again:
+/// ALTER appends, and every reader names columns, never positions.
+pub const SQL_MIGRATE_TO_V7: &str = concat!(
+    "ALTER TABLE item ADD COLUMN price_now_at INTEGER;",
+    "ALTER TABLE item ADD COLUMN price_now_missing_at INTEGER;",
 );
 
 /// Marking an id as "the upstream has no forever record for it" (v0.5.3). The row
@@ -527,9 +540,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
             // intact), so refusing ANY older stamp would throw away a full catalogue
             // on the excuse of a schema bump. v1 -> v2 is v0.5.3's ALTER, v2 -> v3 is
             // the v0.6.0 batch, v3 -> v4 is v0.8.0's ALTERs, v4 -> v5 is v0.9.0's pair,
-            // v5 -> v6 is this build's trio (ADR 0016, additive ALTERs) - all additive,
-            // so existing rows and stamps stay intact and the cursor in sync_state keeps
-            // its meaning. Anything newer or foreign keeps the honest refusal below.
+            // v5 -> v6 was v0.9.5's trio (ADR 0016), v6 -> v7 is this build's stamp
+            // pair (ADR 0017's ALTERs) - all additive, so existing rows, stamps and
+            // the cursor in sync_state keep their meaning. Anything newer or foreign
+            // keeps the honest refusal below.
             match version {
                 1 => {
                     match bind_sql(conn, SQL_ADD_MISSING_COLUMN, [].to_vec(), 0) {
@@ -549,6 +563,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                         Ok(_) => {},
                     }
                     match conn.execute_batch(SQL_MIGRATE_TO_V6) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V7) {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
@@ -574,6 +592,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V7) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
                     match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
                         Err(problem) => return Err(problem),
                         Ok(_) => return Ok(()),
@@ -592,6 +614,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V7) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
                     match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
                         Err(problem) => return Err(problem),
                         Ok(_) => return Ok(()),
@@ -606,6 +632,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V7) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
                     match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
                         Err(problem) => return Err(problem),
                         Ok(_) => return Ok(()),
@@ -613,6 +643,20 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                 },
                 5 => {
                     match conn.execute_batch(SQL_MIGRATE_TO_V6) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V7) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
+                    match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
+                        Err(problem) => return Err(problem),
+                        Ok(_) => return Ok(()),
+                    }
+                },
+                6 => {
+                    match conn.execute_batch(SQL_MIGRATE_TO_V7) {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
@@ -1781,6 +1825,61 @@ pub fn write_tooltip(conn: &Connection, id: i64, html: String, etag: String, at:
     match bind_sql(conn, SQL_SET_TOOLTIP, upsert_params(head), TOOLTIP_VALUE_COUNT * 2 - 1) {
         Err(problem) => return Err(problem),
         Ok(count) => return Ok(count),
+    }
+}
+
+// The price refresh write (v0.9.6, ADR 0017): the live door's CURRENT min rides
+// the trio home ADR 0016 carved, plus this stage's own stamp pair - same UPSERT
+// shape as every stage-2 column write (INSERT..ON CONFLICT, guard first: an ask
+// for an unknown id writes NOTHING, "the stage guards rows because inventing a
+// row from a targeted ask" is v0.6.0's rule restated). No manual-layer merge
+// here: the set-item whitelist (ADR 0010) never offered price_min_now to a user,
+// so there is no user-said value this write could overwrite - the pending rule's
+// manual_at exclusion is the whole interaction, measured by the audit below.
+pub const SQL_SET_PRICE_NOW: &str = "INSERT INTO item (id, price_min_now, price_now_at) VALUES (?,?,?) ON CONFLICT (id) DO UPDATE SET price_min_now = ?, price_now_at = ?";
+pub const PRICE_NOW_VALUE_COUNT: usize = 3;
+
+pub fn write_price_now(conn: &Connection, id: i64, copper: i64, at: i64) -> AppResult<usize> {
+    let there: bool = match has_row_of_id(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    match there {
+        false => return Ok(0),
+        true => {},
+    }
+    let mut head: Vec<Value> = [].to_vec();
+    head.push(Value::Integer(id));
+    head.push(Value::Integer(copper));
+    head.push(Value::Integer(at));
+    match bind_sql(conn, SQL_SET_PRICE_NOW, upsert_params(head), PRICE_NOW_VALUE_COUNT * 2 - 1) {
+        Err(problem) => return Err(problem),
+        Ok(count) => return Ok(count),
+    }
+}
+
+// The price stage's third state (v0.9.6, ADR 0017): "we asked and the door
+// offered NOTHING right now" (measured live 2026-11-21: id 200's `fields.price`
+// is literal null) - the mark twin of mark_icon_missing_at and mark_tooltip_missing_at,
+// row-guarded like both.
+pub const SQL_MARK_PRICE_NOW_MISSING: &str = "INSERT INTO item (id, price_now_missing_at) VALUES (?,?) ON CONFLICT (id) DO UPDATE SET price_now_missing_at = ?";
+
+pub fn mark_price_missing_at(conn: &Connection, id: i64, checked_at: i64) -> AppResult<bool> {
+    let there: bool = match has_row_of_id(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    match there {
+        false => return Ok(false),
+        true => {},
+    }
+    let stamp: Option<i64> = Some(checked_at);
+    let mut head: Vec<Value> = [].to_vec();
+    head.push(Value::Integer(id));
+    head.push(int_value(stamp));
+    match bind_sql(conn, SQL_MARK_PRICE_NOW_MISSING, upsert_params(head), MARK_VALUE_COUNT * 2 - 1) {
+        Err(problem) => return Err(problem),
+        Ok(_) => return Ok(true),
     }
 }
 

@@ -130,10 +130,13 @@ pub struct SearchResponse {
 /// One tooltip answer (v0.8.0, ADR 0010): the shape docs/API.md measured on
 /// `GET /api/v1/tooltip/forever/item/25` (200 application/json 3060 b, keys
 /// attribution,build,fields,html,icon_url,id,kind,links,name,quality,version).
-/// Only `html` matters to the DB (it is the description text the user asked for,
-/// and the forever/item body carries NONE - measured key list); the rest rides
+/// Only `html` mattered to the DB (it is the description text the user asked for,
+/// and the forever/item body carries NONE - measured key list); the rest rode
 /// `fields` as a `Value` so a key upstream adds cannot break a build and nothing
-/// here invents a shape beyond what the probe read.
+/// here invents a shape beyond what the probe read. From v0.9.6 (ADR 0017) `fields`
+/// is the TYPED mirror TooltipFields: serde still ignores every key we have no
+/// reader for, so the same promise holds, and the refresh stage now RE-ASKS this
+/// door and reads `price.min` - the live price the door carries.
 #[derive(Deserialize, Clone, Debug)]
 pub struct Tooltip {
     pub id: i64,
@@ -144,9 +147,23 @@ pub struct Tooltip {
     pub version: Option<String>,
     pub build: Option<String>,
     pub icon_url: Option<String>,
-    pub fields: Value,
+    pub fields: Option<TooltipFields>,
     pub links: Option<Links>,
     pub attribution: Option<Attribution>,
+}
+
+/// The `fields` object INSIDE a tooltip answer (v0.9.6, ADR 0017 - the price
+/// refresh reads it). docs/API.md measured its 26 keys; ONLY `price` is typed
+/// here because `price` is the only key with a reader: the refresh stage writes
+/// `price.min` into the trio home ADR 0016 carved (measured live 2026-11-21:
+/// keys available,market,min,realms,region,scope,updated_at, and id 200 answered
+/// the WHOLE `fields.price` as literal null - "the AH offers nothing right now",
+/// the door's own third state). The rest stays on the wire: the tool reads what
+/// it has a column for, and a key upstream adds cannot break a build - ADR
+/// 0010/0016's rule for fields objects, kept exactly.
+#[derive(Deserialize, Clone, Debug)]
+pub struct TooltipFields {
+    pub price: Option<Price>,
 }
 
 /// The manual layer (v0.8.0, ADR 0010): `manual_overrides` rides one JSON ARRAY

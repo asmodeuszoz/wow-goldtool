@@ -175,6 +175,19 @@ pub const SQL_PENDING_TOOLTIP: &str = concat!(
     "ORDER BY id ASC",
 );
 
+// The price refresh stage's queue (v0.9.6, ADR 0017): the twin of the tooltip
+// and icon rules - "refreshed? checked as price-less AT ASK TIME? never looked
+// at?" - pointing at records that ALREADY hold a tooltip copy (the live door is
+// that door, and its answer for a record upstream lacks 404s: only copied
+// records have anything to re-ask, ADR 0010's rule again) and whose live
+// column has never been written nor checked-empty. Manual rows and tombstones
+// stay out like every other stage's.
+pub const SQL_PENDING_PRICE: &str = concat!(
+    "SELECT id FROM item WHERE tooltip_at IS NOT NULL AND price_min_now IS NULL ",
+    "AND price_now_missing_at IS NULL AND deleted_at IS NULL AND manual_at IS NULL ",
+    "ORDER BY id ASC",
+);
+
 struct PendingSql {
     pub sql: String,
     pub params: Vec<Value>,
@@ -379,6 +392,27 @@ pub fn pending_ids(conn: &Connection, limit: Option<i64>) -> AppResult<Vec<i64>>
 /// The tooltip stage's queue (v0.8.0, ADR 0010): see SQL_PENDING_TOOLTIP.
 pub fn tooltip_pending_ids(conn: &Connection, limit: Option<i64>) -> AppResult<Vec<i64>> {
     let plan: PendingSql = pending_plan(SQL_PENDING_TOOLTIP.to_string(), limit);
+    let mut stmt = match conn.prepare(&plan.sql) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let rows = match stmt.query_map(params_from_iter(plan.params), |row| row.get(0)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut out: Vec<i64> = [].to_vec();
+    for item in rows {
+        match item {
+            Err(problem) => return Err(AppError::db(format!("{}", problem))),
+            Ok(value) => out.push(value),
+        }
+    }
+    return Ok(out);
+}
+
+/// The price refresh stage's queue (v0.9.6, ADR 0017): see SQL_PENDING_PRICE.
+pub fn price_pending_ids(conn: &Connection, limit: Option<i64>) -> AppResult<Vec<i64>> {
+    let plan: PendingSql = pending_plan(SQL_PENDING_PRICE.to_string(), limit);
     let mut stmt = match conn.prepare(&plan.sql) {
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
         Ok(value) => value,

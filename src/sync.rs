@@ -28,9 +28,9 @@ use crate::wowdb::{ApiResponse, BinaryResponse, Client, HttpKind, RateBudget, cl
 
 use crate::models::{ItemDetail, ListPage, Tooltip};
 
-use crate::db::{copy_icon, detail_etag_of, icon_url_of, mark_icon_missing_at, mark_missing_at, mark_tooltip_missing_at, meta_get, meta_set, sync_state_get, sync_state_set, tooltip_etag_of, unix_now, upsert_detail, upsert_summary, write_tooltip, SyncState};
+use crate::db::{copy_icon, detail_etag_of, icon_url_of, mark_icon_missing_at, mark_missing_at, mark_price_missing_at, mark_tooltip_missing_at, meta_get, meta_set, sync_state_get, sync_state_set, tooltip_etag_of, unix_now, upsert_detail, upsert_summary, write_price_now, write_tooltip, SyncState};
 
-use crate::stats::{icon_pending_ids, pending_ids, tooltip_pending_ids, coverage, Coverage};
+use crate::stats::{icon_pending_ids, pending_ids, price_pending_ids, tooltip_pending_ids, coverage, Coverage};
 
 use rusqlite::Connection;
 
@@ -797,4 +797,192 @@ pub fn tooltip_missing_note(missing: i64) -> String {
         return "".to_string()
     }
     return format!("; {} answered 404 for the tooltip and are checked as no-tooltip-upstream", missing)
+}
+
+/// Stage 5 of a pull (v0.9.6, ADR 0017 "the live min buyout"): REFRESH the
+/// auction-house minimum for records that already hold a tooltip copy. The door
+/// is the tooltip door itself - docs/API.md measures its `fields.price` and the
+/// developers page states tooltips cache ~5 min "because they carry a live
+/// Auction House price"; measured 2026-11-21 on the live door: id 25 answered
+/// `min 149` at `updated_at 22:25:10`, ids 202/237/763 answered 5000/3500/4425
+/// while their STORED copies carried NO price at all, and id 200 answered
+/// `fields.price` as literal NULL - the door's own third state. This is why the
+/// write exists: price_min (the stored copy's number, ADR 0007 sampled it into
+/// the ledger) AGES, and price_min_now is what the door says NOW - ADR 0016's
+/// two columns, now with the FIRST producer for one of them. The pending rule
+/// is the twin of the icon and tooltip rules: refreshed? checked as "no price
+/// right now"? never looked at? - so a full pass costs ONE request per copied
+/// record, ever, excludes manual rows and tombstones, and the queue walks
+/// id ASC like every stage. The stage sends NO If-None-Match even though the
+/// tooltip stage stored an ETag: the fields.price this ask needs was NEVER
+/// parsed before (the copy stage reads `html` only), so a conditional answer
+/// would mean "unchanged since a read that never saw this field" - the door's
+/// own ~5-min server cache is what keeps the pass polite. Fresh writes sample
+/// NOTHING: ADR 0007's price sample stays on the DETAIL write (the sampling
+/// contract is that release's, and the trend that would eat denser samples is
+/// later work). The stage counts a null `fields.price` (measured) as the third
+/// state; the door's 404 answers the same state for parity with its twin,
+/// though the pending rule only points at ids whose copy EXISTS - a 404 here
+/// would be "the door lost a copy", never measured, honestly marked and kept
+/// walking like the tooltip stage does.
+pub fn sync_prices(client: Client, conn: &Connection, mut budget: RateBudget, id_limit: Option<i64>, cancel: &CancelFlag, wanted: Vec<i64>) -> AppResult<SyncReport> {
+    let started: i64 = unix_now();
+    let mut report: SyncReport = SyncReport::make("price".to_string());
+    let ids: Vec<i64> = match price_wanted_of(conn, wanted.clone(), id_limit) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    let total: i64 = ids.len() as i64;
+    for id in ids.clone() {
+        if cancel.cancelled {
+            let left: i64 = if wanted.is_empty() {
+                match price_pending_ids(conn, None) {
+                    Err(problem) => return Err(problem),
+                    Ok(value) => value.len() as i64,
+                }
+            } else {
+                ids.len() as i64 - report.items
+            };
+            report.message = format!("{}{}",
+                format!("price crawl cancelled by user request: {} refreshed, {} left pending", report.written, left),
+                price_now_missing_note(report.missing));
+            return finish(conn, report, started, 0, total, "cancelled".to_string());
+        }
+        let mut attempts: i32 = 0;
+        while attempts < 4 {
+            budget.wait_and_count();
+            report.requests = report.requests + 1;
+            let url: String = tooltip_url(id);
+            // no ETag sent - see the doc above: a 304 here would save nothing.
+            let response: ApiResponse = match get_json(client.clone(), url.clone(), "".to_string()) {
+                Err(problem) => return Err(problem),
+                Ok(value) => value,
+            };
+            match classify(response.status) {
+                HttpKind::RateLimited => {
+                    report.rate_limited = report.rate_limited + 1;
+                    honour_retry_after(&mut budget, response.retry_after);
+                    attempts = attempts + 1;
+                    continue;
+                },
+                HttpKind::Missing => {
+                    // the door's own 404 body (docs/API.md: upstream's JSON words,
+                    // measured on ids WITHOUT a copy) - same third state as the
+                    // null price, marked and walked past.
+                    report.missing = report.missing + 1;
+                    match mark_price_missing_at(conn, id, unix_now()) {
+                        Err(problem) => return Err(problem),
+                        Ok(_) => {},
+                    }
+                    break;
+                },
+                HttpKind::Failed => {
+                    return Err(AppError::network(format!("price probe of item {} answered {}", id, response.status)));
+                },
+                HttpKind::NotModified => report.unchanged = report.unchanged + 1,
+                HttpKind::Success => {},
+            }
+            if response.unchanged {
+                report.items = report.items + 1;
+                break;
+            }
+            let parsed: Tooltip = match from_str(&response.body) {
+                Ok(value) => value,
+                Err(problem) => return Err(AppError::decode(format!("tooltip of item {} is not the JSON we expect: {}", id, problem))),
+            };
+            // the live price block, read THROUGH the model mirror: the wire's
+            // `fields` object lands in TooltipFields directly (serde ignores the
+            // keys we have no reader for - upstream cannot add a key that breaks
+            // a build), so nothing here hand-parses the copy.
+            let live: Option<i64> = match parsed.fields.clone() {
+                None => None,
+                Some(fields) => match fields.price.clone() {
+                    None => None,
+                    Some(block) => match block.min.clone() {
+                        None => None,
+                        Some(number) => Some(number),
+                    },
+                },
+            };
+            match live {
+                None => {
+                    // measured third state, live id 200 today: `fields.price` is
+                    // literal null - the door LOOKED and the AH offers NOTHING now.
+                    match mark_price_missing_at(conn, id, unix_now()) {
+                        Err(problem) => return Err(problem),
+                        Ok(_) => {},
+                    }
+                },
+                Some(copper) => {
+                    match write_price_now(conn, id, copper, unix_now()) {
+                        Err(problem) => return Err(problem),
+                        Ok(written) => report.written = report.written + written as i64,
+                    }
+                },
+            }
+            report.items = report.items + 1;
+            break;
+        }
+    }
+    let remaining: i64 = if wanted.is_empty() {
+        match price_pending_ids(conn, None) {
+            Err(problem) => return Err(problem),
+            Ok(value) => value.len() as i64,
+        }
+    } else {
+        ids.len() as i64 - report.items
+    };
+    report.complete = remaining == 0;
+    if report.complete {
+        report.message = if wanted.is_empty() {
+            format!("{}{}",
+                format!("price crawl refreshed {} live prices", report.written),
+                price_now_missing_note(report.missing))
+        } else {
+            format!("{}{}",
+                format!("price crawl visited every targeted record: {} handled", report.items),
+                price_now_missing_note(report.missing))
+        };
+        return finish(conn, report, started, 0, total, "complete".to_string());
+    }
+    report.message = if wanted.is_empty() {
+        format!("{}{}",
+            format!("price crawl paused: {} of {} live prices refreshed, {} left pending", report.written, total, remaining),
+            price_now_missing_note(report.missing))
+    } else {
+        format!("{}{}",
+            format!("price crawl stopped inside the target list: {} of {} handled, {} left in the list", report.items, total, remaining),
+            price_now_missing_note(report.missing))
+    };
+    return finish(conn, report, started, 0, total, "stopped".to_string())
+}
+
+/// Where the price stage points its queue (stats.rs::SQL_PENDING_PRICE, the twin
+/// of the tooltip and icon rules) or exactly the ids a caller targeted. Shares
+/// wanted_of's slice mechanics.
+pub fn price_wanted_of(conn: &Connection, wanted: Vec<i64>, id_limit: Option<i64>) -> AppResult<Vec<i64>> {
+    if wanted.is_empty() {
+        return price_pending_ids(conn, id_limit);
+    }
+    let mut out: Vec<i64> = [].to_vec();
+    let cap: i64 = match id_limit {
+        None => wanted.len() as i64,
+        Some(number) => number,
+    };
+    for one in wanted {
+        if out.len() as i64 >= cap {
+            break;
+        }
+        out.push(one);
+    }
+    return Ok(out);
+}
+
+/// "N looked and the auction house offered NOTHING right now, and are checked",
+/// the price twin of the tooltip/icon missing notes (a zero count adds nothing).
+pub fn price_now_missing_note(missing: i64) -> String {
+    if missing == 0 {
+        return "".to_string()
+    }
+    return format!("; {} answered no auction price now and are checked as price-less-at-ask-time", missing)
 }
