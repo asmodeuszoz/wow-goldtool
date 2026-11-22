@@ -19,6 +19,18 @@ so a later process (a later crawl session into the same DB) sees different numbe
 that is what makes the price samples GROW across crawls while re-asks inside one
 process still answer 304 and write nothing (ADR 0007's sampling rule, measured by
 the mirror audit's history counts).
+FROM v0.10.0 on the server ALSO speaks the SECOND source's dataset files (ADR 0021):
+GET /data/<file>.json for the eight classic recipe files, top level {profession,
+recipe_count, recipes[]} in the shape the live raw host answers, tiny hand-built
+rows whose ids are the fixture's OWN item rows so every join state the recipes
+door ships is reachable here - a crafted id with a row, a crafted id whose price
+nobody ever answered (detail 404ed -> money "no price", never 0c), a reagent id the
+DB never saw ("not in your DB" beside the set's own words), and enchanting entries
+whose recipe names NO crafted item at all. The real set (8 files, 1 240 entries,
+2.6 MB measured today) is NOT carried here and never should be: CI asserts the
+door's states, the docs carry the real counts. A 404 FILE would be the source
+moving - the stage aborts rc 3, measured on a scratch audit server, never committed
+as a green step (ADR 0011: CI only runs what is true).
 Nothing here touches the upstream API.
 """
 
@@ -210,6 +222,274 @@ served = {"count": 0}
 # says it all: the gate below just never names the `search` stage.
 
 
+# v0.10.0 (ADR 0021): the SECOND source's dataset files, in the shape the live raw
+# host answers today (docs/API.md's second-source section measures it 2026-11-22):
+# one file per classic profession under /data/<file>.json, top level
+# {profession, recipe_count, recipes[]}, entries carrying the keys the crawler's
+# RecipeEntry types (spell_id, spell_name, crafted_item_id, crafted_item_name,
+# required_skill_value, skill_tier, trivial_low, trivial_high, reagents[],
+# learned_from, acquisition, acquisition_note, source) - serde ignores the set's
+# other measured keys. The ROWS here are hand-built and TINY on purpose: CI cannot
+# carry the real set (8 files, 1 240 entries, 2.6 MB) and never should - the
+# measured real counts live in the docs. What the tiny rows are chosen for is the
+# ONE thing the recipes door's join needs: the fixture's OWN item ids (25 / 40 /
+# 60 / 12809 / 127555, the rows the list + detail stages above already wrote), so
+# every join state is reachable and asserted by the steps:
+#   - a crafted id WITH a row (its DB name and money ride beside the set's own
+#     crafted_item_name - note the DB-side name is the detail stage's overwrite,
+#     "Fixture Detail 25", NOT the list name, so the two answers cannot hide each
+#     other),
+#   - a crafted id the set gives for row 127555, whose price nobody ever answered
+#     (detail 404ed above) -> "no price", never 0c (ADR 0015/0016's rule),
+#   - a reagent id the DB never saw (2589 / 5113) -> "not in your DB" beside the
+#     set's own words,
+#   - enchanting entries whose recipe names NO crafted item at all - the REAL set
+#     measured today carries exactly 133 such entries, and the door ships the state
+#     as words, never an invented id.
+RECIPE_FILES = {
+    "alchemy_recipes.json": {
+        "profession": "Alchemy",
+        "recipe_count": 2,
+        "recipes": [
+            {
+                "spell_id": 132,
+                "spell_name": "Elixir of Fixture Frogweed",
+                "crafted_item_id": 25,
+                "crafted_item_name": "Kettle of Frogweed (the set's own words)",
+                "required_skill_value": 40,
+                "skill_tier": "Skill",
+                "trivial_low": 35,
+                "trivial_high": 55,
+                "reagents": [
+                    {"item_id": 40, "item_name": "Mossborer (the set's own words)", "count": 2},
+                    {"item_id": 2589, "item_name": "Fixture Silkweed (no row in your DB)", "count": 1},
+                ],
+                "acquisition": "trainer",
+                "source": "cmangos-tbc-db+wago-tools-db2",
+            },
+            {
+                "spell_id": 1723,
+                "spell_name": "Greater Healing Tonic of the Frogo",
+                "crafted_item_id": 12809,
+                "crafted_item_name": "Cenclis' Bread (the set's own words)",
+                "required_skill_value": 1,
+                "skill_tier": "Apprentice",
+                "trivial_low": 1,
+                "trivial_high": 10,
+                "reagents": [
+                    {"item_id": 127555, "item_name": "Conjured Choco-Frogo (the set's own words)", "count": 1}
+                ],
+                "acquisition": "vendor",
+                "source": "cmangos-tbc-db+wago-tools-db2",
+            },
+        ],
+    },
+    "blacksmithing_recipes.json": {
+        "profession": "Blacksmithing",
+        "recipe_count": 2,
+        "recipes": [
+            {
+                "spell_id": 202,
+                "spell_name": "Heavy Fixture Hammerhead",
+                "crafted_item_id": 40,
+                "crafted_item_name": "Mossborer (the set's own words)",
+                "required_skill_value": 65,
+                "skill_tier": "Expert",
+                "trivial_low": 55,
+                "trivial_high": 75,
+                "reagents": [
+                    {"item_id": 25, "item_name": "Worn Shortsword (the set's own words)", "count": 1},
+                    {"item_id": 2589, "item_name": "Fixture Silkweed (no row in your DB)", "count": 2},
+                ],
+                "acquisition": "trainer",
+                "acquisition_note": None,
+                "source": "cmangos-tbc-db+wago-tools-db2",
+            },
+            {
+                "spell_id": 683,
+                "spell_name": "Mithran Fixture Rivet",
+                "crafted_item_id": 60,
+                "crafted_item_name": "Twisted Cleaver (the set's own words)",
+                "required_skill_value": 155,
+                "skill_tier": "Artisan",
+                "trivial_low": 140,
+                "trivial_high": 170,
+                "reagents": [
+                    {"item_id": 127555, "item_name": "Conjured Choco-Frogo (the set's own words)", "count": 3}
+                ],
+                "acquisition": "trainer",
+                "acquisition_note": None,
+                "source": "cmangos-tbc-db+wago-tools-db2",
+            },
+        ],
+    },
+    "cooking_recipes.json": {
+        "profession": "Cooking",
+        "recipe_count": 1,
+        "recipes": [
+            {
+                "spell_id": 334,
+                "spell_name": "Recipe of the Fixture Fin",
+                "crafted_item_id": 127555,
+                "crafted_item_name": "Conjured Cocoa Choco-Frogo (the set's own words)",
+                "required_skill_value": 1,
+                "skill_tier": "Apprentice",
+                "trivial_low": 1,
+                "trivial_high": 10,
+                "reagents": [
+                    {"item_id": 40, "item_name": "Mossborer (the set's own words)", "count": 1},
+                    {"item_id": 5113, "item_name": "Fixture Gristleweed (no row in your DB)", "count": 1},
+                ],
+                "acquisition": "trainer",
+                "source": "cmangos-tbc-db+wago-tools-db2",
+            }
+        ],
+    },
+    "enchanting_recipes.json": {
+        # the measured shape of the REAL set's enchanting entries: NO crafted item
+        # id at all (133 of 1 240 entries carry none), because the craft puts an
+        # ENCHANT on a slot, not an item in a bag. The door ships the state as
+        # words, never an invented id (ADR 0021).
+        "profession": "Enchanting",
+        "recipe_count": 2,
+        "recipes": [
+            {
+                "spell_id": 637,
+                "spell_name": "Enchant Fixture Brackets",
+                "required_skill_value": 1,
+                "skill_tier": "Apprentice",
+                "trivial_low": 1,
+                "trivial_high": 10,
+                "reagents": [
+                    {"item_id": 25, "item_name": "Worn Shortsword (the set's own words)", "count": 1},
+                    {"item_id": 2589, "item_name": "Fixture Silkweed (no row in your DB)", "count": 1},
+                ],
+                "acquisition": "trainer",
+                "source": "cmangos-tbc-db+wago-tools-db2",
+            },
+            {
+                "spell_id": 638,
+                "spell_name": "Enchant Fixture Sleeve",
+                "crafted_item_id": None,
+                "crafted_item_name": None,
+                "required_skill_value": 210,
+                "skill_tier": "Master",
+                "trivial_low": 195,
+                "trivial_high": 225,
+                "reagents": [
+                    {"item_id": 5113, "item_name": "Fixture Gristleweed (no row in your DB)", "count": 2}
+                ],
+                "learned_from": None,
+                "acquisition": "trainer",
+                "source": "cmangos-tbc-db+wago-tools-db2",
+            },
+        ],
+    },
+    "engineering_recipes.json": {
+        "profession": "Engineering",
+        "recipe_count": 1,
+        "recipes": [
+            {
+                "spell_id": 4977,
+                "spell_name": "Fixture Boltshell",
+                "crafted_item_id": 25,
+                "crafted_item_name": "Worn Shortsword (the set's own words)",
+                "required_skill_value": 30,
+                "skill_tier": "Skill",
+                "trivial_low": 25,
+                "trivial_high": 45,
+                "reagents": [
+                    {"item_id": 40, "item_name": "Mossborer (the set's own words)", "count": 1},
+                    {"item_id": 127555, "item_name": "Conjured Choco-Frogo (the set's own words)", "count": 1},
+                ],
+                "acquisition": "trainer",
+                "source": "cmangos-tbc-db+wago-tools-db2",
+            }
+        ],
+    },
+    "first_aid_recipes.json": {
+        "profession": "First Aid",
+        "recipe_count": 1,
+        "recipes": [
+            {
+                "spell_id": 467,
+                "spell_name": "Fixture Linen Pad",
+                "crafted_item_id": 60,
+                "crafted_item_name": "Twisted Wooden Cleaver (the set's own words)",
+                "required_skill_value": 5,
+                "skill_tier": "Apprentice",
+                "trivial_low": 1,
+                "trivial_high": 15,
+                "reagents": [
+                    {"item_id": 25, "item_name": "Worn Shortsword (the set's own words)", "count": 1}
+                ],
+                "acquisition": "auto_granted",
+                "source": "cmangos-tbc-db+wago-tools-db2",
+            }
+        ],
+    },
+    "leatherworking_recipes.json": {
+        "profession": "Leatherworking",
+        "recipe_count": 1,
+        "recipes": [
+            {
+                "spell_id": 785,
+                "spell_name": "Fixture Scorched Bag",
+                "crafted_item_id": 12809,
+                "crafted_item_name": "Cenclis' Freshly Baked Bread (the set's own words)",
+                "required_skill_value": 105,
+                "skill_tier": "Artisan",
+                "trivial_low": 90,
+                "trivial_high": 120,
+                "reagents": [
+                    {"item_id": 40, "item_name": "Mossborer (the set's own words)", "count": 2},
+                    {"item_id": 5113, "item_name": "Fixture Gristleweed (no row in your DB)", "count": 1},
+                ],
+                "acquisition": "trainer",
+                "source": "cmangos-tbc-db+wago-tools-db2",
+            }
+        ],
+    },
+    "tailoring_recipes.json": {
+        "profession": "Tailoring",
+        "recipe_count": 2,
+        "recipes": [
+            {
+                "spell_id": 3023,
+                "spell_name": "Heavy Fixture Weave",
+                "crafted_item_id": 25,
+                "crafted_item_name": "Worn Shortsword (the set's own words)",
+                "required_skill_value": 175,
+                "skill_tier": "Artisan",
+                "trivial_low": 160,
+                "trivial_high": 190,
+                "reagents": [
+                    {"item_id": 2589, "item_name": "Fixture Silkweed (no row in your DB)", "count": 4}
+                ],
+                "acquisition": "trainer",
+                "source": "cmangos-tbc-db+wago-tools-db2",
+            },
+            {
+                "spell_id": 3024,
+                "spell_name": "Bolt of Fixture Cloth",
+                "crafted_item_id": 127555,
+                "crafted_item_name": "Conjured Cocoa Choco-Frogo (the set's own words)",
+                "required_skill_value": 115,
+                "skill_tier": "Expert",
+                "trivial_low": 100,
+                "trivial_high": 130,
+                "reagents": [
+                    {"item_id": 60, "item_name": "Twisted Wooden Cleaver (the set's own words)", "count": 2},
+                    {"item_id": 5113, "item_name": "Fixture Gristleweed (no row in your DB)", "count": 1},
+                ],
+                "acquisition": "trainer",
+                "source": "cmangos-tbc-db+wago-tools-db2",
+            },
+        ],
+    },
+}
+
+
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         served["count"] += 1
@@ -280,6 +560,24 @@ class Handler(http.server.BaseHTTPRequestHandler):
             stage = "tooltip"
             etag = '"fixture-etag-tooltip-{}-{}"'.format(tail, RUN)
             body = TOOLTIP_PAGES.get(tail)
+        elif path.startswith("/data/"):
+            # the SECOND source's files (v0.10.0, ADR 0021): the crawler asks
+            # {base}/data/{file}.json, so the fixture speaks the SAME suffix - the
+            # wire shape cannot drift from what CI runs. Conditional GETs like every
+            # other door: the file ETag rides the meta table, a re-pull pays a real
+            # 304 and writes nothing (the UPSERT keeps the rows the first pull wrote
+            # - recipe rows have no per-record third state: a 404 FILE is the source
+            # moving, and the stage ABORTS with rc 3, measured on a scratch audit
+            # server, never committed here as a green step).
+            stage = "recipes"
+            etag = '"fixture-etag-recipe-{}-{}"'.format(tail, RUN)
+            body = RECIPE_FILES.get(tail)
+            if body is None:
+                self.send_response(404)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"error":"not_found"}')
+                return
         elif "item" in path and "page" in path:
             stage = "list"
             page = "2" if "page=2" in path else "1"
