@@ -74,6 +74,23 @@ pub fn tooltip_url(id: i64) -> String {
     return format!("{}/api/v1/tooltip/{}/item/{}", base_url(), API_VERSION, id);
 }
 
+/// The SECOND source's door (v0.10.0, ADR 0021): the recipe files ride raw
+///.githubusercontent.com - the MIT dataset whose text is measured at the repo's
+/// addon/LICENSE and whose shapes docs/API.md's second-source section records.
+/// This host is NOT the rate-limited API: the politeness schedule still rides
+/// (one host, one courtesy - the icon stage set the precedent for hosts beyond
+/// the API), but the burst headroom charges the same budget. The fixture re-base
+/// keeps the SAME suffix: a fixture answering `/data/<file>.json` speaks the
+/// live path shape, so CI's smoke cannot drift from what the wire really is.
+pub const RECIPE_SOURCE_BASE: &str = "https://raw.githubusercontent.com/Nyte-fyre/ReagentRoute/main";
+pub fn recipe_file_url(file: String) -> String {
+    let base: String = match var(ENV_FIXTURE_KEY) {
+        Err(_) => RECIPE_SOURCE_BASE.to_string(),
+        Ok(value) => value,
+    };
+    return format!("{}/data/{}", base, file);
+}
+
 /// Cross-kind live search over items, spells, quests, npcs, zones and sounds.
 /// The query is percent-encoded on the way in: the live probe asked with
 /// `?q=Worn%20Shortsword` and got a 200 back (docs/API.md measures it), and a

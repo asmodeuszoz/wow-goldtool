@@ -24,11 +24,11 @@ use crate::errors::AppResult;
 
 use serde::Serialize;
 
-use crate::wowdb::{ApiResponse, BinaryResponse, Client, HttpKind, RateBudget, classify, get_bytes, get_json, icon_target, item_url, page_url, tooltip_url, FALLBACK_RETRY_MS};
+use crate::wowdb::{ApiResponse, BinaryResponse, Client, HttpKind, RateBudget, classify, get_bytes, get_json, icon_target, item_url, page_url, recipe_file_url, tooltip_url, FALLBACK_RETRY_MS};
 
-use crate::models::{ItemDetail, ListPage, Tooltip};
+use crate::models::{ItemDetail, ListPage, Tooltip, RecipeFile};
 
-use crate::db::{copy_icon, detail_etag_of, icon_url_of, mark_icon_missing_at, mark_missing_at, mark_price_missing_at, mark_tooltip_missing_at, meta_get, meta_set, sync_state_get, sync_state_set, tooltip_etag_of, unix_now, upsert_detail, upsert_summary, write_price_now, write_tooltip, SyncState};
+use crate::db::{copy_icon, detail_etag_of, icon_url_of, mark_icon_missing_at, mark_missing_at, mark_price_missing_at, mark_tooltip_missing_at, meta_get, meta_set, sync_state_get, sync_state_set, tooltip_etag_of, unix_now, upsert_detail, upsert_summary, write_price_now, write_recipe, write_tooltip, SyncState};
 
 use crate::stats::{icon_pending_ids, pending_ids, price_pending_ids, tooltip_pending_ids, coverage, Coverage};
 
@@ -653,6 +653,126 @@ pub fn sync_tooltips(client: Client, conn: &Connection, mut budget: RateBudget, 
             tooltip_missing_note(report.missing))
     };
     return finish(conn, report, started, 0, total, "stopped".to_string())
+}
+
+/// The recipes fetch stage (v0.10.0, ADR 0021): pull the dataset's OWN classic
+/// recipe files from the second source docs/API.md's second-source section records
+/// (MIT text measured at the repo) - 8 files, one request each, conditional GETs
+/// like every other door (the file ETags ride the meta table, so a re-pull pays
+/// 304s and the rows keep what the first pull wrote). The dataset speaks per-file
+/// `profession` (measured set: 8 classic professions - NO Jewelcrafting there,
+/// recorded honestly in the ADR and the tab note). There is no per-record third
+/// state here: a file that 404s is the SOURCE moving, not a record being gone, so
+/// it ABORTS the run (rc 3) like the Failed kind does - and the door-side truth
+/// (a crafted id the DB never saw, a reagent row whose price nobody answered) is
+/// what the reader reports instead. `--budget` bounds FILES per run; the cursor is
+/// the file count already done, so a stopped pull resumes at the next file.
+pub const RECIPE_FILE_COUNT: i64 = 8;
+
+pub fn recipe_file_at(index: i64) -> String {
+    match index {
+        0 => return "alchemy_recipes.json".to_string(),
+        1 => return "blacksmithing_recipes.json".to_string(),
+        2 => return "cooking_recipes.json".to_string(),
+        3 => return "enchanting_recipes.json".to_string(),
+        4 => return "engineering_recipes.json".to_string(),
+        5 => return "first_aid_recipes.json".to_string(),
+        6 => return "leatherworking_recipes.json".to_string(),
+        _ => return "tailoring_recipes.json".to_string(),
+    };
+}
+
+pub fn recipe_etag_key(file: String) -> String {
+    return format!("recipe_etag_{}", file);
+}
+
+pub fn sync_recipes(client: Client, conn: &Connection, mut budget: RateBudget, file_limit: Option<i64>, cancel: &CancelFlag) -> AppResult<SyncReport> {
+    let started: i64 = unix_now();
+    let mut report: SyncReport = SyncReport::make("recipes".to_string());
+    let saved: SyncState = match sync_state_get(conn, "recipes".to_string()) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    let cursor_at: i64 = match saved.page {
+        None => 0,
+        Some(done) => if saved.status == "complete" { 0 } else { done },
+    };
+    report.resumed_from = if cursor_at > 0 { Some(cursor_at) } else { None };
+    let bound: i64 = match file_limit {
+        None => RECIPE_FILE_COUNT,
+        Some(want) => if want < 0 { 0 } else { want },
+    };
+    let total: i64 = RECIPE_FILE_COUNT;
+    let mut index: i64 = cursor_at;
+    while index < total && index < cursor_at + bound {
+        if cancel.cancelled {
+            report.message = format!("recipe pull cancelled by user request: {} files fetched, {} entries seen, {} rows written", report.pages, report.items, report.written);
+            return finish(conn, report, started, index, total, "cancelled".to_string());
+        }
+        let file: String = recipe_file_at(index);
+        let mut attempts: i32 = 0;
+        while attempts < 4 {
+            budget.wait_and_count();
+            report.requests = report.requests + 1;
+            let url: String = recipe_file_url(file.clone());
+            let send_etag: String = match meta_get(conn, recipe_etag_key(file.clone())) {
+                Err(problem) => return Err(problem),
+                Ok(None) => "".to_string(),
+                Ok(Some(found)) => found,
+            };
+            let response: ApiResponse = match get_json(client.clone(), url.clone(), send_etag) {
+                Err(problem) => return Err(problem),
+                Ok(value) => value,
+            };
+            match classify(response.status) {
+                HttpKind::RateLimited => {
+                    report.rate_limited = report.rate_limited + 1;
+                    honour_retry_after(&mut budget, response.retry_after);
+                    attempts = attempts + 1;
+                    continue;
+                },
+                HttpKind::Missing => {
+                    return Err(AppError::network(format!("recipe file {} answered {} - the second source moved, the recorded set cannot be pulled", file, response.status)));
+                },
+                HttpKind::Failed => {
+                    return Err(AppError::network(format!("recipe file {} answered {}", file, response.status)));
+                },
+                HttpKind::NotModified => {
+                    report.unchanged = report.unchanged + 1;
+                    break;
+                },
+                HttpKind::Success => {},
+            }
+            let parsed: RecipeFile = match from_str(&response.body) {
+                Ok(value) => value,
+                Err(problem) => return Err(AppError::decode(format!("recipe file {} is not the JSON this source's record describes: {}", file, problem))),
+            };
+            for entry in parsed.recipes.clone() {
+                let written: i64 = match write_recipe(conn, parsed.profession.clone(), entry) {
+                    Err(problem) => return Err(problem),
+                    Ok(count) => count as i64,
+                };
+                report.written = report.written + written;
+                report.items = report.items + 1;
+            }
+            if response.etag != "" {
+                match meta_set(conn, recipe_etag_key(file), response.etag.clone()) {
+                    Err(problem) => return Err(problem),
+                    Ok(_) => {},
+                }
+            }
+            break;
+        }
+        index = index + 1;
+        report.pages = report.pages + 1;
+    }
+    report.complete = index >= total;
+    if report.complete {
+        report.message = format!("recipe pull complete: {} of {} files fetched ({} answered the same copy), {} entries seen, {} rows written", report.pages, total, report.unchanged, report.items, report.written);
+        return finish(conn, report, started, total, total, "complete".to_string());
+    }
+    report.message = format!("recipe pull stopped: {} of {} files fetched, {} entries seen, {} rows written", report.pages, total, report.items, report.written);
+    return finish(conn, report, started, index, total, "stopped".to_string());
 }
 
 /// Stage 3 of a pull (v0.6.0, ADR 0008): copy the icon FILES of records that answered,
