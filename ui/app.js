@@ -16,6 +16,11 @@ var watched = [];
 // for the search tab: btn-recipes-watch watches the COOKED items of THESE rows.
 var recipes_shown = [];
 
+// v0.11.0 (ADR 0023): did ANY shown row carry live noise beside its stored money?
+// Drives the ONE conditional note sentence (the ADR 0020 pattern: the note says
+// cell = STORED min vs live = last ask, no numbers — numbers ride the cells).
+var live_shown = false;
+
 // v0.9.7 (ADR 0018): the one crammed page became seven activity tabs. The switch
 // is ONE truth here: exactly one section with a data-tab is visible, the rest wear
 // tab-off (display:none in app.css). Buttons inside a hidden section keep their
@@ -263,6 +268,7 @@ async function runRecipes() {
   try {
     var found = await cli_ok(argv);
     recipes_shown = found.recipes;
+    live_shown = false;
     var rows = "";
     for (var i = 0; i < found.recipes.length; i = i + 1) {
       rows = rows + recipe_row(found.recipes[i]);
@@ -276,6 +282,9 @@ async function runRecipes() {
     if (profession !== "") {
       note = note + " \u2014 filtered to " + profession;
     }
+    if (live_shown) {
+      note = note + " \u2014 the money IN a cell is the STORED min; the LIVE words beside it are what the AH offered at the LAST price ask (the Sync tab\u2019s price refresh wrote that twin beside the stored copy \u2014 the two ride side by side and NEVER merge, and the live cell\u2019s hover keeps the exact copper)";
+    }
     set_note(document.getElementById("recipes-note"), note, false);
     document.getElementById("btn-recipes").classList.remove("running");
   } catch (problem) {
@@ -285,6 +294,32 @@ async function runRecipes() {
 
 function chip_word(text, css) {
   return '<span class="' + css + '">' + esc(text) + "</span>";
+}
+
+// v0.11.0 (ADR 0023): the LIVE twin beside a cell's stored money. The words come
+// from Rust's ONE money formatter (the join wrote price_now_money), so the UI
+// never does copper maths. The rule rides the STAMPS because the two NULLs mean
+// different things (ADR 0017's third state vs ADR 0016's never-written):
+// * price_now_missing_at set  -> "no auction right now" (looked, nothing offered)
+// * price_now_copper present and DIFFERENT from the stored copper -> the live
+//   money span, exact live copper in its hover (ADR 0015: hover keeps the number)
+// * live equals stored -> NOTHING extra: the cell already answers what the AH
+//   offers now, a second identical number would be noise
+// * both stamps NULL and no live copper -> "live price not refreshed yet"
+// The CALLER guards the fourth state: an item the DB has NO row for gets none of
+// these (the door wrote no live fields for it — no live noise, ADR 0016's rule).
+function live_cell(now_money, now_copper, stored_copper, at, missing_at) {
+  if (missing_at !== null && missing_at !== undefined) {
+    live_shown = true;
+    return " " + chip_word("no auction right now", "live-missing");
+  }
+  if (now_money !== null && now_money !== undefined) {
+    if (now_copper === stored_copper) { return ""; }
+    live_shown = true;
+    return ' <span class="live" title="' + esc(num(now_copper) + " copper exact") + '">live ' + esc(now_money) + "</span>";
+  }
+  live_shown = true;
+  return " " + chip_word("live price not refreshed yet", "live-none");
 }
 
 function recipe_mats(one) {
@@ -299,7 +334,11 @@ function recipe_mats(one) {
     if (reagent.in_db === false) {
       state = " " + chip_word("not in your DB", "mat-not-in-db");
     }
-    out = out + '<span class="mat"><span class="matname">' + esc(name) + (reagent.count ? " \u00d7" + esc(String(reagent.count)) : "") + "</span> " + recipe_icon(reagent.icon_b64, reagent.icon_at, name) + " " + money_cell(reagent.price_money, reagent.price_copper) + state + "</span> ";
+    var live = "";
+    if (reagent.in_db !== false) {
+      live = live_cell(reagent.price_now_money, reagent.price_now_copper, reagent.price_copper, reagent.price_now_at, reagent.price_now_missing_at);
+    }
+    out = out + '<span class="mat"><span class="matname">' + esc(name) + (reagent.count ? " \u00d7" + esc(String(reagent.count)) : "") + "</span> " + recipe_icon(reagent.icon_b64, reagent.icon_at, name) + " " + money_cell(reagent.price_money, reagent.price_copper) + live + state + "</span> ";
   }
   return out;
 }
@@ -312,6 +351,8 @@ function recipe_crafted(one) {
   }
   if (!one.crafted_db_name) {
     state = " " + chip_word("the DB never saw this id", "cooked-not-in-db");
+  } else {
+    state = state + live_cell(one.crafted_price_now_money, one.crafted_price_now_copper, one.crafted_price_copper, one.crafted_now_at, one.crafted_now_missing_at);
   }
   return '<span class="cooked">' + esc(label) + " " + recipe_icon(one.crafted_icon_b64, one.crafted_icon_at, label) + " " + money_cell(one.crafted_price_money, one.crafted_price_copper) + state + "</span>";
 }
