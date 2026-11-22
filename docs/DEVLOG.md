@@ -5,6 +5,57 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-21 · v0.9.9 — the live-sort knob: order what the AH offers NOW, the shown cell stays the stored min
+
+### What forced it
+
+The user asked for it right after the stage buttons ("a then b"): the hunt list is ordered by
+what the DB once STORED (`price_min`), while ADR 0017's price stage now keeps a LIVE minimum
+per copied record (`price_min_now`) — what the AH offers NOW. "Cheapest first" by the stored
+column answers with the crawl-era order; the knob orders by the live pair the button refreshed.
+
+### The decision (full text in ADR 0020)
+
+ONE new sort key, `price-now`: query.rs `NOW_ORDER` = `ORDER BY (price_min_now IS NULL) ASC,
+price_min_now ASC, name ASC` (the SAME NULL-last pattern every other price sort uses; the tail is
+BOTH kinds of NULL — never refreshed AND checked price-less at ask time, their stamps keep them
+apart, the sort does not care and does not guess; name tiebreak = stable across runs) + the
+`order_for` branch + cli.rs usage string; UI grows ONE select option whose value rides the EXISTING
+`--sort` argv. The note grows one conditional sentence ONLY when the knob is on — naming which
+column the ORDER reads (live) vs which the CELL shows (stored), and that the NULL tail sorts last
+— because the live order can make the column LOOK out of order (measured: 60 live 16 106 before
+25 live 17 106, both stored 18 106). Deferred, said so: the live price IN the cell (wire shape
+change + its own money pair — next release's honest question); `--priced` stays the stored-min
+filter (the knob is an ORDER). NO schema hop: `price_min_now` is already a schema-7 column.
+
+### Chain
+
+`b8abbd8` feat(search) (NOW_ORDER + branch + usage) -> `536ea1d` feat(ui) (option + conditional
+sentence) -> `b700a57` ci (34th step, both-binaries shape quoted from measurement) -> `8ed805d`
+chore (banner 0.9.9, lock rides) -> this record carries the tag.
+
+### Pre-tag verification — the witnesses (measured, not assumed)
+
+| probe | answer |
+| ----- | ------ |
+| knob on the mirror DB | live order answers 60 BEFORE 25 (16 106 < 17 106) while stored `price_min` TIES at 18 106; the four NULL-live rows tail by name (CI Test Mug, Conjured Cocoa Choco-Frogo, Fixture Detail 12809, Fixture Detail 40) — matching sqlite's own rendering of the same clause exactly |
+| v0.9.8 binary (`wgt-v98-pre-sort`, saved pre-release) vs v0.9.9 | default-order doors BYTE-IDENTICAL: `search sword --where description --sort price --icons --limit 5` 3 359 B pair + `search detail --where all --limit 8` md5-equal — the knob rides ONLY the new key; on the OLD binary `price-now` falls back to default (unknown key — the door's documented rule), hits portion IDENTICAL |
+| bogus sort key | hits IDENTICAL vs default (fallback behavior unchanged since before this release) |
+| CI block | 34 step-lines + plant one (was 33); the grown step's paragraph quotes the BOTH-BINARIES measured shape — green BECAUSE the knob works; yaml parses; ZERO requests added, GET tallies cannot move |
+| UI | `node --check` parses (PARSE witness; no display — the rendered panel stays never-witnessed, ADR 0011/0018's line); grep `price-now` x1 option + x1 clause |
+| schema | stays 7 (grep `SCHEMA_VERSION: i64 = 7` — NO hop: the column was born at 6 with ADR 0016, this release READS it) |
+| builds | exit 0, FOUR named warnings every commit (incremental-clear mechanic every build) |
+
+### CI ladder (folded as measured)
+
+**44976027751** (v0.9.8's verification-fold push, head `c4fac31…`): **success, 5/5 in 6 min 21 s**
+(02:25:34Z -> 02:31:55Z — quality 2 m 10 s · test 5 m 01 s · linux 5 m 36 s · macos 5 m 44 s ·
+windows 6 m 18 s), exactly ONE run id for that head, no CANCELLED sibling, no rerun — it landed
+WHILE this chain built (nothing was in flight at v0.9.9's first commit; the ordering fact recorded
+where it stands). Earlier run folded earlier (in v0.9.8's fold): 44975077893. v0.9.9's own
+chain+tag push starts a run that lands FORWARD in this release's verification fold, never chased.
+Tags stay put (`v0.9.8` -> `9aaa3f6`, `v0.9.9` -> this record's commit).
+
 ## 2026-11-21 · v0.9.8 — the Sync tab grows its stage buttons: icons / descriptions / price refresh, same argv, one honest note each
 
 ### What forced it

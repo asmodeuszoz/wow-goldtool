@@ -6,6 +6,47 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.9.9 — the live-sort knob: order what the AH offers NOW, the shown cell stays the stored min · 2026-11-21 · tag `v0.9.9`
+
+Added
+
+- **`--sort price-now` on the search door** (ADR 0020): `ORDER BY (price_min_now IS NULL) ASC,
+  price_min_now ASC, name ASC` — the SAME NULL-last pattern every other price sort already uses,
+  and honest about WHICH NULLs land there: rows never refreshed AND rows checked price-less at
+  ask time (their own stamps keep the kinds apart; the sort does not care and does not guess).
+  Usage string lists the key; unknown keys still fall back to the default exactly as before.
+- **`cheapest LIVE price first` in the Search tab's sort field** — the select's value rides the
+  EXISTING `--sort` argv (zero new wiring, ADR 0014's path).
+- **The note moves with the knob** (only when it is on): "this order reads the LIVE min buyout
+  the Sync tab's Price button (or the CLI stage) wrote, one ask per copied record ever; the price
+  column stays the DB's STORED min, and rows with no live price sort last…" — not decoration: the
+  live order can make the price column LOOK out of order (measured mirror: 60 live 16 106 before
+  25 live 17 106, both stored 18 106), so the note names which is which beside every hit.
+- **The CI block grows ONE step** (33 → 34 step-lines, plant one): `search detail --where all
+  --sort price-now --limit 8` — green BECAUSE the knob works (measured both binaries: v0.9.8
+  answers the default fallback 12809,25,40,60; v0.9.9 answers the live order 60 before 25);
+  ZERO requests added (search reads the DB), GET tallies cannot move.
+
+Honest about what did NOT move
+
+- **The price CELL stays the stored min** (deferred, said so in ADR 0020): showing the live price
+  IN the cell needs per-row live fields on the wire + their own money pair — next release's honest
+  question; the note carries the sentence instead this release. Money rule (ADR 0015) rides
+  untouched: the grown sentence carries NO numbers at all, hover-copper unchanged.
+- **`--priced` filter stays the stored-min rule** — the knob is an ORDER, not a FILTER.
+- **Schema 7 unchanged — NO hop**: `price_min_now` is already a schema-7 column (born at 6 with
+  ADR 0016); this release READS it for the first time.
+- **The wire did not move for everything else**: default-order doors BYTE-IDENTICAL vs the v0.9.8
+  binary (`search sword --where description --sort price --icons --limit 5` 3 359 B; `detail
+  --where all --limit 8` md5 equal) — the knob rides ONLY the new key; bogus sort key still
+  IDENTICAL hits vs default (fallback rule unchanged); exit-map totals re-run post-tag (101 doors,
+  expected identical) in the verification fold FORWARD.
+- The webview's rendered look stays never-witnessed (no display): the option is a grep+parse
+  witness; ADR 0011's line: the CI block grew a witness of a DOOR's order, not the select.
+
+Chain: `b8abbd8` feat(search) → `536ea1d` feat(ui) → `b700a57` ci → `8ed805d` chore → this record
+carries the tag.
+
 ## v0.9.8 — the Sync tab grows its stage buttons: icons / descriptions / price refresh, same argv, one honest note each · 2026-11-21 · tag `v0.9.8`
 
 Added
