@@ -37,7 +37,7 @@ use std::time::UNIX_EPOCH;
 /// files chain through v2 to this shape - because the user's own catalogue sits on
 /// disk at v1 and refusing it would throw away 19 258 rows. A file NEWER than this
 /// build is still refused: we cannot know what it holds.
-pub const SCHEMA_VERSION: i64 = 7;
+pub const SCHEMA_VERSION: i64 = 8;
 
 /// Default DB file name, used when WGT_DB does not point somewhere else.
 pub const DB_FILE_NAME: &str = "wow-goldtool.sqlite";
@@ -87,6 +87,17 @@ pub const SCHEMA_SQL: &str = concat!(
     "message TEXT, updated_at INTEGER, error TEXT",
     ");",
     "CREATE TABLE price_history (seq INTEGER PRIMARY KEY, item_id INTEGER, sampled_at INTEGER, price_min INTEGER, price_market INTEGER);",
+    // The v8 recipe table (ADR 0021): one row per craft-recipe the fetch stage
+    // wrote, keyed by its spell id, joined to item only BY VALUE at the door
+    // (spell ids and item ids are different namespaces - the measured forever
+    // beta uses spell_id 1283400 for what classic item 728 shows; only the
+    // crafted_item_id column names an item). reagents_json keeps the dataset's
+    // reagent array as bytes - the same "the DB gets the bytes" rule raw_json
+    // rides - and the door resolves each reagent item_id through the item rows
+    // it already owns. This text must stay byte-identical to the CREATE inside
+    // SQL_MIGRATE_TO_V8 below: one table, two doors.
+    "CREATE TABLE recipe (spell_id INTEGER PRIMARY KEY, profession TEXT, recipe_name TEXT, crafted_item_id INTEGER, crafted_item_name TEXT, skill_required INTEGER, skill_tier TEXT, trivial_low INTEGER, trivial_high INTEGER, reagents_json TEXT, learned_json TEXT, acquisition TEXT, acquisition_note TEXT, source TEXT);",
+    "CREATE INDEX recipe__crafted ON recipe (crafted_item_id);",
     "CREATE INDEX item__name_lc ON item (name_lc);",
     "CREATE INDEX price_history__item ON price_history (item_id);",
     "CREATE INDEX item__detail ON item (detail_synced_at);",
@@ -221,6 +232,18 @@ pub const SQL_MIGRATE_TO_V6: &str = concat!(
 pub const SQL_MIGRATE_TO_V7: &str = concat!(
     "ALTER TABLE item ADD COLUMN price_now_at INTEGER;",
     "ALTER TABLE item ADD COLUMN price_now_missing_at INTEGER;",
+);
+
+/// The v7 -> v8 step (v0.10.0, ADR 0021): the recipe table arrives. NOT another
+/// ALTER on item - recipes are not items: the join measured this release is BY
+/// VALUE (crafted_item_id names an item row; spell_id lives in the spell
+/// namespace and joins nothing on disk yet). CREATE + index are the whole
+/// delta, additive again: existing rows, stamps and cursors keep their
+/// meaning, and the fresh build's SCHEMA_SQL block spells the SAME table text.
+/// A file that never ran the recipes stage simply holds zero rows here.
+pub const SQL_MIGRATE_TO_V8: &str = concat!(
+    "CREATE TABLE recipe (spell_id INTEGER PRIMARY KEY, profession TEXT, recipe_name TEXT, crafted_item_id INTEGER, crafted_item_name TEXT, skill_required INTEGER, skill_tier TEXT, trivial_low INTEGER, trivial_high INTEGER, reagents_json TEXT, learned_json TEXT, acquisition TEXT, acquisition_note TEXT, source TEXT);",
+    "CREATE INDEX recipe__crafted ON recipe (crafted_item_id);",
 );
 
 /// Marking an id as "the upstream has no forever record for it" (v0.5.3). The row
@@ -540,10 +563,11 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
             // intact), so refusing ANY older stamp would throw away a full catalogue
             // on the excuse of a schema bump. v1 -> v2 is v0.5.3's ALTER, v2 -> v3 is
             // the v0.6.0 batch, v3 -> v4 is v0.8.0's ALTERs, v4 -> v5 is v0.9.0's pair,
-            // v5 -> v6 was v0.9.5's trio (ADR 0016), v6 -> v7 is this build's stamp
-            // pair (ADR 0017's ALTERs) - all additive, so existing rows, stamps and
-            // the cursor in sync_state keep their meaning. Anything newer or foreign
-            // keeps the honest refusal below.
+            // v5 -> v6 was v0.9.5's trio (ADR 0016), v6 -> v7 was v0.9.6's stamp
+            // pair (ADR 0017's ALTERs), v7 -> v8 is this build's recipe table
+            // (ADR 0021's CREATE + index) - all additive, so existing rows, stamps
+            // and the cursor in sync_state keep their meaning. Anything newer or
+            // foreign keeps the honest refusal below.
             match version {
                 1 => {
                     match bind_sql(conn, SQL_ADD_MISSING_COLUMN, [].to_vec(), 0) {
@@ -567,6 +591,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                         Ok(_) => {},
                     }
                     match conn.execute_batch(SQL_MIGRATE_TO_V7) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V8) {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
@@ -596,6 +624,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V8) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
                     match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
                         Err(problem) => return Err(problem),
                         Ok(_) => return Ok(()),
@@ -618,6 +650,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V8) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
                     match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
                         Err(problem) => return Err(problem),
                         Ok(_) => return Ok(()),
@@ -636,6 +672,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V8) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
                     match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
                         Err(problem) => return Err(problem),
                         Ok(_) => return Ok(()),
@@ -650,6 +690,10 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V8) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
                     match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
                         Err(problem) => return Err(problem),
                         Ok(_) => return Ok(()),
@@ -657,6 +701,20 @@ pub fn check_schema(conn: &Connection) -> AppResult<()> {
                 },
                 6 => {
                     match conn.execute_batch(SQL_MIGRATE_TO_V7) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
+                    match conn.execute_batch(SQL_MIGRATE_TO_V8) {
+                        Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
+                        Ok(_) => {},
+                    }
+                    match meta_set(conn, "schema_version".to_string(), format!("{}", SCHEMA_VERSION)) {
+                        Err(problem) => return Err(problem),
+                        Ok(_) => return Ok(()),
+                    }
+                },
+                7 => {
+                    match conn.execute_batch(SQL_MIGRATE_TO_V8) {
                         Err(problem) => return Err(AppError::db(format!("migration rejected: {}", problem))),
                         Ok(_) => {},
                     }
