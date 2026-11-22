@@ -5,6 +5,94 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-21 · v0.9.6 — the live min buyout: ADR 0016's first producer, and the door that answers NOW
+
+### What forced it — the door that was always live
+
+ADR 0016 carved `price_min_now` and REJECTED writing it "because no door has EVER answered those
+words". True of the detail door — and it stopped being true the moment the TOOLTIP door was
+re-asked. Measured live 2026-11-21 with the tool's own UA: id 25 answers `fields.price` `{min
+149, market 1200, available 5→7, realms 3, scope "WoW Forever Normal Alliance"}` TWICE in one day
+at its own `updated_at 16:25:03Z → 22:25:10Z` — the door moves its own numbers; ids 202/237/763,
+whose STORED copies carried NO price at all, answer `5000/3500/4425` — the live min moves APART
+from `price_min` ON THE SAME record, which is ADR 0016's two-columns rule with evidence instead
+of an assertion; and id 200 answers `fields.price` as **literal NULL** while its own copy says
+"Lowest buyouts" — the door's OWN third state: "we looked, the AH offers NOTHING right now".
+Upstream's OWN developers page (docs/API.md's source of truth) lists exactly FOUR doors and states
+tooltips cache ~5 min "because they carry a live Auction House price". The tooltip door IS the
+live door — and the crawl already owns it (ADR 0010's copy stage), so the refresh rides the SAME
+door the copy came from, not the detail door at its own cache rhythm.
+
+### The decision, and what was rejected
+
+`sync --stage price`, a FIFTH stage mirroring every crawl discipline (full text in ADR 0017):
+pending = COPY EXISTS + never written + never checked-empty, once per record EVER; the third
+state marks `price_now_missing_at`; `price_now_at` is OUR ask time while the door's `updated_at`
+TEXT is NOT stored (two stamps of one fact — ours says when we looked, recorded); NO
+If-None-Match (a 304 would answer "unchanged since a read that NEVER saw this field" — the door's
+server cache is what keeps it polite); fresh writes sample NOTHING (ADR 0007's sample stays on
+the detail write — re-asking must not mint history points); the value reads through the MODEL
+mirror `Tooltip.fields → Option<TooltipFields>` with ONLY `price` typed (serde ignores the other
+25 measured keys — the v0.8.0 promise keeps its teeth). Rejected and recorded: re-asking the
+detail door; storing the door's own timestamp; sampling on refresh; inventing producers for the
+OTHER two homes — measured NEGATIVES keep them reserved: no vendor-buy key or door anywhere
+(4 602 copies' 28-key set holds `vendor_sell` only, four doors upstream), the only upstream
+"can be bought" signal is its own flavor prose on exactly ONE copy (id 247786), ZERO trend words
+in 19 258 rows (all 20 "volume" hits are book titles). Money rides the live copper (ADR 0015),
+auction COUNTS never get money, and the search/stats doors stay UNCHANGED (sort stays `price_min`).
+
+### Chain
+
+`9f794e4` feat(db,cli) (hop 6→7 AND the whole stage — pending rule, `SQL_SET_PRICE_NOW`/`SQL_MARK_PRICE_NOW_MISSING`
+writes, `TooltipFields`, dispatch, usage: every constant has its consumer in this commit; the
+bent "one logical change" rule here, SAID so: the planned separate `feat(db)` hop commit was
+never made) → `55f58f8` test(fixture) (the tooltip door answers the MEASURED `fields.price`
+shapes: 25/60 a full block moving with the fixture's RUN, 40 the whole block literal null — the
+fixture twin of live id 200) → `d3d004a` test(fixture) (the first fix moved ONLY the comment —
+the rerun died with the same `NameError`: recorded, not swept) → `5c77769` test(fixture) (the
+move lands; file compiles; TOOLTIP_PAGES follows the definition) → `1a281e3` fix(sync) (the
+null-price third state COUNTS — see below) → `4cfd7a2` feat(db,cli) (card door reads the pair
+back + money sibling, getter+caller same commit else FOUR would break) → `b1b2c8f` feat(ui)
+(the card's live money row, note reworded; gui.rs READ before the claim: the window gains
+nothing) → `51121c9` ci (31 → 33 steps + plant one, replayed green BEFORE committing) →
+`b920e7d` chore (banner 0.9.6, Cargo.lock rides) → this record carries the tag.
+
+### Bends, recorded where they stand — nothing swept
+
+* **The report lied, and the product with it** (`fix(sync)`): the first mechanism run STAMPED the
+  null-price row (measured: `price_now_missing_at 1795307172` on disk) but answered `missing:0`
+  and lost its note — the stamp existed, the counter did not move. Fixed the same breath,
+  re-measured `missing:1` + "; 1 answered no auction price now and are checked as
+  price-less-at-ask-time".
+* **The fixture broke its own mechanism** (two commits, both honest): giving the tooltip door
+  `fields.price` answers referencing `RUN` died at import (`NameError`) because a dict LITERAL
+  evaluates where the v0.3.0 detail handler's REQUEST function never did — and the first fix
+  commit moved only the comment/sentence while the rerun died with the SAME error; the second
+  carried the actual move. The chain carries both, tags stayed put, nothing was ever pushed
+  broken (the local mech measurement is the only witness).
+* **The mirror grew a field with no reader**: the first build's FIFTH warning named `vendor_sell`
+  unread in `TooltipFields` — trimmed the same breath (house rule: a mirror entry without a
+  reader is dead code). Every build through the chain answers the FOUR named warnings.
+
+### Verification, pre-tag — the hop, the stage, the reader
+
+| probe | answer |
+| ----- | ------ |
+| hop 6 → 7, schema-6 scratch copy | additive ALTER pair, stamps NULL everywhere, rows/copper intact, SECOND `status` BYTE-IDENTICAL; fresh DB BORN at 7, pair BEFORE `raw_json`; pinned v0.8.1 refuses the 7-file honest (exit 4 "wants 4", file untouched) |
+| stage, fresh fixture port 9204 (fresh DB mech096d) | rc 0, requests 3, written 2 (`price_min_now 16365/15365` against stored `price_min 17365` on the SAME rows — the live value differs from the stored copy's, measured), row 40 → `price_now_missing_at 1795307172`, value NULL; second press requests 0, `complete true` — once-per-record holds end to end |
+| stage after `fix(sync)`, port 9205 | `missing:1` + the note the counter now feeds — the lie above is GONE in the answer |
+| pending rule on the mirror's rows | 25/40/60 pending; 12809 (tooltip 404, no copy) NOT pending; 127555 (no detail stamp) not pending — the rule points where the copy exists, measured |
+| card door, pre-reader binary vs new, SAME DB | added keys EXACTLY `price_min_now`/`price_min_now_money`, removed NOTHING, zero drift: live `16190 ↔ 1g 61s 90c` beside stored `17190 ↔ 1g 71s 90c` — the money formatter rides the live copper; `price_now_at` stays off the wire (recorded) |
+| CI replay, driver generated FROM the committed block (port-stripped compare EQUAL 33/33), fresh port 9207 + fresh DB | **33/33 rc 0, plant rc 0**: press 1 requests 3 / written 2 (live 16 175/15 175 vs stored 17 175) / missing 1 + note; press 2 ZERO asks; `item 25 --cached` reads the pair (`16175` + `1g 61s 75c`), the manual card answers null/null; `vendor_buy`/`price_trend_normal` NULL on EVERY row; fresh CI file BORN at 7 |
+| builds through the chain | exit 0 every commit, the FOUR named warnings the whole way; the fixture RUN-order break above is fixture-side, not build-side |
+
+### CI ladder — the pending verdict folds here
+
+**44962724652** (head `8e79e97…`, v0.9.5's CI-history fold push): **success, 5/5 in 8 min 37 s**
+(23:37:44Z → 23:46:21Z), attempt 1, no supersession — the verdict ADR 0016 left pending, folded
+FORWARD here. This release's own chain+tag push and fold pushes land FORWARD in the folds below
+this record; tags stay put (`v0.9.5` → `23ceb4e`, `v0.9.6` → this record's commit).
+
 ## 2026-11-21 · v0.9.5 — the price homes: FOUR columns own FOUR questions, carved now, filled later
 
 ### What forced it — the user's own test

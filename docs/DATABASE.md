@@ -15,31 +15,33 @@ or stale-schema file, or `execute_batch(SCHEMA_SQL)` writes it and stamps
 `schema_version` into `meta`. The schema is idempotent, so a fresh process (CLI or GUI)
 can always attach; `open_db` and `open_db_at` are the two doors into that helper.
 
-**Five stale shapes are migrated instead of refused** (v0.9.0 grew the chain to four;
-v0.9.5 grew it to five again): the file on disk saying `schema_version = 1` (the user's own
-catalogue, 19 258 rows, still never touched by a refusal), `2`, `3`, `4` or `5` differs from
-this build by additive steps only, so `check_schema` chains them: v1 gets v0.5.3's one
-`ALTER` first, v1/v2 get the v0.6.0 batch, v1/v2/v3 the v0.8.0 batch of eight, v1..v4 the
-v0.9.0 batch of two `ALTER`s (`tooltip_text`/`tooltip_lc`, the readable twin, ADR 0012),
-and v1..v5 all get THIS build's trio — `vendor_buy INTEGER`, `price_min_now INTEGER`,
-`price_trend_normal INTEGER` (ADR 0016: carved, never written), with the `meta` stamp
-moving to `6` in the same breath (measured 2026-11-21: the user's own file went 5 → 6
-on the first door that opened it, 19 258 rows / 4 231 vendor_sell / 4 285 samples intact,
-and a SECOND open re-migrated nothing). Refusing any file would throw away a 19 258-row
-catalogue on the excuse of a schema bump. A migrated file's **column order differs from a
-fresh file's** (ALTER appends, SCHEMA_SQL lists the new columns mid-table — the trio sits
-BEFORE `raw_json` in a fresh CREATE and AFTER `deleted_at`… at the END in a migrated file) —
-every reader in the code names columns explicitly and nothing reads positions. A file
-**newer** than this build is still refused — that direction cannot be guessed at
-(measured consequences: a pinned v0.7.0 binary refuses a schema-4 file, and a pinned v0.8.1
-binary refuses THIS release's schema-6 file with `database on disk uses schema 6, this
-build wants 4`, file untouched).
+**Six stale shapes are migrated instead of refused** (v0.9.0 grew the chain to four;
+v0.9.5 grew it to five; v0.9.6 grew it to six again): the file on disk saying `schema_version
+= 1` (the user's own catalogue, 19 258 rows, still never touched by a refusal), `2`, `3`, `4`,
+`5` or `6` differs from this build by additive steps only, so `check_schema` chains them: v1
+gets v0.5.3's one `ALTER` first, v1/v2 the v0.6.0 batch, v1/v2/v3 the v0.8.0 batch of eight,
+v1..v4 the v0.9.0 batch of two `ALTER`s (`tooltip_text`/`tooltip_lc`, the readable twin, ADR
+0012), v1..v5 the v0.9.5 trio (ADR 0016: carved, and `price_min_now` FILLED from v0.9.6 by
+ADR 0017's producer), and v1..v6 all get THIS build's stamp pair — `price_now_at INTEGER`,
+`price_now_missing_at INTEGER` (ADR 0017: the price refresh stage's own three states), with
+the `meta` stamp moving to `7` in the same breath (measured pre-tag on a schema-6 scratch
+copy: the pair lands NULL, rows intact, a SECOND open re-migrates NOTHING; the user's own
+6-file hop lands FORWARD in the post-tag verification fold). Refusing any file would throw
+away a 19 258-row catalogue on the excuse of a schema bump. A migrated file's **column order
+differs from a fresh file's** (ALTER appends, SCHEMA_SQL lists the new columns mid-table —
+the trio sits BEFORE `raw_json` in a fresh CREATE and AFTER `deleted_at`… at the END in a
+migrated file, and v0.9.6's pair sits BETWEEN them) — every reader in the code names columns
+explicitly and nothing reads positions. A file **newer** than this build is still refused —
+that direction cannot be guessed at (measured consequences: a pinned v0.7.0 binary refuses a
+schema-4 file, a pinned v0.8.1 binary refuses THIS release's schema-7 file with `database on
+disk uses schema 7, this build wants 4`, file untouched — and it refused the 6-file the same
+way through v0.9.5).
 See [ADR 0006](./DECISIONS/0006-checked-missing-third-state.md),
 [ADR 0008](./DECISIONS/0008-icon-storage-third-stage.md),
 [ADR 0010](./DECISIONS/0010-manual-layer-and-tooltip-copy.md) and
 [ADR 0016](./DECISIONS/0016-the-price-homes.md).
 
-## Schema (`schema_version = 6`)
+## Schema (`schema_version = 7`)
 
 ```sql
 CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
@@ -71,16 +73,18 @@ CREATE TABLE item (
   manual_overrides TEXT,            -- one JSON ARRAY {field,value,at} - merged LAST on every write
   edited_at INTEGER,                -- the last field a user stated
   deleted_at INTEGER,               -- the tombstone every query hides
-  vendor_buy INTEGER,               -- RESERVED v0.9.5 (ADR 0016): what a vendor BUYS (NULL = no
-  price_min_now INTEGER,            --   producer has EVER written it - NOT "looked up, found nothing")
-  price_trend_normal INTEGER,       --   the trio: vendor buy / CURRENT AH min buyout / historic "normal"
+  vendor_buy INTEGER,               -- RESERVED (ADR 0016): what a vendor BUYS - NULL = no producer
+  price_min_now INTEGER,            --   EVER wrote it; ADR 0017's measured NEGATIVES keep two
+  price_trend_normal INTEGER,       --   homes reserved (no vendor-buy door/key, no trend door)
+  price_now_at INTEGER,             -- the price refresh asked the LIVE door at this time (v0.9.6)
+  price_now_missing_at INTEGER,     -- or checked: the AH offered NOTHING now (fields.price NULL)
   raw_json TEXT                     -- verbatim detail payload, forward-compatible
 );
 
 CREATE TABLE watch (id INTEGER PRIMARY KEY, added_at INTEGER, note TEXT);
 
 CREATE TABLE sync_state (
-  kind TEXT PRIMARY KEY,            -- "list" | "detail" | "icons" | "tooltip"
+  kind TEXT PRIMARY KEY,            -- "list" | "detail" | "icons" | "tooltip" | "price"
   status TEXT,                      -- idle | complete | stopped | ceiling | partial | cancelled
   page INTEGER,                     -- absolute page cursor (list); 0 for the id-queue stages
   done INTEGER,                     -- records handled during the most recent run
@@ -355,6 +359,29 @@ No index for the trio (a guessed index for columns nothing queries is a plan, no
 measurement — ADR 0011's rule again), and the fresh-CREATE order (trio BEFORE `raw_json`)
 vs the ALTER order (appended at the END) is exactly why every reader names columns — the
 rule the v0.6.0 migration comment already states.
+
+### The live min buyout (v0.9.6, [ADR 0017](./DECISIONS/0017-the-live-min-buyout.md)): the FIRST producer, the door that answers NOW
+
+`sync --stage price` re-asks the TOOLTIP door for records that already hold a copy — measured
+live 2026-11-21 that door answers `fields.price` with a CURRENT min (id 25 `min 149` @ its own
+`updated_at 22:25:10`; ids 202/237/763 answering 5000/3500/4425 while their STORED copies carried
+NO price at all — the live value MOVES APART from `price_min` ON THE SAME record), and its own
+third state (id 200 answers `fields.price` as literal NULL: "looked, the AH offers NOTHING
+right now"). The stage writes `price_min_now` + the pair above (`SQL_SET_PRICE_NOW` /
+`SQL_MARK_PRICE_NOW_MISSING`, row-guarded like every stage-2 write), and `SQL_PENDING_PRICE`
+(stats.rs, the twin of the tooltip/icon rules) walks COPY EXISTS + never written + never
+checked-empty, manual rows and tombstones refused, `id ASC`: one request per copied record EVER
+(measured: a second press asks zero). `price_now_at` is OUR ask time — the door's own
+`updated_at` TEXT is deliberately NOT stored (two stamps of one fact; recorded in ADR 0017).
+Fresh writes sample NOTHING: ADR 0007's sample stays on the DETAIL write. The card door grew
+the value + money sibling (`SQL_PRICE_MIN_NOW_OF`/`price_min_now_of` + `card_price_now_parts`,
++2 keys — this release's documented wire delta, NOT byte-identity), while `vendor_buy` and
+`price_trend_normal` stay NULL: ADR 0017 measured there is NO vendor-buy door or key (4 602
+copies' 28-key set holds `vendor_sell` only, upstream lists exactly FOUR doors; the only
+"can be bought" signal is flavor prose on exactly ONE copy, id 247786) and ZERO trend words in
+19 258 rows (all 20 "volume" hits are book titles). NULL in THOSE two still means "no producer
+has ever written it"; in `price_min_now` it now splits into refreshed / checked-price-less /
+never-asked, the ADR 0006 pattern with its OWN stamp pair.
 
 
 ## Query recipes

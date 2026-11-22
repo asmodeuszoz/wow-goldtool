@@ -1,6 +1,6 @@
 # TheWoWDB API — notes we rely on
 
-Source of truth: <https://thewowdb.com/developers/> (checked **2026-11-19**). No API key.
+Source of truth: <https://thewowdb.com/developers/> (checked **2026-11-19** and again **2026-11-21** — exactly FOUR doors both times: list, record, search, tooltip). No API key.
 
 ## Base shape
 
@@ -197,9 +197,23 @@ come from, and it is why the crawl grew a FOURTH door at all ([ADR 0010](./DECIS
 * `fields` (measured 26 keys: `armor, binding, build, classes, effects, faction_prices, flavor,
   icon_url, id, item_level, item_set, item_subtype, item_type, kind, name, price, quality,
   required_level, slot, socket_bonus, sockets, stats, unique, vendor_sell, version, version_label,
-  weapon`) mirrors the detail record's own column set, so the tool keeps it as an unparsed `Value`
-  and reads ONLY `html` — a key upstream adds cannot break a build, and nothing here claims a
-  second source of truth for a column the detail row already owns.
+  weapon`) mirrors the detail record's own column set. The copy stage (v0.8.0) read ONLY `html`;
+  FROM v0.9.6 (ADR 0017) the tool types the object it NEEDS — `Tooltip.fields` is the mirror
+  `TooltipFields` with ONLY `price` typed, and serde still ignores every key with no reader, so
+  "a key upstream adds cannot break a build" keeps its exact teeth. Nothing here claims a second
+  source of truth for a column the detail row already owns.
+* `fields.price` — measured LIVE 2026-11-21 (the door the REFRESH stage now re-asks, v0.9.6): the
+  block carries `available, market, min, realms, region, scope, updated_at`. Id 25 asked TWICE in
+  one day answered `{available 5→7, market 1200, min 149, realms 3, region "us", scope "WoW
+  Forever Normal Alliance", updated_at 16:25:03Z → 22:25:10Z}` — the SAME door, its OWN words
+  moving: this door answers NOW-ness, and upstream's OWN developers page says tooltips cache ~5
+  min "because they carry a live Auction House price". The block has a THIRD state: id 200
+  answered `fields.price` as literal **NULL** while its own copy still says "Lowest buyouts" —
+  the door looked, the AH offers NOTHING right now. Measured apart, not asserted: ids 202/237/763
+  answer `min 5000/3500/4425` while their STORED detail copies carry NO price at all, so the live
+  min (`price_min_now`, ADR 0016's home) moves apart from the aging `price_min` ON THE SAME
+  record. The detail door carries the same block at ITS own cache rhythm (measured `detail/237`
+  @ `22:25:08`) — the refresh stage rides the TOOLTIP door, the one the crawl already owns.
 * Cost: **≈ one request per record whose detail answered** (≈ 19 258 tooltip requests ≈ 2.7 h
   at the measured 2/s), staged, resumable, cancellable like the detail and icon stages. The
   pending rule requires a detail stamp, because asking this door for an id upstream lacks costs

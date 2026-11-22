@@ -6,6 +6,68 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.9.6 — the live min buyout: ADR 0016's first producer, one live ask per copied record · 2026-11-21 · tag `v0.9.6`
+
+Added
+
+- **The FIFTH crawl stage, `sync --stage price`** (ADR 0017): one live ask per record that ALREADY
+  holds a tooltip copy, and the door is the TOOLTIP door itself — measured live 2026-11-21 it
+  answers `fields.price` with a CURRENT min (id 25 `min 149` @ its own `updated_at 22:25:10`; ids
+  202/237/763 answer 5000/3500/4425 while their STORED copies carried NO price at all, so the
+  live value moves APART from `price_min` ON THE SAME record — ADR 0016's two-columns rule with
+  evidence). It writes ADR 0016's reserved `price_min_now` plus its OWN stamp pair (`price_now_at`
+  = our ask time; the door's `updated_at` TEXT is deliberately not stored — two stamps of one
+  fact, ours says when WE looked). Schema **6 → 7**, additive ALTERs, `check_schema` now chains
+  v1..v6 up to 7.
+- **The pending rule is the crawl twin** (copy EXISTS — only copied records have something to
+  re-ask, ADR 0010's measured reason — AND never written AND never checked-empty, no manual rows,
+  no tombstones, `id ASC`): **one request per copied record, EVER** (measured: a second press
+  asks ZERO, `complete true`). NO `If-None-Match` even though the copy stage stored an ETag:
+  `fields.price` was NEVER parsed before, so a 304 would answer "unchanged since a read that
+  never saw this field" — the door's own ~5-min server cache keeps the pass polite. Fresh
+  writes sample NOTHING: ADR 0007's price sample stays on the DETAIL write (the trend that
+  would eat denser samples is later work). The stage counts and stamps the measured third
+  state (live id 200 answers `fields.price` as literal NULL — "looked, the AH offers NOTHING
+  right now" → `price_now_missing_at`, value NULL, never invented).
+- **The card door grows the live pair** as top-level siblings: `price_min_now` + `price_min_now_money`
+  (ADR 0015's money formatter rides the live copper; hover keeps the exact copper; `price_available`/`price_realms`
+  stay auction COUNTS with no money), and the card UI grows ONE money row beside its AGED stored
+  rows (measured pair: live `16190 ↔ 1g 61s 90c` against stored `17190 ↔ 1g 71s 90c` on the
+  same row). Search/stats doors stay UNCHANGED (the sort column stays `price_min`, the live-sort
+  knob is later work); `gui.rs` was read before the claim — the window gains nothing (it draws
+  no card, reads no column).
+
+Fixed
+
+- **The third state COUNTS** (`fix(sync)`): the first mechanism run STAMPED the null-price row
+  but the report answered `missing:0` — the stamp existed, the counter did not, so the report
+  lied about the door's third state; counted the same breath, re-measured `missing:1` + its note.
+
+Honest about what did NOT move
+
+- **`vendor_buy` and `price_trend_normal` stay reserved on MEASURED negatives**: no vendor-buy door
+  or key anywhere (4 602 detail copies answer the SAME 28-key set, `vendor_sell` only; upstream's
+  OWN developers page lists exactly FOUR doors — list, record, search, tooltip), the only upstream
+  "can be bought" signal is its own flavor prose `"Available from enchanting vendors."` on exactly
+  ONE copy (id 247786) — prose is not a price; ZERO trend words in 19 258 rows (all 20 "volume"
+  hits are `Volume I/II/III` book titles) and no trend door. NULL in THOSE two still means
+  "no producer has ever written it".
+- **The card door is NOT byte-identical this release: +2 keys** — that is THIS release's documented
+  wire delta; v0.9.5's byte-identity claim stays scoped to that release's hop. `price_now_at` stays
+  OFF the wire until a reader wants the when (recorded).
+- bends recorded, not swept: the hop and the stage landed in ONE commit (`9f794e4 feat(db,cli)` —
+  the planned separate `feat(db)` hop commit was never made, the "one logical change" rule bent
+  and SAID so); the fixture's `RUN`-before-dict move needed TWO commits (the first only moved
+  words — the rerun died with the same `NameError` — the second carried the actual move); the
+  mirror shipped an unread `vendor_sell` field named by the build's FIFTH warning, trimmed the
+  same breath (a mirror entry without a reader is dead code).
+- CI **grew 31 → 33** cargo steps + plant line one (the refresh press + its idempotent second
+  press), replayed **33/33 rc 0 + plant rc 0 BEFORE committing** on a driver generated from the
+  committed block (fresh port 9207, fresh scratch DB): press 1 requests 3 / written 2 at live
+  16 175/15 175 against stored 17 175 / missing 1 + note, press 2 ZERO asks. Post-tag audits
+  (mirror replay, pre-hop pairs, the exit-code map grown honestly, the pinned window, the user's
+  file 6 → 7) land FORWARD in the verification and CI folds.
+
 ## v0.9.5 — the price homes: FOUR columns own FOUR questions, carved now, filled later · 2026-11-21 · tag `v0.9.5`
 
 Added
