@@ -5,6 +5,84 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-22 · v0.10.1 — the paging doors ride one rule: `--offset` alone answers, twice
+
+### What forced it
+
+v0.10.0's post-tag exit map (ADR 0021's post-tag section, the map's own line) measured a
+defect class that lives on TWO doors, not one: `--offset` WITHOUT `--limit` composes
+`OFFSET ?` alone and SQLite REFUSES that — `search sword --offset 3` and `recipes --offset
+10` each answered rc **4** carrying the raw refusal `near "OFFSET": syntax error … OFFSET ?`.
+The recipe twin was recorded fresh; the search twin shows the class was BORN with v0.9.0's
+door and never measured until the map ran it today. Two truths shaped the fix: a door that
+says "skip N and show the REST" still has to emit a LIMIT token, and SQLite's OWN token for
+"no bound" is a NEGATIVE limit value — measured the same day on the DB this tool links
+(sqlite 3.54.1): `LIMIT -1 OFFSET 3` on a 10-row scratch table answered rows 4..10,
+IDENTICAL to the bare SELECT's tail. A patch era: no feature, no schema move, no new door.
+
+### The decision (ADR 0022, three parts)
+
+One `paging_clause(limit, offset)` in `query.rs` — ADR 0014's one-code-path rule restated
+(a door growing its own copy is a second, drifting truth); the negative limit rides SQLite's
+measured semantics rather than inventing a sentinel row-count (a second SELECT asking the DB
+how big the store is would add a query the door never needed) or an arbitrary cap (it would
+hide rows under a door that claims "the rest"); and the raw-SQL message class is killed at the
+COMPOSITION, not by a redaction filter invented for text the tool can no longer produce
+(ADR 0004's message rule, measuring-first).
+
+### Measured (pre-tag)
+
+* builds: exit 0, the FOUR named warnings (`PendingSql` privacy, unread `Tooltip` fields,
+  `open_db`, `catalogue`) every commit; the incremental-clear hard-link line is the FS
+  artifact of the clear-the-cache mechanic, not a fifth.
+* BEFORE, both doors, same machine same day (scratch DBs, both doors LOCAL — ZERO requests):
+  `search sword --offset 3` rc 4 with the raw clause; `recipes --offset 10` rc 4 with the raw
+  clause (12 recipe rows landed by `sync --stage recipes --fixture`, the fixture's own set).
+* AFTER, the same doors: `search paging --offset 4` rc 0 answering the 8-row TAIL (rows 5..12
+  of a 12-row store), `--offset 11` 1 row, `--offset 40` an EMPTY set rc 0 (never a 4 — the
+  door's no-row-past-the-end shape); `recipes --offset 10` 2 rows of `matching 12` (spell ids
+  3024/3023), `--offset 2` 10 rows, `--offset 12` empty rc 0, `--profession Alchemy --offset 1`
+  1 row of matching 2.
+* the PINNED pair (the v0.10.0 binary, worktree at the tagged tree `e4d3447`, vs the new binary
+  — ONE shared fresh fixture process, TWO fresh DBs): **22 DB-only doors BYTE-IDENTICAL**, and
+  the two paging doors show EXACTLY the rc delta **4 → 0**; BOTH DBs answer the same tallies
+  (schema 8, 5 items, 4 priced, 12 recipe rows — no schema delta behind the fix). The working
+  pair is byte-stable, md5-equal both sides: `recipes --limit 4 --offset 10` **1 629 B**,
+  `search sword --limit 4 --offset 4` **182 B**, `search sword --limit 4` **185 B**.
+* CI grew TWO steps (**41 → 43 step-lines** + plant one, verified by step-line parse and not by
+  the naive grep, which counts the new comment's own `cargo run --` mentions): `recipes --offset
+  10` + `search sword --offset 4`, ZERO requests added (both doors LOCAL). Fresh mirror measured
+  BEFORE the ci commit, driver generated from these very steps: **46/46 commands rc 0, ZERO
+  NONZERO** (`TOTAL_STEPS=46` = 43 step-lines + plant + fixture start + sleep), fresh fixture
+  process, fresh DB born 8; the two steps' rc delta measured against the pinned binary over the
+  SAME CI DB (pinned answers rc 4 with the raw clause, new answers rc 0 — `search sword --offset
+  4` reading `total 0` `hits []` because the store holds no sword row at that point, an empty
+  tail is the door's own shape and never a 4; `recipes --offset 10` reading 2 rows of matching
+  12). The fixture RUN's money pair `18908 ↔ 1g 89s 8c` rode the SAME steps (yesterday's `17371
+  ↔ 1g 73s 71c` moved because the fixture seeds prices per RUN — the rule (ADR 0015) did not).
+* limits kept: the real host saw NOTHING (every crawl door carried `--fixture`, the paging doors
+  are local); no UI line moved (ZERO webview lines across the chain — the rendered look stays
+  never-claimed by construction, no display here and nothing new to parse); no schema move, no
+  new dependency; `tests/__pycache__/` stays out of every commit (the .gitignore gap honored by
+  explicit paths).
+
+### Chain
+
+`9f4da68` fix(query) (the rule + the search door rides it) → `2a41ce3` fix(db) (the recipe
+door rides the SAME helper) → `9e009b8` ci (the two door steps) → this record carries the
+annotated tag `v0.10.1`. NO chore commit: the Cargo banner stays put at `0.10.0` through a
+patch chain — the same honest shape the v0.9.1 patch era left put, recorded not slipped.
+
+### CI ladder (folded as measured)
+
+**45042291654** (the v0.10.0 verification-fold push, head `c94f6b0`): **success, 5/5 in 9 min
+32 s** (16:10:04Z → 16:19:36Z — quality 1 m 57 s · linux 5 m 38 s · test 5 m 44 s · macos 2 m
+27 s · windows 9 m 29 s), ONE run id for that head, no CANCELLED sibling, no rerun — it landed
+WHILE this patch chain built (nothing was in flight at `9f4da68`'s first commit; the ordering
+fact recorded where it stands). Earlier run folded in v0.10.0's own fold: 45040598595. This
+record's chain+tag push starts the NEXT run, measured FORWARD in the NEXT record — the ladder
+never chases a tag, tags stay put (`v0.10.0` → `e4d3447`, `v0.10.1` → this record's commit).
+
 ## 2026-11-22 · v0.10.0 — the recipe doors: every job with every recipe, the second source fetched, read locally ever after
 
 ### What forced it

@@ -438,6 +438,17 @@ SELECT id, name, quality, quality_rank, price_min, price_market, price_available
  LIMIT ? OFFSET ?;
 ```
 
+The paging clause is ONE composition (v0.10.1, ADR 0022): a door that pages calls
+`paging_clause(limit, offset)`, which emits `LIMIT ?` alone, `LIMIT ? OFFSET ?`, or
+nothing — NEVER a bare `OFFSET ?` (SQLite refuses that outright: measured today, both
+paging doors answered rc 4 carrying `near "OFFSET": syntax error`). "No `--limit`
+given" means "the rest of the rows", and SQLite's OWN token for that is a NEGATIVE
+limit value: `LIMIT -1 OFFSET 3` answered rows 4..10 of a 10-row scratch table,
+IDENTICAL to the bare SELECT's tail (measured today on the DB this tool links, sqlite
+3.54.1) — so the rule rides SQLite's documented semantics instead of inventing a
+sentinel row-count or an arbitrary cap that would hide rows. The recipe door joins
+the SAME rule (ADR 0014: two doors, one clause).
+
 ```sql
 -- the count behind the same filter, so "showing 40 of 1250" cannot drift
 SELECT COUNT(1) FROM item WHERE name_lc LIKE ? ESCAPE '#' AND ...;

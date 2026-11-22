@@ -6,6 +6,61 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.10.1 — the paging doors ride one rule: `--offset` without `--limit` answers, twice · 2026-11-22 · tag `v0.10.1`
+
+A patch era: v0.10.0's post-tag map measured a defect class that lives on TWO doors and
+named the fix FORWARD; this chain is that fix. One composition rule, called by the two
+doors that page — no feature, no schema move, no new door.
+
+Fixed
+
+- **`--offset` WITHOUT `--limit` answered an error instead of rows — on BOTH paging doors.**
+  `search sword --offset 3` and `recipes --offset 10` answered rc **4** carrying SQLite's raw
+  refusal `near "OFFSET": syntax error … OFFSET ?`: SQLite refuses `OFFSET` unless a `LIMIT`
+  precedes it. The recipe twin was recorded in ADR 0021's post-tag section; the search twin
+  shows the class was BORN with v0.9.0's door and never measured until the v0.10.0 exit map
+  ran it today. One rule answers it twice (ADR 0014's one-code-path): `query.rs::paging_clause`
+  is the ONLY place a paging clause is written, `search_plan` and `recipes_rows` call it, and
+  "the rest of the rows" rides SQLite's OWN negative-limit token — measured today on the DB
+  this tool links (sqlite 3.54.1): `LIMIT -1 OFFSET 3` answers rows 4..10 of a 10-row scratch
+  table, IDENTICAL to the bare SELECT's tail. Measured after the fix (a 12-row scratch store
+  born by the DB's own writer, ZERO requests — both doors are local): `search paging --offset
+  4` answers the 8-row tail, `--offset 11` answers 1 row, `--offset 40` answers an EMPTY set
+  rc **0** (the door's no-row-past-the-end shape, never a 4); `recipes --offset 10` answers 2
+  rows of `matching 12` (spell ids 3024/3023), `--offset 2` answers 10, `--offset 12` answers
+  empty rc 0, `--profession Alchemy --offset 1` answers 1 of matching 2.
+- **The working pair did not move** (ADR 0022): `--limit 4 --offset 10` answers the SAME rows
+  before and after — measured md5-equal against the PINNED v0.10.0 binary over one shared fresh
+  fixture (`recipes --limit 4 --offset 10` 1 629 B both sides, `search sword --limit 4 --offset
+  4` 182 B both, `search sword --limit 4` 185 B both). The fix rides ONLY the broken composition.
+
+Changed
+
+- **The CI block grew TWO steps (41 → 43 step-lines + plant one)** so CI can SEE the fix:
+  `recipes --offset 10` + `search sword --offset 4`, ZERO requests added (both doors are LOCAL,
+  ADR 0012's rule, so the GET tallies cannot move). Fresh mirror measured BEFORE the block
+  landed, driver generated from these very steps: **46/46 commands rc 0, ZERO NONZERO**
+  (`TOTAL_STEPS=46`); the steps' rc delta measured BOTH binaries over the CI DB — rc **4**
+  pinned (raw refusal) → rc **0** now (`search sword --offset 4` answers `total 0` + `hits []`:
+  the store holds no sword row there, and an empty tail is the door's own shape, never a 4;
+  `recipes --offset 10` answers 2 rows of `matching 12`).
+- ADR 0022 records the rule (SQLite's measured negative-limit semantics, and the two shapes
+  REJECTED instead: a second SELECT asking the DB how big the store is would add a query the
+  door never needed, an arbitrary cap would hide rows); ADR 0021's post-tag section gains the
+  CLOSED pointer; `docs/DATABASE.md` states the composition rule beside the search SQL it
+  already documents. NO redaction parser was invented for a raw-SQL message class that can no
+  longer occur (inventing a decoder for text the tool can no longer produce is invention) —
+  ADR 0004's message rule is satisfied by composition, not by a filter.
+- Money (ADR 0015) rides the SAME steps untouched: the fixture RUN's pair `18908 ↔ 1g 89s 8c`
+  beside every reagent copper; yesterday's `17371 ↔ 1g 73s 71c` moved because the fixture seeds
+  prices per RUN — recorded honestly, the rule did not. The README banner moves to v0.10.1;
+  the Cargo banner stays put at `0.10.0` through a patch chain (the same honest shape the v0.9.1
+  patch era left put), schema stays `8`.
+
+Refs: ADR 0022, ADR 0021's post-tag defect record, ADR 0014's one-code-path rule,
+ADR 0012's local-door rule, ADR 0004's exit-code contract, ADR 0015's money rule,
+[docs/DEVLOG.md](./docs/DEVLOG.md), tag `v0.10.1`.
+
 ## v0.10.0 — the recipe doors: every job with every recipe, icons + money beside the materials · 2026-11-22 · tag `v0.10.0`
 
 Added

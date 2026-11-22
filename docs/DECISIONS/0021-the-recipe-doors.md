@@ -207,3 +207,9 @@ shows it was BORN with v0.9.0's door, never measured until now. One fix FORWARD 
 emit `LIMIT ? OFFSET ?` with the door's default limit when `--offset` rides alone, and keep the
 raw-SQL text out of a door's answer (ADR 0004's message rule). Nothing here is swept under a
 tag; the tag stayed put while the fix stays FORWARD.
+
+CLOSED by ADR 0022 in v0.10.1 (the patch chain `9f4da68` fix(query) + `2a41ce3` fix(db) +
+`9e009b8` ci, tag `v0.10.1`): ONE composition writes the clause for both doors, and the
+rc 4 → rc 0 delta on both door steps was measured against the PINNED v0.10.0 binary over
+one shared fresh fixture (22 DB-only doors BYTE-IDENTICAL, the two paging doors show the
+delta). No redaction parser was invented for a class that can no longer occur.
