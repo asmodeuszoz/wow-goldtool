@@ -9,11 +9,11 @@ use crate::errors::AppError;
 use crate::errors::AppResult;
 use crate::errors::ErrorKind;
 
-use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_b64_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, money_of, next_manual_id, open_db_at, price_min, price_market, price_min_now_of, raw_json_of, refresh_twins, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, tooltip_text_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, RefreshTally, SyncState, unix_now};
+use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_b64_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, money_of, next_manual_id, open_db_at, price_min, price_market, price_min_now_of, raw_json_of, recipes_count, recipes_rows, refresh_twins, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, tooltip_text_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, RecipeRow, RefreshTally, SyncState, unix_now};
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
-use crate::sync::{sync_icons, sync_detail, sync_list, sync_prices, sync_tooltips, CancelFlag, SyncReport};
+use crate::sync::{sync_icons, sync_detail, sync_list, sync_prices, sync_recipes, sync_tooltips, CancelFlag, SyncReport};
 use crate::wowdb::{build_client, get_json, item_url, search_url, ApiResponse, HttpKind, RateBudget, classify, Client, ENV_FIXTURE_KEY};
 use crate::models::{ItemDetail, ManualEdit, SearchResponse};
 
@@ -27,7 +27,7 @@ use std::env::set_var;
 /// What the CLI can answer. Keeping the list here means an unknown verb becomes a
 /// usage error that names what the user actually typed.
 pub fn usage_text() -> String {
-    return "usage: status | sync --stage list|detail|icons|tooltip|price [--budget N] [--ids A,B,C] [--watch] | search TEXT [--icons --where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id|price-now --limit N --offset N] | stats [--icons --limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | status [--db PATH] [--fixture URL]".to_string();
+    return "usage: status | sync --stage list|detail|icons|tooltip|price|recipes [--budget N] [--ids A,B,C] [--watch] | search TEXT [--icons --where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id|price-now --limit N --offset N] | stats [--icons --limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | recipes [--profession NAME] [--limit N] [--offset N] | status [--db PATH] [--fixture URL]".to_string();
 }
 
 /// The verbs of one invocation plus its flags. Unknown flags are kept rather than
@@ -56,6 +56,10 @@ pub struct Invocation {
     /// doors the caller bounds with `--limit` and the default JSON stays exactly as
     /// small as it is today.
     pub icons: bool,
+    /// The recipe door's filter (v0.10.0, ADR 0021): the dataset's OWN profession
+    /// word, measured per file (`Cooking`, `First Aid`, ...). No invention here -
+    /// the door only ever compares it against values the fetched rows carry.
+    pub profession: Option<String>,
     pub bad: String,
 }
 
@@ -73,6 +77,7 @@ pub fn takes_value(flag: String) -> bool {
     if flag == "--where" { return true }
     if flag == "--max-level" { return true }
     if flag == "--ids" { return true }
+    if flag == "--profession" { return true }
     return false;
 }
 
@@ -115,6 +120,7 @@ pub fn parse_invocation(args: Vec<String>) -> Invocation {
         watch: false,
         cached: false,
         icons: false,
+        profession: None,
         bad: "".to_string(),
     };
     let mut index: usize = 0;
@@ -172,6 +178,9 @@ pub fn parse_invocation(args: Vec<String>) -> Invocation {
             }
             if token == "--type" {
                 out.type_name = Some(value.clone());
+            }
+            if token == "--profession" {
+                out.profession = Some(value.clone());
             }
             if token == "--budget" || token == "--limit" || token == "--offset" || token == "--max-level" {
                 match as_int(value.clone()) {
@@ -276,6 +285,44 @@ pub fn json_hits(rows: Vec<Hit>) -> String {
         Err(_) => return "[]".to_string(),
         Ok(text) => return text,
     }
+}
+
+pub fn json_recipes(rows: Vec<RecipeRow>) -> String {
+    match to_string(&rows) {
+        Err(_) => return "[]".to_string(),
+        Ok(text) => return text,
+    }
+}
+
+/// The LOCAL recipe door (v0.10.0, ADR 0021): reads the fetched rows and joins
+/// them BY VALUE through the item rows this DB already owns - one read, ZERO
+/// requests (the local-door rule ADR 0009/0012 set for search and stats). An
+/// empty table is not_found (rc 4, ADR 0004's no-invented-answers rule): the
+/// door says the stage has never run rather than printing a recipe from air.
+pub fn cmd_recipes(inv: &Invocation) -> AppResult<String> {
+    let conn: Connection = match open_at(inv) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    let total: i64 = match recipes_count(&conn, inv.profession.clone()) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    if total == 0 {
+        return Err(AppError::not_found("the recipe table holds no rows (for this filter): run sync --stage recipes to pull the files (ADR 0021)".to_string()));
+    }
+    let rows: Vec<RecipeRow> = match recipes_rows(&conn, inv.profession.clone(), inv.icons, inv.limit, inv.offset) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    let mut parts: Vec<String> = [].to_vec();
+    parts.push(fragment("profession".to_string(), match to_string(&inv.profession.clone()) {
+        Err(_) => "null".to_string(),
+        Ok(text) => text,
+    }));
+    parts.push(fragment("matching".to_string(), format!("{}", total)));
+    parts.push(fragment("recipes".to_string(), json_recipes(rows.clone())));
+    return Ok(object(parts));
 }
 
 pub fn json_report(report: SyncReport) -> String {
@@ -751,7 +798,9 @@ pub fn cmd_sync(inv: &Invocation) -> AppResult<String> {
             if inv.stage != "icons" {
                 if inv.stage != "tooltip" {
                     if inv.stage != "price" {
-                        return Err(AppError::usage(format!("sync wants --stage list, detail, icons, tooltip or price, got {}", inv.stage)));
+                        if inv.stage != "recipes" {
+                            return Err(AppError::usage(format!("sync wants --stage list, detail, icons, tooltip, price or recipes, got {}", inv.stage)));
+                        }
                     }
                 }
             }
@@ -840,6 +889,15 @@ pub fn cmd_sync(inv: &Invocation) -> AppResult<String> {
         } else {
             eprintln!("price stage: {} live prices written, {} checked as no auction price right now", report.written, report.missing);
         }
+        return Ok(json_report(report));
+    }
+    if inv.stage == "recipes" {
+        eprintln!("copying the recipe files: the classic recipe set of the SECOND source docs/API.md records (MIT text measured; 8 files, one request each, conditional GETs ride the meta table) - NOT the API door and NOT the pull-all chain: the row set is a dataset, fetched once, read locally ever (ADR 0021)");
+        let report: SyncReport = match sync_recipes(client.clone(), &conn, budget, inv.budget, &cancel) {
+            Err(problem) => return Err(problem),
+            Ok(value) => value,
+        };
+        eprintln!("recipe stage: {} rows written ({} files fetched, {} answered the same copy, {} requests)", report.written, report.pages, report.unchanged, report.requests);
         return Ok(json_report(report));
     }
     let wanted: Vec<i64> = match detail_targets(&conn, inv) {
@@ -1515,6 +1573,7 @@ pub fn dispatch(inv: Invocation) -> AppResult<String> {
     if inv.verb == "delete-item" { return cmd_delete_item(&inv); }
     if inv.verb == "undelete-item" { return cmd_undelete_item(&inv); }
     if inv.verb == "refresh-twins" { return cmd_refresh_twins(&inv); }
+    if inv.verb == "recipes" { return cmd_recipes(&inv); }
     if inv.verb == "help" {
         eprintln!("{}", usage_text());
         return Ok("{}".to_string());
