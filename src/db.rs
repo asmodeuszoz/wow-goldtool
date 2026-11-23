@@ -2756,6 +2756,377 @@ pub fn recipes_count(conn: &Connection, profession: Option<String>) -> AppResult
     }
 }
 
+/// THE RECIPE CARD door (v0.12.0, ADR 0025): one entry of the fetched set, shown
+/// as far as the TWO sources this tool owns say it - nothing is invented here.
+/// The SET carries the entry's OWN words (job, name, skill band, materials) and
+/// states the SCROLL that teaches it BY VALUE in `learned_json`; the item rows
+/// this DB owns carry the IN-GAME cells (name, quality, level, the game's money,
+/// the tooltip copy, the icon bytes). The join censuses are MEASURED on the user's
+/// own file (ADR 0025's table): of 1 240 entries the set's `learned_json` answers
+/// 804 `schematic_item` (747 of those ids have an item row, 477 of those carry the
+/// scroll's OWN tooltip copy), 413 `trainer` and 23 `automatic` name no scroll; of
+/// 1 240 entries 1 095 name a crafted id (1 095 have rows, 899 carry copies) and
+/// 133 enchanting entries name NO crafted item at all. REJECTED as joins, measured
+/// the same day: `spell_id` as an item id (651 land on a row but only 20 are
+/// `Recipe` rows - spell ids and item ids are different namespaces) and the name
+/// link `"Recipe: " + crafted name` (92 of 1 240 reach: the DB's own names differ
+/// from the set's). Every gap keeps its OWN state word (ADR 0004's no-invented-
+/// answers rule), and ZERO requests leave this door (ADR 0009/0012's local rule).
+pub const SQL_RECIPE_CARD_ROW: &str = "SELECT spell_id, profession, recipe_name, crafted_item_id, crafted_item_name, skill_required, skill_tier, trivial_low, trivial_high, reagents_json, learned_json, acquisition, acquisition_note, source FROM recipe WHERE spell_id = ? ";
+
+/// The four columns the LIST door never reads, for one visible id: the list join
+/// answers name + money + icon through `live_name_price_of` and its readers, and
+/// the card needs MORE of the in-game shape - quality, the two levels, the vendor
+/// sell. The SAME tombstone guard `SQL_LIVE_NAME_PRICE` rides, so a row the user
+/// buried stays buried in the card too (ADR 0010's rule on every join).
+pub const SQL_CARD_CELL: &str = "SELECT quality, item_level, required_level, vendor_sell FROM item WHERE id = ? AND deleted_at IS NULL";
+
+/// The card door's raw pass: one fetched row AS STORED, plus the `learned_json`
+/// bytes still to read - the LIST door's SELECT never reaches that column (ADR
+/// 0021 recorded it as stored-with-no-reader), so this door reads its own const.
+/// Collect-then-join order like the list door: the cells are read AFTER this row
+/// is in hand, so the door cannot meet an item row a write moved mid-read.
+#[derive(Clone, Debug)]
+pub struct RawRecipeCard {
+    pub spell_id: i64,
+    pub profession: String,
+    pub recipe_name: Option<String>,
+    pub crafted_item_id: Option<i64>,
+    pub crafted_dataset_name: Option<String>,
+    pub skill_required: Option<i64>,
+    pub skill_tier: Option<String>,
+    pub trivial_low: Option<i64>,
+    pub trivial_high: Option<i64>,
+    pub reagents_json: String,
+    pub learned_json: Option<String>,
+    pub acquisition: Option<String>,
+    pub acquisition_note: Option<String>,
+    pub source: Option<String>,
+}
+
+/// One cell of the card: what the item rows this DB owns say about ONE id the set
+/// names. `in_db` false = "the DB never saw this id ALIVE" (the tombstone rule ADR
+/// 0010 put on every join rides: a buried row answers through the set's bytes
+/// alone, never through the columns the user buried) and the set's OWN words ride
+/// BESIDE it, never instead of it (ADR 0021's side-by-side rule, kept here so the
+/// card and a list row say the SAME thing about the same id - ADR 0014's one-code-
+/// path rule). Money rides EVERY copper answer this cell carries (ADR 0015: the
+/// vendor sell, the stored min, the live twin; NO auction count is carried here,
+/// so the contract's count half never comes into play). The stamps keep the NULLS
+/// apart (ADR 0016/0017's rule): `price_now_missing_at` set = "looked, the AH
+/// offers NOTHING right now", both stamps NULL = "never refreshed yet" - the cell
+/// ships BOTH facts and never merges them into one answer. The tooltip copy rides
+/// as the readable twin ONLY (ADR 0012): upstream's OWN markup stays out of this
+/// answer, because pasting an upstream body into a card would let upstream write
+/// the page.
+#[derive(Serialize, Clone)]
+pub struct RecipeCell {
+    pub item_id: i64,
+    pub in_db: bool,
+    pub dataset_name: Option<String>,
+    pub db_name: Option<String>,
+    pub quality: Option<String>,
+    pub item_level: Option<i64>,
+    pub required_level: Option<i64>,
+    pub vendor_sell: Option<i64>,
+    pub vendor_sell_money: Option<String>,
+    pub price_copper: Option<i64>,
+    pub price_money: Option<String>,
+    pub price_now_copper: Option<i64>,
+    pub price_now_money: Option<String>,
+    pub price_now_at: Option<i64>,
+    pub price_now_missing_at: Option<i64>,
+    pub tooltip_text: Option<String>,
+    pub tooltip_at: Option<i64>,
+    pub tooltip_missing_at: Option<i64>,
+    pub icon_b64: Option<String>,
+    pub icon_at: Option<i64>,
+    pub icon_missing_at: Option<i64>,
+}
+
+/// One string key of a stored Value: the KEY stays a string, never a Rust field -
+/// `type` is a reserved word and models.rs' note says NOTHING may reach for it
+/// (ADR 0021's reserved-word rule, kept here for the door's own read). A key the
+/// stored object does not carry answers None, honestly.
+pub fn word_at(whole: serde_json::Value, key: String) -> Option<String> {
+    match whole.get(key.clone()) {
+        None => return None,
+        Some(found) => match found.as_str() {
+            None => return None,
+            Some(text) => return Some(text.to_string()),
+        },
+    }
+}
+
+/// One whole-number key of a stored Value, same rule as `word_at` above: the key
+/// is a string, and a value that is NOT a number answers None, never a 0.
+pub fn id_at(whole: serde_json::Value, key: String) -> Option<i64> {
+    match whole.get(key.clone()) {
+        None => return None,
+        Some(found) => return match found.as_i64() {
+            None => None,
+            Some(whole_number) => Some(whole_number.clone()),
+        },
+    }
+}
+
+/// One card cell, read through the SAME readers the item card and the list joins
+/// already use (ADR 0014's rule: a card cell CANNOT drift from what the item card
+/// says about the same id). The name, the money and the live twin come from
+/// `live_name_price_of` (visible rows only); the stamp readers above carry NO
+/// tombstone guard of their own, so they are asked ONLY for a row this cell saw
+/// alive - a buried row keeps its stamps buried here. The icon bytes ride the
+/// `--icons` opt-in ADR 0014 measured (a copy is about 3.1 K chars once encoded);
+/// this door is bounded by ONE spell id, but the flag keeps the rule honest.
+pub fn recipe_cell(conn: &Connection, id: i64, dataset_name: Option<String>, with_icons: bool) -> AppResult<RecipeCell> {
+    let mut cell: RecipeCell = RecipeCell {
+        item_id: id,
+        in_db: false,
+        dataset_name: dataset_name.clone(),
+        db_name: None,
+        quality: None,
+        item_level: None,
+        required_level: None,
+        vendor_sell: None,
+        vendor_sell_money: None,
+        price_copper: None,
+        price_money: None,
+        price_now_copper: None,
+        price_now_money: None,
+        price_now_at: None,
+        price_now_missing_at: None,
+        tooltip_text: None,
+        tooltip_at: None,
+        tooltip_missing_at: None,
+        icon_b64: None,
+        icon_at: None,
+        icon_missing_at: None,
+    };
+    let known: Option<LiveNamePrice> = match live_name_price_of(conn, id) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    match known {
+        None => {},
+        Some(live) => {
+            cell.in_db = true;
+            cell.db_name = live.name.clone();
+            cell.price_copper = live.price_min.clone();
+            cell.price_money = money_of(live.price_min.clone());
+            cell.price_now_copper = live.price_min_now.clone();
+            cell.price_now_money = money_of(live.price_min_now.clone());
+            cell.price_now_at = live.price_now_at.clone();
+            cell.price_now_missing_at = live.price_now_missing_at.clone();
+        },
+    }
+    match cell.in_db {
+        false => {},
+        true => {
+            let mut stmt = match conn.prepare(SQL_CARD_CELL) {
+                Err(problem) => return Err(AppError::db(format!("{}", problem))),
+                Ok(value) => value,
+            };
+            let mut single: Vec<Value> = [].to_vec();
+            single.push(Value::Integer(id));
+            let mut rows = match stmt.query(params_from_iter(single)) {
+                Err(problem) => return Err(AppError::db(format!("{}", problem))),
+                Ok(value) => value,
+            };
+            match rows.next() {
+                Err(problem) => return Err(AppError::db(format!("{}", problem))),
+                Ok(None) => {},
+                Ok(Some(row)) => {
+                    cell.quality = match row.get(0) {
+                        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+                        Ok(value) => value,
+                    };
+                    cell.item_level = match row.get(1) {
+                        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+                        Ok(value) => value,
+                    };
+                    cell.required_level = match row.get(2) {
+                        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+                        Ok(value) => value,
+                    };
+                    cell.vendor_sell = match row.get(3) {
+                        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+                        Ok(value) => value,
+                    };
+                    cell.vendor_sell_money = money_of(cell.vendor_sell.clone());
+                },
+            }
+            cell.tooltip_text = match tooltip_text_of(conn, id) {
+                Err(problem) => return Err(problem),
+                Ok(value) => value,
+            };
+            cell.tooltip_at = match tooltip_at_of(conn, id) {
+                Err(problem) => return Err(problem),
+                Ok(value) => value,
+            };
+            cell.tooltip_missing_at = match tooltip_missing_at_of(conn, id) {
+                Err(problem) => return Err(problem),
+                Ok(value) => value,
+            };
+            match with_icons {
+                false => {},
+                true => {
+                    cell.icon_b64 = match icon_b64_of(conn, id) {
+                        Err(problem) => return Err(problem),
+                        Ok(value) => value,
+                    };
+                    cell.icon_at = match icon_at_of(conn, id) {
+                        Err(problem) => return Err(problem),
+                        Ok(value) => value,
+                    };
+                    cell.icon_missing_at = match icon_missing_at_of(conn, id) {
+                        Err(problem) => return Err(problem),
+                        Ok(value) => value,
+                    };
+                },
+            }
+        },
+    }
+    return Ok(cell);
+}
+
+/// Read ONE recipe entry as the card answers it (v0.12.0, ADR 0025): the entry's
+/// OWN set words, the learned-from object read BY KEY (its `type` word, the id and
+/// name the SET stated), and the cells the two ids name - the scroll that teaches
+/// this recipe and the item it crafts - through the joins the list door ALREADY
+/// uses (`join_recipe_reagent` for the materials, `recipe_cell` for the two named
+/// ids). A spell id the table does not hold answers None: the door turns that into
+/// rc 4 (ADR 0004's no-invented-answers rule, the same shape the empty recipe
+/// table answered at v0.10.0). `spell_id` is the table's PRIMARY KEY (docs/
+/// DATABASE.md), so at most one row can answer this read.
+pub fn recipe_card(conn: &Connection, spell_id: i64, with_icons: bool) -> AppResult<Option<RecipeCard>> {
+    let mut stmt = match conn.prepare(SQL_RECIPE_CARD_ROW) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(spell_id));
+    let mapped = match stmt.query_map(params_from_iter(single), |row|
+        Ok(RawRecipeCard {
+            spell_id: row.get(0)?,
+            profession: row.get(1)?,
+            recipe_name: row.get(2)?,
+            crafted_item_id: row.get(3)?,
+            crafted_dataset_name: row.get(4)?,
+            skill_required: row.get(5)?,
+            skill_tier: row.get(6)?,
+            trivial_low: row.get(7)?,
+            trivial_high: row.get(8)?,
+            reagents_json: row.get(9)?,
+            learned_json: row.get(10)?,
+            acquisition: row.get(11)?,
+            acquisition_note: row.get(12)?,
+            source: row.get(13)?,
+        })
+    ) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    for one_row in mapped {
+        match one_row {
+            Err(problem) => return Err(AppError::db(format!("{}", problem))),
+            Ok(raw) => {
+                let reagents: Vec<Reagent> = match from_str(&raw.reagents_json.clone()) {
+                    Err(problem) => return Err(AppError::decode(format!("stored reagents of recipe {} are not the array the writer described: {}", raw.spell_id, problem))),
+                    Ok(found) => found,
+                };
+                let learned: Option<serde_json::Value> = match raw.learned_json.clone() {
+                    None => None,
+                    Some(blob) => match from_str(&blob.clone()) {
+                        Err(problem) => return Err(AppError::decode(format!("stored learned_from of recipe {} is not the object the writer described: {}", raw.spell_id, problem))),
+                        Ok(found) => Some(found),
+                    },
+                };
+                let mut card: RecipeCard = RecipeCard {
+                    spell_id: raw.spell_id.clone(),
+                    profession: raw.profession.clone(),
+                    recipe_name: raw.recipe_name.clone(),
+                    skill_required: raw.skill_required.clone(),
+                    skill_tier: raw.skill_tier.clone(),
+                    trivial_low: raw.trivial_low.clone(),
+                    trivial_high: raw.trivial_high.clone(),
+                    acquisition: raw.acquisition.clone(),
+                    acquisition_note: raw.acquisition_note.clone(),
+                    source: raw.source.clone(),
+                    learned_type: None,
+                    learned_scroll_id: None,
+                    learned_scroll_name: None,
+                    scroll: None,
+                    result: None,
+                    materials: [].to_vec(),
+                };
+                match learned {
+                    None => {},
+                    Some(whole) => {
+                        card.learned_type = word_at(whole.clone(), "type".to_string());
+                        card.learned_scroll_id = id_at(whole.clone(), "item_id".to_string());
+                        card.learned_scroll_name = word_at(whole.clone(), "item_name".to_string());
+                    },
+                }
+                for one in reagents.clone() {
+                    let joined: RecipeReagent = match join_recipe_reagent(conn, one.clone(), with_icons) {
+                        Err(problem) => return Err(problem),
+                        Ok(value) => value,
+                    };
+                    card.materials.push(joined.clone());
+                }
+                match raw.crafted_item_id.clone() {
+                    None => {},
+                    Some(id) => {
+                        let cell: RecipeCell = match recipe_cell(conn, id, raw.crafted_dataset_name.clone(), with_icons) {
+                            Err(problem) => return Err(problem),
+                            Ok(value) => value,
+                        };
+                        card.result = Some(cell.clone());
+                    },
+                }
+                match card.learned_scroll_id.clone() {
+                    None => {},
+                    Some(id) => {
+                        let cell: RecipeCell = match recipe_cell(conn, id, card.learned_scroll_name.clone(), with_icons) {
+                            Err(problem) => return Err(problem),
+                            Ok(value) => value,
+                        };
+                        card.scroll = Some(cell.clone());
+                    },
+                }
+                return Ok(Some(card));
+            },
+        }
+    }
+    return Ok(None);
+}
+
+/// The card's answer shape: the entry's OWN words (job, name, the skill band the
+/// game states as a number plus a tier word plus its trivial band) plus what the
+/// learned-from object NAMED (its own `type` word, the scroll id and the set's own
+/// name for that scroll) plus the three kinds of cell: the scroll that teaches it,
+/// the item it crafts, the materials it asks for. Every NULL here is a source
+/// NOT stating something, never a value this tool guessed (ADR 0004's rule again).
+#[derive(Serialize, Clone)]
+pub struct RecipeCard {
+    pub spell_id: i64,
+    pub profession: String,
+    pub recipe_name: Option<String>,
+    pub skill_required: Option<i64>,
+    pub skill_tier: Option<String>,
+    pub trivial_low: Option<i64>,
+    pub trivial_high: Option<i64>,
+    pub acquisition: Option<String>,
+    pub acquisition_note: Option<String>,
+    pub source: Option<String>,
+    pub learned_type: Option<String>,
+    pub learned_scroll_id: Option<i64>,
+    pub learned_scroll_name: Option<String>,
+    pub scroll: Option<RecipeCell>,
+    pub result: Option<RecipeCell>,
+    pub materials: Vec<RecipeReagent>,
+}
+
 /// Stage 2 write: one detail record. `raw_json` keeps the verbatim payload so a future
 /// schema bump can read fields this struct does not model yet.
 pub fn upsert_detail(conn: &Connection, detail: ItemDetail, etag: String, raw_json: String, synced_at: i64) -> AppResult<usize> {
