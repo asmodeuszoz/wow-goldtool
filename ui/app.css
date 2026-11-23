@@ -139,19 +139,14 @@ button.tab.tab-on {
   border: 1px solid var(--edge-lit);
   box-shadow: inset 0 0 1px var(--gold-hair), 0 16px 34px rgba(0, 0, 0, 0.55);
 }
-/* the row button that OPENS a window: the SAME furniture the watch toggle
- * (.rowact) rides in the same cell - one row, two buttons, two honest verbs. */
-button.pipbtn {
-  cursor: pointer;
-  color: var(--muted);
-  background: var(--field-2);
-  border: 1px solid var(--edge);
-  border-radius: 6px;
-  padding: 2px 7px;
-  font-size: 11.5px;
-  margin: 0 0 0 6px;
-}
-button.pipbtn:hover { border-color: var(--gold); color: var(--gold); }
+/* v0.16.0 (ADR 0030): the separate `card` chip's furniture DIED here with its
+ * label - the window opener is the row's name now and rides the ONE look the
+ * recipe name owns above (ZERO new rule, ZERO new colour token; the chip's OWN
+ * hover rule died with the chip too, measured: button.openrecipe never had a
+ * hover rule, and the ask says the search name rides the recipe shape EXACTLY).
+ * v0.15.0's census here read: button.pipbtn chip box (the .rowact furniture:
+ * --field-2 fill, --edge border, 6px radius, 2/7px padding, 11.5px, 6px margin)
+ * + a gold hover trim - two rules, history. */
 
 /* ---- sections (one visible tab's worth at a time) ---- */
 .card {
@@ -398,7 +393,13 @@ th.col-job, th.col-recipe, th.col-skill, th.col-mats, th.col-cooked {
  * noicon: no second copy of a money or icon cell (the rule the Recipes tab's own
  * block above states). The webview never launched in the build room, so this is a
  * parse/grep witness, not a rendered claim (the launch-audit rule, kept). */
-#recipe-hits tr td button.openrecipe {
+/* v0.16.0 (ADR 0030): the Search row's NAME-cell opener rides THIS ONE look -
+ * the selector is JOINED, not copied (the frame joins selectors the same way
+ * its own `th.col-job, th.col-recipe, ...` header rule joins): the recipe name
+ * and the search name are ONE click shape, no second copy of a look anywhere.
+ * The rule stays table-scoped on both halves - a row's look is scoped to the
+ * table that owns it (the census above). */
+#recipe-hits tr td button.openrecipe, #hits tr td button.pipbtn {
   color: var(--gold);
   background: none;
   border: none;
