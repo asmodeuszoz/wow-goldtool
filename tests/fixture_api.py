@@ -246,6 +246,21 @@ served = {"count": 0}
 #   - enchanting entries whose recipe names NO crafted item at all - the REAL set
 #     measured today carries exactly 133 such entries, and the door ships the state
 #     as words, never an invented id.
+# v0.12.0 (ADR 0025): four rows now ALSO carry `learned_from`, in the THREE shapes
+# the REAL set was measured carrying today (docs/API.md + ADR 0025 measure the census
+# on the user's file: 804 schematic_item / 413 trainer / 23 automatic, and the keys
+# are exactly item_id, item_name, type):
+#   - 132 names a scroll BY VALUE (item 60, a row the detail stage above wrote AND
+#     the tooltip stage copied) -> the card's scroll cell answers IN GAME, with the
+#     copy's own words,
+#   - 637 names a scroll id the DB never saw (2589) -> the cell says "the DB never
+#     saw this id" beside the SET's own name for it, never an invented one,
+#   - 202 answers the `trainer` word and 334 the `automatic` word: BOTH name no scroll
+#     id at all, so the card states the type word and NO scroll cell - the gap keeps
+#     its own state (ADR 0004's no-invented-answers rule again),
+#   - 638 keeps the explicit NULL: the set stating NOTHING stays a different answer
+#     from the set stating a type (measured: 133 enchanting entries carry no crafted
+#     id and learn with none either).
 RECIPE_FILES = {
     "alchemy_recipes.json": {
         "profession": "Alchemy",
@@ -264,6 +279,11 @@ RECIPE_FILES = {
                     {"item_id": 40, "item_name": "Mossborer (the set's own words)", "count": 2},
                     {"item_id": 2589, "item_name": "Fixture Silkweed (no row in your DB)", "count": 1},
                 ],
+                "learned_from": {
+                    "item_id": 60,
+                    "item_name": "Pattern: Fixture Twisted Cleaver (the set's own words)",
+                    "type": "schematic_item",
+                },
                 "acquisition": "trainer",
                 "source": "cmangos-tbc-db+wago-tools-db2",
             },
@@ -301,6 +321,7 @@ RECIPE_FILES = {
                     {"item_id": 25, "item_name": "Worn Shortsword (the set's own words)", "count": 1},
                     {"item_id": 2589, "item_name": "Fixture Silkweed (no row in your DB)", "count": 2},
                 ],
+                "learned_from": {"type": "trainer"},
                 "acquisition": "trainer",
                 "acquisition_note": None,
                 "source": "cmangos-tbc-db+wago-tools-db2",
@@ -340,6 +361,7 @@ RECIPE_FILES = {
                     {"item_id": 40, "item_name": "Mossborer (the set's own words)", "count": 1},
                     {"item_id": 5113, "item_name": "Fixture Gristleweed (no row in your DB)", "count": 1},
                 ],
+                "learned_from": {"type": "automatic"},
                 "acquisition": "trainer",
                 "source": "cmangos-tbc-db+wago-tools-db2",
             }
@@ -364,6 +386,11 @@ RECIPE_FILES = {
                     {"item_id": 25, "item_name": "Worn Shortsword (the set's own words)", "count": 1},
                     {"item_id": 2589, "item_name": "Fixture Silkweed (no row in your DB)", "count": 1},
                 ],
+                "learned_from": {
+                    "item_id": 2589,
+                    "item_name": "Recipe: Fixture Silkweed (the set names a scroll your DB never saw)",
+                    "type": "schematic_item",
+                },
                 "acquisition": "trainer",
                 "source": "cmangos-tbc-db+wago-tools-db2",
             },
