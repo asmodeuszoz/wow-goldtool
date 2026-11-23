@@ -578,6 +578,17 @@ doors UNTOUCHED, and the pinned pair against the TAGGED `c065815` tree measures 
 binaries); every bound named above stayed PUT, the Search tab's `--limit 40` measured still there beside the
 new window opener.
 
+**RIDDEN AT v0.16.0 ([ADR 0030](./DECISIONS/0030-a-list-rows-name-is-its-window-opener.md)) — NOTHING in
+this file moved AGAIN:** the Search tab's rows now open their windows BY NAME (the name cell became the
+opener button, the separate `card` chip label died with its paint) but the click rides the SAME door `item
+ID --cached` — ZERO-request doors UNTOUCHED — and the pinned pair against the TAGGED `c065815` tree measured
+**28/28 BYTE-IDENTICAL + 13/13 md5-equal** across the move again (the item doors `item 25/40 --cached` 4 341
+/ 4 076 B and the search doors 185/182 B byte-identical on BOTH binaries, unbounded `recipes --icons` 46 793
+B = ALL 12 of matching 12 on BOTH); every bound named above stayed PUT a second era running, `vendor_buy`/
+`price_trend_normal` still 0/0, the user's file still answers schema **8** (19 258 items · 4 602 copies /
+14 656 without · 1 240 recipe rows / 1 240 distinct spell ids · 134 watched — `sqlite3 -readonly`, NEVER
+written, NEVER crawled).
+
 ```sql
 -- the count behind the same filter, so "showing 40 of 1250" cannot drift
 SELECT COUNT(1) FROM item WHERE name_lc LIKE ? ESCAPE '#' AND ...;

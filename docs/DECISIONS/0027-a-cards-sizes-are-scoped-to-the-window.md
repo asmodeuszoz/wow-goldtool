@@ -128,3 +128,8 @@ the overlay paints UNDER those rules: the `#recipe-card` id stayed, all **21 id-
 72 / `.noicon` 39 px included) ride the floated panel UNTOUCHED — measured in the era's census, still 21 —
 and the pinned pair proves the whole card answered BYTE-IDENTICAL across the move. The id-scoping above is
 why the move was free: a window wears what the id paints. ADR 0029 keeps the overlay decision.
+**RIDDEN AT v0.16.0 ([ADR 0030](./0030-a-list-rows-name-is-its-window-opener.md)):** the id-scoped
+21 rules (72 / 39 px included) stayed PUT through the name-click era - measured **STILL 21** in its census
+- and the era drew NO new look anywhere: the search name rides openrecipe's ONE rule by JOINED selector
+(zero new rules, zero new tokens), so nothing grew near the card's sizes either. ADR 0027's lesson - a
+SIZE (and a LOOK) is a surface fact - is what let the era move a click shape without touching a truth.

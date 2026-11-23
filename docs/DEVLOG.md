@@ -5,6 +5,98 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-23 · v0.16.0 — the SEARCH ROWS open their windows BY NAME: the name cell becomes the opener button, the separate `card` chip label dies, and the look rides the recipe name's ONE rule by JOINED selector
+
+### What forced it
+
+The user's ninth ask: "make it so in the search results I can click the item name just like it is
+for the recipes." The Recipes tab already answers by its names — ADR 0025 drew each recipe row's
+name cell AS the click target (`<button class="openrecipe" data-spell>`, gold, `font: inherit`, no
+box, dotted underline, ONE rule, hover rule measured ABSENT). v0.15.0 (ADR 0029) had given the search
+rows an opener too — but measured WHERE the recipe shape is NOT, off the tree at `00f94ba` before one
+line moved:
+
+| the click shape lived here | measured | what it meant |
+| -------------------------- | -------- | ------------- |
+| recipe rows (`#recipe-hits`) | `td.col-recipe` = `<button class="openrecipe" data-spell>` carrying the recipe's OWN name fallback `\|\| spell_id`; ONE CSS rule, hover **ABSENT** | the name IS the button — ADR 0025's "the name cell IS the click target" |
+| search rows (`#hits`) | `td.namecell` = plain name text FIRST + `view` anchor + `rowact` watch chip + a separate `button.pipbtn` chip **LABELED `card`**; its paint = `.rowact`'s chip-box (TWO rules incl. its OWN gold hover) | the opener answers BESIDE the name — the row is not clicked BY its name; the ask refuses exactly this |
+| the click halves | `#hits` delegated handler: `dataset.id` gate, class split `pipbtn → runCard_from_row` else `toggle_watch`; `runCard(false)` = door `item ID --cached` | the pattern and the ONE door are already there — the era can leave them PUT entirely |
+| the rest of the frame | SEVEN nameplates / 8 `data-tab` sections; `hit_row` ONE caller; mini rows `namecell` plain text + chips, NO id button | the strip is PUT; the scope is the Search list alone |
+
+### The decision (ADR 0030 — a list row's NAME is its window opener)
+
+* **The NAME cell becomes the button** (`ui/app.js`): the search row draws
+  `<button class="pipbtn" data-id>NAME</button>` FIRST in the cell, carrying the SAME `data-id` the
+  watch half carries; the label fallback rides the recipe cell's OWN shape (`name || hit.id` — a
+  clickable name is never blank). The word `card` and the trailing chip die with it; the `view` anchor
+  and the watch toggle stay PUT where they sit.
+* **The click's other half stays PUT word-for-word** (ADR 0014 kept, NOT grown): class, handler split,
+  `runCard_from_row`, the window's OWN `card-id` field, the `item ID --cached` door — ZERO line moved.
+  The AFFORDANCE moved; the VERB did not.
+* **The look is ONE joined rule, never a second copy** (`ui/app.css`): `#recipe-hits tr td
+  button.openrecipe` gains `#hits tr td button.pipbtn` in its selector list — the frame already joins
+  selectors (its `th.col-job, th.col-recipe, ...` header rule is the precedent) — so the two names are
+  ONE click shape (gold, `font: inherit`, dotted underline, NO hover: measured absence + the chip's own
+  hover died with it). ZERO new rules, ZERO new colour tokens. The chip-box TWO rules die.
+
+### Measured (the era's OWN witnesses — fresh 9911/9941/9971, ZERO real-host for the audit crawl)
+
+* **Mirror fresh 9911:** **49/49 commands rc `0`, ZERO NONZERO** — the driver's OWN parse: 49 committed
+  step-lines, ZERO moved, plant one (this era grew ZERO door argv, ZERO CI step). Stage presses UNCHANGED
+  (budget-3 recipes 4/3/5/`rate_limited` 1 · resumed-from-3 5/5/7 complete · re-pull 8/8 pages/**8 SAME
+  copy**/0 written); fixture tallies end where the crawl left them — **51 GETs, 17 recipe-file GETs, ZERO
+  added** — locality proof; census recipe 12 / item 6 / copies 4 / `vendor_buy` 0 / trend 0.
+* **Exit map fresh 9941:** the carried 31 doors answer the **SAME totals `0`×19 · `2`×5 · `4`×7** — ZERO
+  door fact moved — and this era grew **ZERO new door shape** (the name click rides the door it already
+  rode; the carried eight shapes re-measure `0`×7 + `4`×1: `recipes` 12 993 B 12/12 · `recipes --icons`
+  46 793 B = ALL 12 of matching 12 · `--limit 0` 0 rows at 52 B rc `0` · `--limit -1` 12/12 · `--limit 12
+  --icons` the SAME 46 793 B · `--offset 10` 2 of 12 at 2 174 B · Enchanting 2 of 2 at 4 634 B · EMPTY-DB
+  rc `4`); money over the door's OWN answers **0 pairing defects**, counts 19/19/19 wearing none.
+* **Pinned pair fresh 9971 + ONE fresh DB** (pinned worktree @ TAGGED `c065815`, banner `0.14.0` PUT,
+  NINE nameplates = the BEFORE witness): **28/28 BYTE-IDENTICAL, ZERO DELTAs** — the nine card doors 2
+  124 / 7 330 / 6 673 / 4 107 / 643 / 1 209 / 1 155 / 6 740 / 4 033 B, the item doors `item 25/40 --cached`
+  **4 341 / 4 076 B**, the search doors `search sword --limit 4` 185 B / `--offset 1` 182 B, unbounded
+  `recipes --icons` **46 793 B = ALL 12 of matching 12 on BOTH binaries** — plus **13/13 md5-equal** through
+  BOTH binaries over the user's OWN file (LOCAL, ZERO requests): md5s `stats` be44e700 · `item 25 --cached`
+  82e349c1 · `search` 5d8e2281 · `watch list` 02b3e228 · `recipes --limit 3` bbc17f2d · Blacksmithing c1fe9d13.
+  The user's file census UNCHANGED (`sqlite3 -readonly`, NEVER written, NEVER crawled): schema **8** · 19 258
+  · 4 602 copies / **14 656 without** · 1 240/1 240 · `learned_json` 1 240 · watch **134** · 4 231 · 4 344 + 258
+  · `vendor_buy` **0** · trend **0** · deleted **0** · `sync_state` 6.
+* **Ladder row owed and MEASURED:** the v0.15.0 **fold push's OWN run** — which that fold refused to chase —
+  reads **45260568565 SUCCESS**, 5/5 jobs green in **10 min 57 s** (20:33:18Z → 20:44:15Z, run **#51**,
+  attempt 1, exactly ONE run id, no CANCELLED sibling, head `00f94ba` = that FOLD commit, whose tree carries
+  the tagged `eaeee89`); per-job ends `test` → 20:38:20Z · macos → 20:40:43Z · quality → 20:42:13Z · linux →
+  20:43:08Z · **windows → 20:44:14Z — the windows job CLOSED this run** (a scheduling fact, said so — the
+  FIRST windows-closed run in the measured chain: v0.14.0's era run closed on quality, its fold run closed on
+  macos, v0.15.0's run closed on linux). Each job answers **12 end-actions, 11 success + ONE skipped** — every
+  skipped one the Rust-toolchain installer's OWN inner action (`__run_2` windows, `__run_3` the other four),
+  never a workflow step; the Ubuntu-libs apt line reads 7 on the `test`/quality/linux job logs, 0 on macos/windows.
+  The `test` job pressed exactly **49 `cargo run --` steps** — the era moved ZERO CI line — and from GitHub's OWN
+  test-job log the step answers read 12 976 B (`recipes`), **46 776 B (`recipes --icons`, ALL 12 of matching 12)**
+  and 2 171 B (`--offset 10`) — the bytes ride the run's seed (my fresh mirror's 46 793 B), the tallies do not.
+* **UI launch witnesses** (parse/grep ONLY — the webview NEVER renders in the build room, the name button's
+  DOM/IPC cost stays **NOT WITNESSED**): `node --check` PARSE OK; the `>card</button>` label count **ZERO**;
+  the name-button draw (class `pipbtn` + `data-id`) EXACTLY 1; the ONE joined selector
+  `button.openrecipe, #hits tr td button.pipbtn` = 1; standalone `button.pipbtn` rule blocks **ZERO**;
+  `button.pipbtn:hover` **ZERO** (died with the chip); `.pip`/`.pip-closed` still 2; nameplates still **SEVEN**;
+  `data-tab` attrs still **15** (7 buttons + 8 sections, `writes` rides three); closers still 2; the `openrecipe`
+  draw PUT; ADR 0027's 21 id-scoped `#recipe-card` rules **STILL 21**; Search tab's `--limit 40` PUT; `recipes-pager`
+  0. **Builds named ZERO** on every commit (the FS notice rode); `cargo clippy --all-targets` rc `0`, **0 errors /
+  the SAME 811 advice**.
+* **Measured defects: ZERO** — nothing lands FORWARD from this record.
+
+### Chain
+
+`f78a6b0` feat(ui) (the name cell becomes the opener, the `card` label dies — ONE file ui/app.js, 14
+ins / 7 del) → `239c2a4` feat(ui) (the look rides openrecipe's ONE rule by JOINED selector, the chip's
+TWO rules die — ONE file ui/app.css, 15 ins / 14 del) → `fecb6c2` chore (banner `0.15.0 → 0.16.0` — a
+FEATURE era moves it; house note kept honest: the lock's OWN version line follows the banner in the SAME
+commit, settling `0.14.0 → 0.16.0` in one jump — the lock had lagged one banner since v0.15.0's build)
+→ this record carries `v0.16.0` (annotated tag). Post-tag witnesses + the run this push starts land in
+the FOLD commit, measured then, never assumed (ADR 0011's ladder).
+
+---
+
 ## 2026-11-23 · v0.15.0 — the CARD WINDOWS stop being tabs: a row click floats the card OVER the tab it came from, the strip answers SEVEN activities, and the doors answer BYTE-IDENTICAL
 
 ### What forced it
@@ -175,6 +267,10 @@ The tag's tree was verified through the remote's OWN `^{}` resolution line `5f34
   watch **134** · `vendor_sell` 4 231 · `price_min_now` 4 344 + `price_now_missing_at` 258 · `vendor_buy` **0** ·
   trend **0** · deleted **0** · `sync_state` 6.
 * The fold's OWN push starts the NEXT run — measured in the NEXT era's record (ADR 0011's ladder), never chased here.
+
+---
+
+---
 
 ---
 

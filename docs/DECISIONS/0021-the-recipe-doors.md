@@ -253,3 +253,9 @@ the row click stayed PUT end-to-end — the `openrecipe` name-cell button, the O
 OVER the Recipes tab instead of switching to its nameplate (which died). The bounded/unbounded door pair
 and their measures above stay history, re-measured UNCHANGED at the era's own audit (unbounded `recipes
 --icons` 46 793 B = ALL 12 of matching 12, byte-identical on BOTH binaries of the pinned v0.14.0 pair).
+**RIDDEN AT v0.16.0 ([ADR 0030](./0030-a-list-rows-name-is-its-window-opener.md)) - and at the
+era AFTER v0.15.0's:** the Search row's name click rides the SAME `item ID --cached` door (ZERO-request
+doors UNTOUCHED), and the pinned pair against the TAGGED `c065815` tree measured **28/28 BYTE-IDENTICAL
++ 13/13 md5-equal** a second era running (unbounded `recipes --icons` 46 793 B = ALL 12 of matching 12
+on BOTH binaries, item doors 4 341/4 076 B, search doors 185/182 B): the doors answered identical bytes
+across TWO surface eras, measured, not asserted.

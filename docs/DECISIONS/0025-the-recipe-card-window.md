@@ -227,3 +227,11 @@ and the tab underneath stays where it was). Everything else above stays PUT word
 the delegated handler, the ONE local door, the composition and the honest gaps. The pinned pair measured
 the card doors **BYTE-IDENTICAL** (fixture answers 2 124 / 7 330 / 6 673 / 4 107 / 643 / 1 209 / 1 155 /
 6 740 / 4 033 B against the TAGGED v0.14.0 tree) — this era moved a SURFACE, not a truth.
+**GROWN AT v0.16.0 ([ADR 0030](./0030-a-list-rows-name-is-its-window-opener.md)):** the sentence
+"the name cell IS the click target" became true of BOTH item lists - the SEARCH row's name cell became
+its window opener too (`<button class="pipbtn" data-id>NAME</button>` riding the SAME delegated pattern),
+so ADR 0025's pattern now covers `#recipe-hits` AND `#hits`. Everything else above stays PUT: the click
+path, the ONE local door, the composition, the honest gaps. The pinned pair measured the card doors and
+the item/search doors BYTE-IDENTICAL across the move (fixture 2 124 / 7 330 / 6 673 / 4 107 / 643 / 1 209
+/ 1 155 / 6 740 / 4 033 B; `item 25/40 --cached` 4 341 / 4 076 B; `search sword` 185/182 B) - a name click,
+a chip click and a `cargo run` line are ONE door (ADR 0014).

@@ -168,3 +168,10 @@ own log against my mirror's 46 793 B — bytes ride the seed, tallies do not). T
 15 `data-tab` attrs (`writes` rides three), ZERO card attrs/call sites, TWO closers, the `pipbtn` census, FOUR
 `.pip` rules, the **21 id-scoped rules STILL 21** (72/39 px), `--limit 40` PUT, `recipes-pager` 0. The fold's
 OWN push starts the NEXT run — measured in the NEXT era's record (ADR 0011's ladder), never chased here.
+**CHANGED AT v0.16.0 ([ADR 0030](./0030-a-list-rows-name-is-its-window-opener.md)):** the row's
+window opener stayed but its TWO surface halves moved: the LABEL (the `card` word died, the row's OWN
+NAME became the button - `name || hit.id` riding the recipe cell's fallback shape) and the LOOK (from
+`.rowact`'s chip-box to openrecipe's ONE look by JOINED selector, the chip's TWO rules dead, its hover
+with it). The click itself, the class, the delegated split BY CLASS, `runCard_from_row` and the `item
+ID --cached` door stayed PUT word-for-word - census again: 28/28 BYTE-IDENTICAL + 13/13 md5-equal against
+the pinned TAGGED `c065815` tree.
