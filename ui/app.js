@@ -223,7 +223,7 @@ async function runSearch() {
     }
     document.querySelector("#hits tbody").innerHTML = rows;
     var shown = found.hits.length;
-    var note = "showing " + shown + " of " + num(found.total) + " — details of " + num(found.total) + " items cost one request each, and the sync stage caches them; the price column shows the game's OWN money words (hover: the exact copper, the number the sorts and the scripts read), the icon column shows the DB's OWN copy where the icons stage wrote one (\u25c7 means no bytes: never fetched, or checked as gone upstream \u2014 the hover says which, and nothing is hotlinked) \u2014 each row's `card` button opens that item's window OVER this tab (the window reads the SAME door a `cargo run -- item ID --cached` line takes, ZERO requests; its `Close this window` button closes it and this tab stays where it was)";
+    var note = "showing " + shown + " of " + num(found.total) + " — details of " + num(found.total) + " items cost one request each, and the sync stage caches them; the price column shows the game's OWN money words (hover: the exact copper, the number the sorts and the scripts read), the icon column shows the DB's OWN copy where the icons stage wrote one (\u25c7 means no bytes: never fetched, or checked as gone upstream \u2014 the hover says which, and nothing is hotlinked) \u2014 each row's OWN NAME is its window opener (click it like the Recipes tab's names open theirs): it opens that item's window OVER this tab (the window reads the SAME door a `cargo run -- item ID --cached` line takes, ZERO requests; its `Close this window` button closes it and this tab stays where it was)";
     if (found.total === 0) { note = "no item matches — the search runs against the local DB only"; }
     // v0.9.9 (ADR 0020): the live-sort knob reorders rows by the LIVE min buyout, but the
     // price CELL stays the STORED min - the note names which is which beside every hit, so
@@ -267,14 +267,19 @@ function hit_row(hit) {
   var watch_label = "watch";
   if (watched.indexOf(hit.id) >= 0) { watch_label = "unwatch"; }
   var toggle = '<button class="rowact" data-id="' + esc(String(hit.id)) + '">' + watch_label + "</button>";
-  // v0.15.0 (ADR 0029): the row's window opener. The button carries the SAME
-  // id the watch half carries, and ONE delegated handler over the table tells
-  // the halves apart by class - a 40-row page still plants no per-row listener
-  // (ADR 0025's pattern, now riding BOTH halves of a search row).
-  var pip_btn = '<button class="pipbtn" data-id="' + esc(String(hit.id)) + '" type="button">card</button>';
+  // v0.15.0 (ADR 0029) drew the opener as a separate `card` chip; v0.16.0
+  // (ADR 0030) moved the AFFORDANCE onto the name instead: the NAME cell IS the
+  // opener, exactly the shape the recipe rows already rode (ADR 0025 drew their
+  // name cell as `<button class="openrecipe">` - "the name cell IS the click
+  // target", now over BOTH tables). The class, the id the button carries, the
+  // delegated handler's split BY CLASS and the `item ID --cached` door all stay
+  // PUT word-for-word - the affordance moved, the verb did not (ADR 0014's ONE
+  // code path). The name is never blank where a name is clickable: the recipe
+  // cell's `|| spell_id` fallback shape rides here as `|| hit.id` too.
+  var name_btn = '<button class="pipbtn" data-id="' + esc(String(hit.id)) + '" type="button">' + esc(hit.name || hit.id) + "</button>";
   return "<tr>"
     + '<td class="col-id">' + esc(String(hit.id)) + "</td>"
-    + '<td class="namecell">' + esc(hit.name) + " " + link + " " + toggle + " " + pip_btn + "</td>"
+    + '<td class="namecell">' + name_btn + " " + link + " " + toggle + "</td>"
     + '<td class="iconcell">' + icon_cell(hit) + "</td>"
     + '<td class="qualitycell"><span class="chip c-' + esc(quality) + '">' + esc(quality) + "</span></td>"
     + '<td class="pricecell">' + price_cell + "</td>"
@@ -1402,6 +1407,8 @@ document.getElementById("btn-twin-refresh").addEventListener("click", function (
 // item id, and the class says which half the click takes: the opener fills the
 // window's field and lands on runCard (the `item ID --cached` door - the window
 // answers offline, ZERO requests, like its door), the toggle keeps watch.
+// v0.16.0 (ADR 0030): the opener's half is the row's NAME cell button now - the
+// split BY CLASS and everything it lands on stayed PUT word-for-word.
 // Anything else inside the table answers nothing.
 document.getElementById("hits").addEventListener("click", function (event) {
   var node = event.target;
