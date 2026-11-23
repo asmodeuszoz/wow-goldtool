@@ -97,3 +97,29 @@ Rejected, each with its measure:
   already rode that fact for the mini rows (`table.mini`); this era rides it for a WINDOW, and
   the record says WHICH surfaces stay put, with their px values, so the next era can read the
   frame's sizes rather than re-deriving them.
+* **THE FOLD, MEASURED (2026-11-23, post-tag, fresh ports/DBs — this era's own ladder row):** the
+  decision's strongest claim was measured TWICE, once BEFORE the tag and once on the PUSHED tree, and
+  both times it came back the same: the pinned v0.12.1 binary (`d2c26de`, its OWN build green with
+  ZERO named in 1 m 22 s, banner `0.12.0` PUT) vs the new/pushed tree answers **22/22 BYTE-IDENTICAL,
+  ZERO DELTAs** (fresh port 9451 pre-tag: card doors 2 124 / 7 330 / 6 673 / 4 107 / 643 / 1 209 / 1 155
+  / 6 740 / 4 033 B · fresh port 9501 post-tag: 2 116 / 7 322 / 6 668 / 4 104 / 643 / 1 206 / 1 153 / 6 735
+  / 4 031 B — lengths ride the fixture process's OWN seed, the identity does not, and rc totals do not move
+  between windows) and **13/13 md5-equal** through BOTH binaries over the user's own file both times (cards
+  25 213 / 7 004 / 9 430 / 3 596 / 3 453 B, rc `4` on `8800111` at 113 B). The mirror replay is **48/48 rc
+  0, ZERO NONZERO** on FOUR fresh ports (9391 / 9421 / 9461 pre-tag, 9471 post-tag) at the SAME stage presses
+  and the SAME GET tallies (**51 GETs, 17 recipe-file GETs, ZERO added** = the locality proof), and the exit
+  map holds the **SAME 31-door totals `0`×19 · `2`×5 · `4`×7** on fresh 9407 AND fresh 9481 — nine card doors
+  rc 0, SEVEN rc-`4` doors in the SAME words, FIVE rc-`2` doors at the SAME words, rc `3` UNREACHABLE (the
+  door sends ZERO asks). Money over those very answers: **0 pairing defects**, reagent COUNTS 2/2/2/2/2 carried
+  with NO money beside them, so the bigger words did not buy a bigger CONTRACT. GitHub's OWN verdict for this
+  era: **45199646115 SUCCESS**, 5/5 jobs green in **16 min 4 s** (14:56:38Z → 15:12:42Z, run #46, attempt 1,
+  ONE run id, no CANCELLED sibling, head `b927109` = the TAGGED tree) — quality **7/7** with the Lint step
+  **completed/success**, `test` **8/8** with the CLI smoke step GREEN (the 48-step block, the four card steps
+  included), linux 8/8, macos 7/8, windows 7/8 (`skipped` Ubuntu-libs on both non-linux targets); the run reads
+  longer than v0.12.x's because the macos job opened 5 min 1 s after the run, a scheduling fact on GitHub's side,
+  not a tree fact. The user's file's own tallies answer 8 / 19 258 / 4 602 copies / **14 656 without** / 1 240
+  recipes / 1 240 distinct `spell_id`s / `vendor_buy` 0 / `price_trend_normal` 0 / tombstoned 0 through `sqlite3
+  -readonly` (LOCAL, ZERO requests, ZERO crawl), so ADR 0010's copy rule and ADR 0016's NULL-vs-0 grounds stay
+  TRUE and the card's live chips stay a TRUTH on this host — the two facts the NEXT era inherits, alongside the
+  surface-vs-class rule this ADR states. The fold's OWN push starts the NEXT run, measured in the NEXT record
+  (ADR 0011's ladder), never chased here.

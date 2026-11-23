@@ -211,4 +211,12 @@ claim a paint era can make: **22/22 BYTE-IDENTICAL** answers vs the pinned v0.12
 card doors included) plus **13/13 md5-equal** through BOTH binaries over the user's own file, the
 mirror green 48/48 on three fresh ports at the SAME stage tallies and GET tallies (51 GETs, 17
 recipe-file GETs, ZERO added), the exit map at the SAME **31-door totals `0`×19 · `2`×5 · `4`×7**,
-and **0** money-pairing defects over the card doors' own answers.
+and **0** money-pairing defects over the card doors' own answers. **THE FOLD MEASURED IT ON THE PUSHED
+TREE TOO** (post-tag, FRESH ports/DBs, the real host untouched): mirror **48/48 rc 0, ZERO nonzero** on
+fresh 9471 — the SAME stage presses and the SAME GET tallies (51 GETs, 17 recipe-file GETs, ZERO added =
+the locality proof), four card steps at 7 333 / 6 673 / 4 107 / 643 B — the exit map at the **SAME 31-door
+totals `0`×19 · `2`×5 · `4`×7** on fresh 9481, and the pinned pair **AGAIN 22/22 BYTE-IDENTICAL, ZERO DELTAs**
+plus **13/13 md5-equal** on fresh 9501, so the door's bytes stayed put on BOTH sides of the tag, measured
+TWICE rather than asserted; GitHub's own verdict for the tag's tree is **45199646115 SUCCESS**, 5/5 jobs
+green in **16 min 4 s** (14:56:38Z → 15:12:42Z, run #46, head `b927109` = the tag's target) — quality 7/7
+Lint step GREEN, `test` 8/8 with the CLI smoke step GREEN, linux 8/8, macos 7/8, windows 7/8.

@@ -61,6 +61,40 @@ Changed
   macos 7/8, windows 7/8 (`skipped` Ubuntu-libs). This era's own chain+tag run is measured in the
   NEXT record (ADR 0011's ladder).
 
+**The fold — post-tag, the PUSHED tree, all FRESH ports/DBs (the real host untouched, the user's
+file read read-only through LOCAL doors, ZERO requests, ZERO crawl).** The tag's tree (`b927109`,
+verified through the remote's OWN `^{}` resolution `b09d646` → `b927109`) answers the way the record
+says, measured AGAIN rather than cited: the mirror replay is **48/48 commands rc `0`, ZERO NONZERO**
+on fresh port 9471 (the driver re-PARSES the committed block: 48 `cargo run` step-lines + plant one,
+the era moved NO step), the stage presses UNCHANGED (budget-3 recipes 4 requests / 3 pages / 5 rows /
+`rate_limited` 1 · resumed-from-3 5 / 5 / 7 complete · re-pull 8 requests / 8 pages / **8 answered the
+SAME copy** / 0 written), the FOUR card steps answering **7 333 / 6 673 / 4 107 / 643 B**, the fixture's
+OWN GET tallies ending where the crawl left them — **51 GETs, 17 of them recipe-file GETs, ZERO added**,
+which IS the locality proof — and the census at recipe **12** / item 6 / copies 4 / `vendor_buy` **0** /
+trend **0**. The exit map holds the **SAME 31-door totals `0`×19 · `2`×5 · `4`×7** on fresh 9481 (nine
+card doors rc 0, SEVEN rc-`4` doors in the SAME words, FIVE rc-`2` doors at the SAME words, rc `3`
+UNREACHABLE from this door). And the PINNED pair answers BYTE-IDENTICAL **AGAIN**: the pinned v0.12.1
+binary (`d2c26de`, own build green ZERO named 1 m 22 s, banner `0.12.0` PUT) vs the pushed tree = **22/22
+BYTE-IDENTICAL, ZERO DELTAs** (the NINE card doors included: 2 116 / 7 322 / 6 668 / 4 104 / 643 / 1 206
+/ 1 153 / 6 735 / 4 031 B in this window) and **13/13 md5-equal** through BOTH binaries over the user's
+OWN file (cards 25 213 / 7 004 / 9 430 / 3 596 / 3 453 B, rc `4` on `8800111` 113 B) — so the same claim
+this era drew pre-tag is measured a SECOND time on the pushed tree, and it did not soften. Money over
+those very answers: **0 pairing defects**, reagent COUNTS 2 / 2 / 2 / 2 / 2 carried with NO money beside
+them (ADR 0015's count half on the bigger words). GitHub's own verdict for the tag's tree: **45199646115
+SUCCESS**, 5/5 jobs green in **16 min 4 s** (created/run_started 14:56:38Z → updated 15:12:42Z, run #46,
+attempt 1, exactly ONE run id, no CANCELLED sibling, head = the TAGGED tree) — quality **7/7** with the
+Lint step **completed/success** (the local measure of the SAME command says 0 errors / the SAME 811 advice
+lines), `test` **8/8** with the CLI smoke step GREEN (the 48-step block, the four card steps included),
+linux **8/8**, macos **7/8**, windows **7/8** (one `skipped` Ubuntu-libs step on each non-linux target, as
+designed); the run reads longer than v0.12.x's 8–9 min because the macos job opened 5 min 1 s after the run
+opened — a scheduling fact on GitHub's side, not a tree fact. The user's own file's tallies stay INTACT
+(read `sqlite3 -readonly`): schema **`8`**, 19 258 items, 4 602 tooltip copies, **14 656 without**, 1 240
+recipe rows / 1 240 distinct `spell_id`s, `price_min_now` **4 344** + `price_now_missing_at` **258** = the
+4 602 each asked ONCE, pending **0**, `vendor_buy` **0**, `price_trend_normal` **0**, tombstoned **0** — the
+card's live chips are a TRUTH, not a defect. Ladder owed and closed here: the era's OWN chain+tag run is
+**45199646115 = SUCCESS** (above); the fold's OWN push starts the NEXT run, measured in the NEXT record
+(ADR 0011's ladder), never chased here.
+
 Refs: [ADR 0027](./docs/DECISIONS/0027-a-cards-sizes-are-scoped-to-the-window.md) (this era's decision:
 a size is a SURFACE fact, with FOUR rejected alternatives and their measures),
 [ADR 0025](./docs/DECISIONS/0025-the-recipe-card-window.md) (the door whose cells got bigger — its bytes
