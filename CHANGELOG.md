@@ -93,8 +93,37 @@ Changed
   `recipes --icons` step answered ALL 12 of matching 12 at 46 792 B with **19 counts, 0 money
   beside them**. ADR 0018/0021/0025/0027/0028 gained CHANGED/GROWN/RIDDEN pointers; tags never
   moved. FEATURE era MOVES the banner (`chore ff84417`): `0.14.0 → 0.15.0`. Chain: `b5bcb25`
-  feat(ui) · `6b4f50c` feat(ui) · `ff84417` chore · this record + tag `v0.15.0`; the fold measures
-  the post-tag witnesses and the run this push starts, FORWARD (ADR 0011's ladder).
+  feat(ui) · `6b4f50c` feat(ui) · `ff84417` chore · this record + tag `v0.15.0`.
+
+**FOLDED — measured post-tag on the PUSHED tree at `eaeee89` (fresh ports 9811/9841/9871, FRESH
+processes/DBs, the real host untouched, the user's file LOCAL read-only doors, ZERO requests, ZERO crawl);
+the tag's tree verified through the remote's OWN `^{}` line `5f344fce…` → `eaeee89`.** The era's OWN
+chain+tag run reads **45253921925 SUCCESS**, 5/5 jobs green in **10 min 16 s** (run **#50**, attempt 1,
+ONE run id, no CANCELLED sibling, head `eaeee89` = this record = the tag's target); the linux job CLOSED
+it at 20:05:35Z — a scheduling fact, said so — and its 10 min 16 s against v0.14.0's 18 min 15 s says
+WHERE the jobs landed, nothing else. Each job answers **12 end-actions, 11 success + ONE skipped**, the
+skipped one the Rust-toolchain installer's OWN inner action (`__run_2` windows, `__run_3` the other four),
+never a workflow step; Ubuntu-libs ABSENT on the windows/macos logs. The `test` job pressed exactly
+**49 `cargo run --` steps** (ZERO CI line moved by the era — the block stayed PUT) and, from GitHub's OWN
+test-job log, the tab's OWN argv `recipes --icons` answered **`"matching": 12` at 46 792 B** (my mirror:
+46 793 B on the same argv — **the bytes ride the seed, the tallies do not**). Post-tag mirror **49/49 rc
+`0`, ZERO NONZERO** on fresh 9811 with the driver's OWN parse saying **49 step-lines committed, ZERO step
+moved, plant one** and stage presses UNCHANGED (budget-3 recipes 4/3/5/`rate_limited` 1 · resumed-from-3
+5/5/7 complete · re-pull 8/8 pages/**8 SAME copy**/0 written), tallies ending where the crawl left them —
+**51 GETs, 17 recipe-file GETs, ZERO added** — census 12/6/4/0/0. Exit map fresh 9841: the **SAME 31-door
+totals `0`×19 · `2`×5 · `4`×7**, this era's eight shapes AGAIN **`0`×7 + `4`×1** (its `recipes --icons` = ALL
+12 of matching 12 at 46 793 B, `--limit 0` 0 rows at 52 B rc `0` with EMPTY not 4, EMPTY-DB rc `4`), money
+over those answers **0 defects**, counts 19/19/19 wearing none. **The pinned v0.14.0 pair AGAIN 28/28
+BYTE-IDENTICAL, ZERO DELTAs + 13/13 md5-equal** fresh 9871 (pinned worktree @ TAGGED `c065815`, its OWN
+build green ZERO named, banner `0.14.0` PUT, NINE nameplates PRESENT = the BEFORE witness vs the new SEVEN
++ `pip-closed`/`open_pip` PRESENT, banner `0.15.0` MOVED). Tag census on the remote: **62 lines · 31 tags,
+ZERO moved** (`v0.15.0` → `eaeee89`, `v0.14.0` → `c065815`). Pushed-tree re-measures (same rule: the webview
+NEVER renders in the build room, DOM/IPC NOT WITNESSED): fresh build **49.07 s**, named **ZERO**; PARSE OK;
+SEVEN nameplates; 15 `data-tab` attrs (`writes` rides three); ZERO card `data-tab`/`show_tab` sites; TWO
+closers; the `pipbtn` census; FOUR `.pip` rules; ADR 0027's **21 id rules STILL 21** (72/39 px); `--limit 40`
+PUT. CI on the pushed tree: **49 cargo step-lines + plant one** (parse). User's file UNCHANGED (`sqlite3 -readonly`):
+schema 8 · 19 258 · 4 602/14 656 · 1 240/1 240 · 1 240 `learned_json` · watch 134 · 4 231/4 344+258 · `vendor_buy`
+0 · trend 0 · deleted 0 · `sync_state` 6. The fold's OWN push starts the NEXT run, measured in the NEXT record — ADR 0011's ladder.
 
 ## v0.14.0 — the RECIPES TAB shows the WHOLE set: its pager dies, the door never had a cap, and ZERO door line moved · 2026-11-23 · tag `v0.14.0`
 

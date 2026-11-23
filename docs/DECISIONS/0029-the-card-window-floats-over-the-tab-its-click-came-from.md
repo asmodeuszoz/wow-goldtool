@@ -144,6 +144,27 @@ unbounded `recipes --icons` 46 793 B = ALL 12 of matching 12 on BOTH binaries).
 `b5bcb25` feat(ui) (the two nameplates die, the windows ride the clicks, closers born — TWO files,
 89 ins / 15 del) → `6b4f50c` feat(ui) (the overlay's paint: FOUR CSS rules, ZERO new colour token,
 32 ins) → `ff84417` chore (banner `0.14.0 → 0.15.0` — a FEATURE era moves it, ZERO Rust line touched)
-→ this record carries `v0.15.0` (annotated tag). Post-tag witnesses are folded in the era's FOLD
-commit (fresh mirror/map/pair ports + the ladder run this push starts, measured not assumed —
-ADR 0011's ladder).
+→ this record carries `v0.15.0` (annotated tag).
+
+**FOLD (measured post-tag on the PUSHED tree at `eaeee89`, fresh ports 9811/9841/9871):** the tag's
+tree was verified through the remote's OWN `^{}` line `5f344fce…` → `eaeee89`, and the pushed tree
+answers the way every sentence above says, measured AGAIN rather than cited: mirror **49/49 rc `0`,
+ZERO NONZERO** (9811 — the driver's OWN parse says **49 step-lines committed, ZERO step moved**, the
+window rode doors the block already answers), stage presses UNCHANGED, fixture tallies ending where
+the crawl left them (**51 GETs / 17 recipe-file GETs, ZERO added** = the locality proof), census 12/6/4/0/0;
+exit map at the **SAME 31-door totals `0`×19 · `2`×5 · `4`×7** with this era's eight shapes AGAIN `0`×7
++ `4`×1 (9841) and money **0 pairing defects**; **the pinned v0.14.0 pair AGAIN 28/28 BYTE-IDENTICAL +
+13/13 md5-equal** (9871, pinned @ TAGGED `c065815` with its NINE nameplates = the BEFORE witness vs the
+new SEVEN + `pip-closed`/`open_pip` PRESENT, banners `0.14.0` PUT vs `0.15.0` MOVED) — the decision above
+("the window IS a paint fact") holds on the pushed tree, not just on the era's pre-tag tree. The ADR's
+ladder row is MEASURED now: this era's OWN chain+tag run reads **45253921925 SUCCESS**, 5/5 jobs green in
+**10 min 16 s** (run #50, attempt 1, head = the tag's target; the linux job CLOSED it at 20:05:35Z — a
+scheduling fact, said so rather than smoothed; each job 12 end-actions = 11 success + 1 skipped `__dtolnay_rust-toolchain`
+inner action, never a workflow step; Ubuntu-libs ABSENT on the windows/macos logs; the `test` job pressed
+exactly **49 `cargo run --` steps**, its tab's OWN argv step answering **matching 12 at 46 792 B** in GitHub's
+own log against my mirror's 46 793 B — bytes ride the seed, tallies do not). Tags stay put: the remote answers
+**31 tags / 62 lines, ZERO moved** (`v0.15.0` → `eaeee89`, `v0.14.0` → `c065815`). The pushed-tree re-measures
+(still parse/grep ONLY, DOM/IPC NOT WITNESSED): fresh build 49.07 s named ZERO, PARSE OK, SEVEN nameplates,
+15 `data-tab` attrs (`writes` rides three), ZERO card attrs/call sites, TWO closers, the `pipbtn` census, FOUR
+`.pip` rules, the **21 id-scoped rules STILL 21** (72/39 px), `--limit 40` PUT, `recipes-pager` 0. The fold's
+OWN push starts the NEXT run — measured in the NEXT era's record (ADR 0011's ladder), never chased here.

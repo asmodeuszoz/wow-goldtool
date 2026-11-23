@@ -121,8 +121,60 @@ below proves byte-wise.
 `b5bcb25` feat(ui) (the two nameplates die, the windows ride the clicks, closers born — TWO files,
 89 ins / 15 del) → `6b4f50c` feat(ui) (the overlay's paint: FOUR CSS rules, ZERO new colour token,
 32 ins) → `ff84417` chore (banner `0.14.0 → 0.15.0` — a FEATURE era moves it) → this record carries
-`v0.15.0` (annotated tag). Post-tag witnesses on the PUSHED tree + the run this push starts land in
-the FOLD commit, measured then, never assumed (ADR 0011's ladder).
+`v0.15.0` (annotated tag).
+
+**FOLDED — measured post-tag on the PUSHED tree at `eaeee89`, all FRESH ports/processes/DBs (the
+real host untouched, the user's file read read-only through LOCAL doors, ZERO requests, ZERO crawl).**
+The tag's tree was verified through the remote's OWN `^{}` resolution line `5f344fce…` → `eaeee89`.
+
+* **The era's OWN chain+tag run reads 45253921925 SUCCESS**, 5/5 jobs green in **10 min 16 s**
+  (19:55:19Z → 20:05:35Z, run **#50**, attempt 1, exactly ONE run id, no CANCELLED sibling, head
+  `eaeee89` = this record commit = the tag's target); per-job ends quality → 19:59:47Z · macos →
+  20:01:09Z · `test` → 20:02:41Z · windows → 20:04:33Z · **linux → 20:05:35Z — the linux job CLOSED
+  this run** (where the last job landed is a scheduling fact on GitHub's side, said so, not smoothed;
+  it is WHY this run reads 10 min 16 s against v0.14.0's 18 min 15 s). Each job answers **12 end-actions,
+  11 success + ONE skipped**, and the skipped one is every time the Rust-toolchain installer's OWN
+  inner action (`__dtolnay_rust-toolchain.__run_2` on windows, `__run_3` on the other four jobs), never
+  a workflow step; the Ubuntu-libs apt step is PRESENT on the `test`/linux/quality job logs (the package
+  line reads 7 times there) and simply ABSENT on the windows/macos logs (0). The `test` job pressed
+  exactly **49 `cargo run --` steps** — this era moved ZERO CI line, the committed block stayed PUT —
+  and from GitHub's OWN test-job log, step-answer payload lengths: the tab's OWN argv `recipes --icons`
+  answered **`"matching": 12` at 46 792 B**, its siblings `recipes` 12 992 B and `--offset 10` 2 173 B
+  (my fresh mirror measured 46 793 B on the same argv: **the bytes ride the seed, the tallies do not**).
+* **Fresh post-tag witnesses on the PUSHED tree:** mirror **49/49 commands rc `0`, ZERO NONZERO** on
+  fresh **9811** — the driver's OWN parse says **49 committed step-lines, ZERO step moved**, plant line
+  one — stage presses UNCHANGED (budget-3 recipes **4 requests / 3 pages / 5 rows / `rate_limited` 1** ·
+  resumed-from-3 **5 / 5 pages / 7 rows / complete** · re-pull **8 / 8 pages / 8 answered the SAME copy /
+  0 written**) · fixture's OWN GET tallies end where the crawl left them — **51 GETs, 17 recipe-file GETs,
+  ZERO added** — the locality proof · census recipe 12 / item 6 / copies 4 / `vendor_buy` 0 / trend 0.
+  Exit map on fresh **9841** (fresh seed + fresh EMPTY DB + a DEAD port): the 31 carried doors answer the
+  **SAME totals `0`×19 · `2`×5 · `4`×7** and this era's OWN eight shapes answer AGAIN **rc `0`×7 + rc `4`×1**
+  (`recipes` 12 993 B 12/12 · `recipes --icons` **46 793 B = ALL 12 of matching 12** with 7 reagent icon-byte
+  cells + 6 crafted · `--limit 0` **0 rows** at 52 B rc `0` — EMPTY, not 4 · `--limit -1` 12/12 · `--limit 12
+  --icons` the SAME 46 793 B as unbounded · `--offset 10` 2 of 12 at 2 174 B · `--profession Enchanting --icons`
+  2 of 2 at 4 634 B · `--limit 100 --icons` over the EMPTY DB **rc `4`** on the door's OWN no-row words); this
+  era grew ZERO new door shape; money over the door's OWN answers **0 pairing defects**, counts 19/19/19 with
+  none wearing money. **The pinned v0.14.0 pair answered AGAIN, fresh 9871 + ONE fresh DB:** pinned worktree
+  @ the TAGGED `c065815` (banner `0.14.0` PUT, NINE nameplates + the card tabs PRESENT = the BEFORE witness)
+  vs the new tree → **28/28 BYTE-IDENTICAL, ZERO DELTAs + 13/13 md5-equal** over the user's OWN file; the
+  pair's OWN surface census quotes BOTH trees: new SEVEN nameplates / `data-tab="recipe-card"` ABSENT /
+  `pip-closed` + `open_pip(` PRESENT / `show_tab("recipe-card")` ABSENT / banner `0.15.0` MOVED vs pinned
+  NINE / PRESENT / ABSENT / ABSENT / PRESENT, banner `0.14.0` PUT.
+* **Pushed-tree re-measures** (same rule — the webview NEVER renders in the build room, the overlay's DOM/IPC
+  cost stays **NOT WITNESSED**): fresh `cargo build` on the pushed tree **49.07 s**, named set **ZERO** (the FS
+  notice rode); `node --check` PARSE OK; SEVEN nameplates; **15 `data-tab` attrs** (analytics/live/overview/recipes/
+  search/sync ×2 + `writes` ×3); ZERO `data-tab="card"`/`"recipe-card"`; ZERO card `show_tab` sites; TWO `Close
+  this window` closers; the `pipbtn` opener drawn in JS + the handler's class split riding; FOUR `.pip`-family
+  rules (`display: none` hider, the float, the opener button + its hover); ADR 0027's `#recipe-card` id rules
+  **STILL 21** with `.listicon` 72 / `.noicon` 39 px; `recipes-pager` 0 and the Search tab's `--limit 40` PUT.
+* **Tag census on the remote: 62 lines · 31 tags, ZERO moved** — `v0.15.0` → `eaeee89` (tag object `5f344fce`,
+  payload 8 430 B), `v0.14.0` → `c065815` and the older anchors stay where they were. CI on the pushed tree:
+  parse still **49 cargo step-lines + plant one**. User's file census UNCHANGED (`sqlite3 -readonly`, NEVER
+  written, NEVER crawled): schema **8** · 19 258 items · **4 602** copies (`raw_json`/`detail_etag`/`tooltip_html`
+  all agree) / **14 656** without · 1 240 recipe rows / 1 240 distinct spell ids · `learned_json` 1 240 set ·
+  watch **134** · `vendor_sell` 4 231 · `price_min_now` 4 344 + `price_now_missing_at` 258 · `vendor_buy` **0** ·
+  trend **0** · deleted **0** · `sync_state` 6.
+* The fold's OWN push starts the NEXT run — measured in the NEXT era's record (ADR 0011's ladder), never chased here.
 
 ---
 
