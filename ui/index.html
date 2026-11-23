@@ -19,11 +19,21 @@
          (overview) is PAINTED by the static classes, so the first paint of the
          window never waits on the script. The footer with the developer-terms
          attribution stays OUTSIDE the tabs: it must reach every screen. -->
+    <!-- v0.15.0 (ADR 0029): the TWO CARD NAMEPLATES DIED in this strip - SEVEN
+         nameplates answer SEVEN activities now. The item card and the recipe card
+         are not an activity each any more: each is a WINDOW that floats OVER the
+         tab its click came from (Search rows open the item window, Recipes rows
+         open the recipe window - ADR 0025's click path stays PUT), and `Close
+         this window` in the window itself is the only closer. The two sections
+         dropped their data-tab, so show_tab's ONE truth never touches a window:
+         app.js's open_pip/close_pip hold their visibility alone. The DOORS stay
+         PUT (`item ID --cached` / `recipe SPELL_ID --icons`): a click and a
+         `cargo run --` line are still ONE code path (ADR 0014), and the window
+         answers ZERO requests like its door. -->
     <nav class="tabs" id="tabs">
       <button class="tab tab-on" id="tab-overview" data-tab="overview" type="button">Overview</button>
       <button class="tab" id="tab-search" data-tab="search" type="button">Search</button>
       <button class="tab" id="tab-sync" data-tab="sync" type="button">Sync</button>
-      <button class="tab" id="tab-card" data-tab="card" type="button">Item card</button>
       <button class="tab" id="tab-writes" data-tab="writes" type="button">Writes</button>
       <button class="tab" id="tab-live" data-tab="live" type="button">Live look</button>
       <button class="tab" id="tab-stats" data-tab="analytics" type="button">Analytics</button>
@@ -47,8 +57,11 @@
            where one exists), beside the fetched set's own job/skill words. Every
            gap keeps its own state word (ADR 0004): the set may name no scroll, name
            one this DB never saw, or state nothing at all about how a recipe is
-           learned. -->
-      <button class="tab" id="tab-recipe-card" data-tab="recipe-card" type="button">Recipe card</button>
+           learned.
+           v0.15.0 (ADR 0029): this NAMEPLATE died - the card is the WINDOW the
+           click opens OVER the Recipes tab, nothing else. Everything this
+           comment otherwise describes (the click path, the delegated handler,
+           the ONE door, the card's words and gaps) stays exactly PUT. -->
     </nav>
 
     <section class="card" id="status-card" data-tab="overview">
@@ -164,25 +177,27 @@
       </div>
     </section>
 
-    <section class="card tab-off" id="item-card" data-tab="card">
+    <section class="card pip-closed" id="item-card">
       <h2>Item card</h2>
       <div class="fields" id="card-fields">
         <input class="field" id="card-id" type="text" placeholder="item id" />
         <button class="act" id="btn-card-db" type="button">Read the DB</button>
         <button class="act" id="btn-card-live" type="button">Re-check online</button>
+        <button class="act" id="btn-card-close" type="button">Close this window</button>
       </div>
       <div class="cardbox" id="card-box"></div>
-      <div class="note" id="card-note">the card reads the DB: it answers offline, prices are shown as the game&#8217;s money with the exact copper in each hover, the live min buyout row reads "no price" until the price refresh ran - the Sync tab&#8217;s Price button or the CLI stage, one live ask per copied record ever, and the door can also answer that the AH offers nothing right now - and on the card itself "Re-check online" is the only button that touches the API</div>
+      <div class="note" id="card-note">the item card is a WINDOW, not a tab: clicking a Search row&#8217;s `card` button opens it OVER the tab you are on (its item id fills the window&#8217;s field and `Read the DB` answers with ZERO requests), and the window floats until `Close this window` closes it - the tab underneath stays where it was, and typing another item id into the field plus pressing `Read the DB` reads the SAME door again. the card reads the DB: it answers offline, prices are shown as the game&#8217;s money with the exact copper in each hover, the live min buyout row reads "no price" until the price refresh ran - the Sync tab&#8217;s Price button or the CLI stage, one live ask per copied record ever, and the door can also answer that the AH offers nothing right now - and on the card itself "Re-check online" is the only button that touches the API</div>
     </section>
 
-    <section class="card wide tab-off" id="recipe-card" data-tab="recipe-card">
+    <section class="card wide pip-closed" id="recipe-card">
       <h2>Recipe card — one entry, as the game shows it</h2>
       <div class="fields" id="recipe-card-fields">
         <input class="field" id="recipe-card-id" type="text" placeholder="spell id (the Recipes tab&#8217;s rows name theirs)" />
         <button class="act" id="btn-recipe-card" type="button">Read the DB</button>
+        <button class="act" id="btn-recipe-card-close" type="button">Close this window</button>
       </div>
       <div class="rcardbox" id="recipe-card-box"></div>
-      <div class="note" id="recipe-card-note">the card reads the DB: ZERO requests leave this door. The entry&#8217;s job, name and skill words are the fetched set&#8217;s own; every cell answers through the item rows this DB owns, BY VALUE on the ids the set states - the scroll that teaches this recipe is named by the set&#8217;s OWN learned-from bytes, the crafted item and the materials by their ids. A gap keeps its own state word: the set may name no scroll at all, name one this DB never saw, state nothing about how the recipe is learned, or name no crafted item at all (the set&#8217;s enchanting entries). A cell shows the game&#8217;s money beside every copper number and the record&#8217;s OWN copied tooltip where the tooltip stage copied one</div>
+      <div class="note" id="recipe-card-note">the recipe card is a WINDOW, not a tab: clicking a Recipes row&#8217;s recipe name opens it OVER the Recipes tab (the row&#8217;s spell id fills the window&#8217;s field and its door is read), `Close this window` closes it, and the tab underneath stays where it was. the card reads the DB: ZERO requests leave this door. The entry&#8217;s job, name and skill words are the fetched set&#8217;s own; every cell answers through the item rows this DB owns, BY VALUE on the ids the set states - the scroll that teaches this recipe is named by the set&#8217;s OWN learned-from bytes, the crafted item and the materials by their ids. A gap keeps its own state word: the set may name no scroll at all, name one this DB never saw, state nothing about how the recipe is learned, or name no crafted item at all (the set&#8217;s enchanting entries). A cell shows the game&#8217;s money beside every copper number and the record&#8217;s OWN copied tooltip where the tooltip stage copied one</div>
     </section>
 
     <section class="card tab-off" id="edit-card" data-tab="writes">

@@ -28,6 +28,11 @@ var live_shown = false;
 // "one activity at a time" is enforced by the layout, not by disabling handlers.
 // Nothing in here touches a verb: every still-visible button lands in the SAME
 // cli_ok(argv) path ADR 0014 locked (a click and a cargo line stay one code path).
+// v0.15.0 (ADR 0029): the TWO CARD WINDOWS are NOT in this truth any more - their
+// sections dropped data-tab with their nameplates, so this loop sees SEVEN
+// nameplates and EIGHT data-tab sections, never a card window. A window's
+// visibility is held by open_pip/close_pip alone (below): it floats OVER whatever
+// tab is already visible, and the tab machinery never hides or moves it.
 var active_tab = "overview";
 
 function show_tab(tab) {
@@ -46,6 +51,24 @@ function show_tab(tab) {
 
 function tab_click(button) {
   if (button.dataset.tab !== active_tab) { show_tab(button.dataset.tab); }
+}
+
+// v0.15.0 (ADR 0029): the card windows in window - a window OVER the tab its
+// click came from, never an activity of its own. These two class swaps are the
+// ONLY thing that shows or hides a window: pip-closed hides it (the frame's
+// SAME display:none mechanism tab-off uses, under a name that is not a tab),
+// pip floats it (position + trim in app.css). Closing puts the window back
+// where it was born: hidden, and the tab underneath stays exactly where it was.
+function open_pip(section_id) {
+  var s = document.getElementById(section_id);
+  s.classList.remove("pip-closed");
+  s.classList.add("pip");
+}
+
+function close_pip(section_id) {
+  var s = document.getElementById(section_id);
+  s.classList.remove("pip");
+  s.classList.add("pip-closed");
 }
 
 // Escape once, everywhere: names from the API go into text nodes, not markup.
@@ -200,7 +223,7 @@ async function runSearch() {
     }
     document.querySelector("#hits tbody").innerHTML = rows;
     var shown = found.hits.length;
-    var note = "showing " + shown + " of " + num(found.total) + " — details of " + num(found.total) + " items cost one request each, and the sync stage caches them; the price column shows the game's OWN money words (hover: the exact copper, the number the sorts and the scripts read), the icon column shows the DB's OWN copy where the icons stage wrote one (\u25c7 means no bytes: never fetched, or checked as gone upstream \u2014 the hover says which, and nothing is hotlinked)";
+    var note = "showing " + shown + " of " + num(found.total) + " — details of " + num(found.total) + " items cost one request each, and the sync stage caches them; the price column shows the game's OWN money words (hover: the exact copper, the number the sorts and the scripts read), the icon column shows the DB's OWN copy where the icons stage wrote one (\u25c7 means no bytes: never fetched, or checked as gone upstream \u2014 the hover says which, and nothing is hotlinked) \u2014 each row's `card` button opens that item's window OVER this tab (the window reads the SAME door a `cargo run -- item ID --cached` line takes, ZERO requests; its `Close this window` button closes it and this tab stays where it was)";
     if (found.total === 0) { note = "no item matches — the search runs against the local DB only"; }
     // v0.9.9 (ADR 0020): the live-sort knob reorders rows by the LIVE min buyout, but the
     // price CELL stays the STORED min - the note names which is which beside every hit, so
@@ -244,9 +267,14 @@ function hit_row(hit) {
   var watch_label = "watch";
   if (watched.indexOf(hit.id) >= 0) { watch_label = "unwatch"; }
   var toggle = '<button class="rowact" data-id="' + esc(String(hit.id)) + '">' + watch_label + "</button>";
+  // v0.15.0 (ADR 0029): the row's window opener. The button carries the SAME
+  // id the watch half carries, and ONE delegated handler over the table tells
+  // the halves apart by class - a 40-row page still plants no per-row listener
+  // (ADR 0025's pattern, now riding BOTH halves of a search row).
+  var pip_btn = '<button class="pipbtn" data-id="' + esc(String(hit.id)) + '" type="button">card</button>';
   return "<tr>"
     + '<td class="col-id">' + esc(String(hit.id)) + "</td>"
-    + '<td class="namecell">' + esc(hit.name) + " " + link + " " + toggle + "</td>"
+    + '<td class="namecell">' + esc(hit.name) + " " + link + " " + toggle + " " + pip_btn + "</td>"
     + '<td class="iconcell">' + icon_cell(hit) + "</td>"
     + '<td class="qualitycell"><span class="chip c-' + esc(quality) + '">' + esc(quality) + "</span></td>"
     + '<td class="pricecell">' + price_cell + "</td>"
@@ -443,7 +471,10 @@ async function watchRecipes() {
 // The click hands the door its id directly (the row's name button carries it);
 // typing an id into the field answers the same way. Both land in the SAME argv.
 async function runRecipeCard(from_click) {
-  show_tab("recipe-card");
+  // v0.15.0 (ADR 0029): the card window is OPENED, not switched to - it floats
+  // over the tab the click came from (ADR 0018's tab machinery never sees it:
+  // the section carries no data-tab any more, its nameplate died).
+  open_pip("recipe-card");
   var field = document.getElementById("recipe-card-id");
   var raw = "";
   if (from_click !== undefined && from_click !== "") {
@@ -858,7 +889,22 @@ async function runHitsDetails() {
 }
 
 // ---- item card -------------------------------------------------------------
+// v0.15.0 (ADR 0029): the row click's half of the delegated handler. The button
+// carries the item id (ADR 0025's delegated pattern, now riding the search
+// table too); the window's OWN field is what runCard reads, so filling it keeps
+// ONE door and ONE reader - a click and a `cargo run -- item ID --cached` line
+// stay the SAME code path (ADR 0014), and the window floats over the tab.
+async function runCard_from_row(row_btn) {
+  document.getElementById("card-id").value = row_btn.dataset.id;
+  await runCard(false);
+}
+
 async function runCard(live) {
+  // v0.15.0 (ADR 0029): the item card is a WINDOW now, not a tab - the first
+  // thing any reach does is float it over the tab that is already visible
+  // (open_pip/close_pip hold a window's visibility ALONE: its nameplate and
+  // data-tab died, so show_tab's ONE truth never touches it).
+  open_pip("item-card");
   var raw = document.getElementById("card-id").value.trim();
   if (raw === "") {
     set_note(document.getElementById("card-note"), "type an item id first", true);
@@ -1324,19 +1370,25 @@ document.getElementById("btn-recipes").addEventListener("click", function () { r
 document.getElementById("btn-recipes-fetch").addEventListener("click", function () { runSync("recipes"); });
 document.getElementById("btn-recipes-watch").addEventListener("click", function () { watchRecipes(); });
 document.getElementById("btn-recipe-card").addEventListener("click", function () { runRecipeCard(); });
+// v0.15.0 (ADR 0029): the recipe window's OWN closer.
+document.getElementById("btn-recipe-card-close").addEventListener("click", function () { close_pip("recipe-card"); });
 
 // v0.12.0 (ADR 0025): ONE delegated handler over the recipe hits table - the row's
 // name button carries the spell id it belongs to (the same delegated pattern the
 // search hits and the tab strip ride, so a 100-row page plants no closures). The
 // click fills the card door's id, reads the SAME argv a `cargo run -- recipe N`
-// line takes (ADR 0014), and lands on the card tab. Anything else inside the table
-// answers nothing.
+// line takes (ADR 0014), and - v0.15.0 (ADR 0029) - lands the card WINDOW
+// floating OVER this very tab: no nameplate, no tab switch, the list stays
+// visible under the window. Anything else inside the table answers nothing.
 document.getElementById("recipe-hits").addEventListener("click", function (event) {
   var node = event.target;
   if (node.dataset.spell !== undefined) { runRecipeCard(node.dataset.spell); }
 });
 document.getElementById("btn-card-db").addEventListener("click", function () { runCard(false); });
 document.getElementById("btn-card-live").addEventListener("click", function () { runCard(true); });
+// v0.15.0 (ADR 0029): the window's OWN closer - the only thing that hides a
+// window back where it was born. The tab underneath is never touched.
+document.getElementById("btn-card-close").addEventListener("click", function () { close_pip("item-card"); });
 document.getElementById("btn-live").addEventListener("click", function () { runLive(); });
 document.getElementById("btn-stats").addEventListener("click", function () { runStats(); });
 document.getElementById("btn-edit").addEventListener("click", function () { runEdit(); });
@@ -1345,11 +1397,18 @@ document.getElementById("btn-delete").addEventListener("click", function () { ru
 document.getElementById("btn-undelete").addEventListener("click", function () { runUnhide(); });
 document.getElementById("btn-twin-refresh").addEventListener("click", function () { runTwinRefresh(); });
 
-// One delegated handler for the whole hits table: the toggle button carries the
-// item id it belongs to, so rows do not need per-row listeners.
+// One delegated handler for the whole hits table: BOTH halves of a row ride it
+// (v0.15.0, ADR 0029) - the watch toggle AND the window opener carry the SAME
+// item id, and the class says which half the click takes: the opener fills the
+// window's field and lands on runCard (the `item ID --cached` door - the window
+// answers offline, ZERO requests, like its door), the toggle keeps watch.
+// Anything else inside the table answers nothing.
 document.getElementById("hits").addEventListener("click", function (event) {
   var node = event.target;
-  if (node.dataset.id !== undefined) { toggle_watch(node); }
+  if (node.dataset.id !== undefined) {
+    if (node.classList.contains("pipbtn")) { runCard_from_row(node); }
+    else { toggle_watch(node); }
+  }
 });
 
 // The tab strip rides the same delegated pattern: the button carries its tab's
