@@ -102,6 +102,51 @@ Changed
   this era's `ci` commit landed AFTER the fold). The run this era's chain+tag push starts is measured in
   the NEXT record (ADR 0011's ladder), never chased here.
 
+**The fold — post-tag, the PUSHED tree, all FRESH ports/processes/DBs (the real host untouched, the user's
+file read read-only through LOCAL doors, ZERO requests, ZERO crawl).** The tag's tree (`c065815`, verified
+through the remote's OWN `^{}` resolution `868eff3…` → `c065815`) answers the way the record says, measured
+AGAIN rather than cited. **The era's OWN chain+tag run reads 45217976658 SUCCESS**, 5/5 jobs green in **18
+min 15 s** (16:34:12Z → 16:52:27Z, run #48, attempt 1, ONE run id, no CANCELLED sibling, head `c065815` =
+the TAGGED tree): macos → 16:40:48Z · linux → 16:40:56Z · `test` → 16:42:20Z · windows → 16:42:27Z · **quality
+→ 16:52:27Z** — the Lint job closed the run this time, so the run reads longer than v0.13.0's 16 min 4 s
+because of WHERE the quality job landed: a scheduling fact, said so. Each job answers **12 end-actions, 11
+success + ONE skipped**, the skipped one being the Rust-toolchain installer's OWN inner action, never a
+workflow step; the `test` job pressed exactly **49 `cargo run --` steps** — this era's block, the new step
+INCLUDED, all rc 0 — and that step (the tab's OWN argv) answers **12 rows of matching 12** there with 19
+reagent cells (7 icon-byte cells, 8 money words, **19 counts with 0 money beside them**), 6 crafted icon-byte
+cells, 2 rows with NO crafted item, at 46 792 B (my fresh mirrors measured 46 793 B: the bytes ride the seed,
+the tallies do not). The Lint step reads **completed/success** on CI's own build at 0 errors / **858** advice —
+the SAME 858 the v0.13.0 fold's run measured, which is what a ZERO-Rust era claims (the local invocation's 811
+stays quoted separately, as ADR 0011 requires). Fresh post-tag witnesses on the pushed tree: mirror **49/49
+commands rc `0`, ZERO NONZERO** (9611, block re-PARSED at 49 step-lines + plant one, ZERO step moved; stage
+presses UNCHANGED — budget-3 recipes 4/3/5/`rate_limited` 1 · resumed-from-3 5/5/7 complete · re-pull 8/8 pages
+/ **8 answered the SAME copy** / 0 written; fixture tallies **51 GETs / 17 recipe-file GETs, ZERO added** = the
+locality proof; census recipe 12 / item 6 / copies 4 / `vendor_buy` 0 / trend 0); exit map at the **SAME 31-door
+totals `0`×19 · `2`×5 · `4`×7** (9631, fresh seed + fresh EMPTY DB + a DEAD port) plus this era's OWN eight
+shapes **rc `0`×7 + rc `4`×1** (`recipes` 12/12 at 12 993 B · `recipes --icons` 12/12 at 46 793 B · `--limit 0`
+**0 rows** at 52 B with rc `0` · `--limit -1` 12/12 · `--limit 12 --icons` the SAME 46 793 B as unbounded ·
+`--offset 10` 2 of 12 at 2 174 B · `--profession Enchanting --icons` 2 of 2 at 4 634 B · `--limit 100 --icons`
+over the EMPTY DB rc `4` on the door's OWN no-row words), money over those answers **0 pairing defects** with
+counts 19/19/19 wearing none; and the pinned v0.13.0 pair **AGAIN 28/28 BYTE-IDENTICAL, ZERO DELTAs** (9671 —
+pinned at the TAGGED `b927109`, its OWN build green ZERO named in 1 m 22 s, banner `0.13.0` PUT, the pager select
+PRESENT) + **13/13 md5-equal** over the user's own file (9 cards 25 213 / 7 004 / 9 430 / 3 596 / 3 453 B, rc 4
+on `8800111` 113 B), the recipes doors in BOTH shapes (`recipes --icons` **46 793 B on BOTH binaries**, `--limit
+0` 52 B, `--limit -1` = the unbounded 12 993 B, `--limit 100 --icons` 46 793 B) and the nine card doors at 2 124
+/ 7 330 / 6 673 / 4 107 / 643 / 1 209 / 1 155 / 6 740 / 4 033 B; this era's HEADLINE door over the user's whole
+file is byte-identical across the binaries: **16 696 238 B, md5 `4f1982d6`, 1 240 rows of matching 1 240** (3
+778 reagent cells — 3 514 icon-byte cells / 3 642 money-word cells / **3 778 counts carried with NO money beside
+them**; 897 crafted icon-byte cells, 873 money words, 884 live words; 133 rows with NO crafted item and 10 crafted
+ids with no row; 3 399 938 B asked without `--icons`). The tab's shape on the pushed tree, quoted: `node --check`
+rc 0, `recipes-pager` answers ZERO in BOTH UI files, the argv reads `var argv = ["recipes", "--icons"];`, the
+job select stays ONE, the Search tab's `--limit 40` stays PUT, CI answers 49 `cargo run` mentions, banner `0.14.0`
+vs the pinned `0.13.0` PUT. The Watch button's reach, fresh: **1 095 ids of the 1 240 rows** in ONE batched
+`watch add` → rc `0` / 6 036 B on a SCRATCH COPY, `watch list` then answering **1 129 ids** (134 watched + 995
+new); the user's file stays schema **8** / 19 258 items / 4 602 copies / **14 656 without** / 1 240 recipes /
+watch **134** / `vendor_buy` 0 / trend 0 read read-only. Tags stay put — the remote answers 30 tags, its OWN
+`^{}` lines reading `v0.13.0` → `b927109` and **`v0.14.0` → `c065815`**, ZERO moved; CI stays 49 step-lines +
+plant one, and the fold is docs-only, so it cannot move the build. The fold's OWN push starts the NEXT run,
+measured in the NEXT ladder row (ADR 0011's ladder)
+
 Refs: [ADR 0028](./docs/DECISIONS/0028-a-hits-tab-shows-the-whole-answer.md) (this era's decision: a bound
 is a SURFACE fact, with the measures and SEVEN rejected alternatives), [ADR 0022](./docs/DECISIONS/0022-one-paging-rule-per-door.md)
 (the paging rule the tab now rides: no `--limit` = the rest), [ADR 0021](./docs/DECISIONS/0021-the-recipe-doors.md)

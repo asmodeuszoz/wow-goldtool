@@ -236,9 +236,10 @@ argv, asked with NO bound, answers **ALL 1 240 of matching 1 240** at 16 696 238
 became the door's OWN (`["recipes","--icons"]`, `--profession` only when a job is picked), so ADR
 0014's one-code-path rule keeps its teeth: a `cargo run -- recipes --icons` line and the tab show
 the SAME rows, and the CI block now presses exactly that argv as its 49th step (measured 49/49 rc
-0, ZERO NONZERO on fresh mirrors 9521 / 9531 and again on the landed block at 9541 — the fixture's
+0, ZERO NONZERO on fresh mirrors 9521 / 9531 and again on the landed block at 9541 — and AGAIN post-tag
+on the PUSHED tree at 9611 — the fixture's
 51 GETs / 17 recipe-file GETs stay exactly where the crawl left them, which IS ADR 0012's locality
-proof). "The cooked items of the SHOWN rows" is NOT re-capped and NOT re-aimed — with the whole set
+proof, measured twice). "The cooked items of the SHOWN rows" is NOT re-capped and NOT re-aimed — with the whole set
 shown, the Watch button's ONE batched `watch add` argv carries **1 095 ids of the 1 240 rows**
 (133 Enchanting crafts with NO crafted item and 10 crafted ids with no row skipped honestly, the
 row already says so): measured on a **SCRATCH COPY** of the user's file the door answers rc `0` /

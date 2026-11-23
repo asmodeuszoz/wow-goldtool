@@ -101,8 +101,9 @@ this composition writes takes its **ZERO branch** for that tab — and the answe
 door's own bytes: **ALL 12 of matching 12** over the fixture (46 793 B) and **ALL 1 240 of matching 1
 240** over the user's file (16 696 238 B; 3 399 938 B asked without `--icons`), the same numbers the
 CI block's new 49th step presses (`cargo run -- recipes --icons`, measured 49/49 rc 0 / ZERO NONZERO on
-fresh mirrors 9521 / 9531 BEFORE it landed and again at 9541 on the landed block, the fixture's 51 GETs
-/ 17 recipe-file GETs unchanged — which IS ADR 0012's locality proof). `--limit` STAYS on the door:
+fresh mirrors 9521 / 9531 BEFORE it landed and again at 9541 on the landed block — and AGAIN post-tag on
+the PUSHED tree at 9611 — the fixture's 51 GETs
+/ 17 recipe-file GETs unchanged on all four, which IS ADR 0012's locality proof). `--limit` STAYS on the door:
 this ADR's own `--offset`-without-`--limit` pair (the rc `4` → rc `0` class), four bounded CI recipe
 steps, the exit map's bounded doors (`--limit 0` answers rc `0` / **0 rows** at 52 B) and the Search
 tab's hardcoded `--limit 40` all still need it. Two measures this rule now carries against "just make

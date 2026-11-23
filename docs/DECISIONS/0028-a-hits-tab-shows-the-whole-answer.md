@@ -104,3 +104,85 @@ Rejected, each with its measure:
   own filter.** ADR 0027 said a SIZE is a surface fact; this ADR says the same about COUNTS — the
   door answers, the surface decides, and the surface that hides rows without saying so is a defect
   CLASS, not a design.
+
+## Post-tag (measured FORWARD, folded in the DEVLOG's v0.14.0 entry)
+
+The tag's tree (`c065815`, read through the remote's OWN `^{}` line `868eff3…` → `c065815`) was measured
+AGAIN on FRESH ports/processes/DBs rather than cited, and the rule this ADR made holds on the tree that
+landed:
+
+* **GitHub's OWN verdict for the era's chain+tag push reads 45217976658 SUCCESS**, 5/5 jobs green in **18
+  min 15 s** (16:34:12Z → 16:52:27Z, run #48, attempt 1, ONE run id, no CANCELLED sibling, head = the TAGGED
+  tree). The `test` job pressed exactly **49 `cargo run --` steps** — this era's block with the tab's OWN
+  argv INCLUDED — and that step answered **12 rows of matching 12** with 19 reagent cells (7 carrying icon
+  bytes, 8 money words, **19 counts carried with 0 money beside them** — ADR 0015's count half), 6 crafted
+  cells carrying icon bytes and 2 rows stating NO crafted item, at 46 792 B (my fresh mirrors measured 46
+  793 B for the SAME argv: the bytes ride the fixture process's own seed, the row tallies and the rc totals
+  do not). The Lint step reads **completed/success** at 0 errors / **858** advice on CI's own build — the
+  SAME 858 the v0.13.0 fold's run measured, which is exactly what an era that touched ZERO Rust claims; the
+  local `cargo clippy --all-targets` number (0 errors / 811 advice) is a DIFFERENT invocation and is quoted
+  apart, as ADR 0011's measured-truth rule requires. The run reads longer than v0.13.0's 16 min 4 s because
+  the quality job CLOSED it (macos → 16:40:48Z · linux → 16:40:56Z · test → 16:42:20Z · windows → 16:42:27Z
+  · quality → 16:52:27Z), a scheduling fact on GitHub's side; each job answers 12 end-actions, 11 success +
+  ONE skipped, and the skipped one is the Rust-toolchain installer's OWN inner action
+  (`__dtolnay_rust-toolchain.__run_N`), never a workflow step — the Ubuntu-libs step is simply ABSENT on the
+  macos/windows jobs. The era's own sibling measured here too: the v0.13.0 fold push's run reads **45204000066
+  SUCCESS**, 5/5 in **9 min 56 s** (head `6fd2e3e`), its `test` job pressing **48** steps — the fold's tree
+  carries the block this era had NOT yet grown at that head, which is the honest reading of the two heads.
+* **The mirror replay on fresh 9611: 49/49 commands rc `0`, ZERO NONZERO** (the driver re-PARSED the committed
+  block: 49 `cargo run` step-lines + plant one, ZERO step moved since the era's own ci commit), the stage
+  presses UNCHANGED (budget-3 recipes 4 requests / 3 pages / 5 rows / `rate_limited` 1 · resumed-from-3 5 /
+  5 pages / 7 rows / complete · a re-pull 8 / 8 pages / **8 answered the SAME copy** / 0 written), the
+  fixture's OWN GET tallies ending where the crawl left them — **51 GETs, 17 of them recipe-file GETs, ZERO
+  added** — which IS this era's locality claim (ADR 0012: the door is LOCAL), census recipe **12** / item 6 /
+  copies 4 / `vendor_buy` **0** / `price_trend_normal` **0**.
+* **The exit map on fresh 9631** (fresh seed + fresh EMPTY DB + a DEAD port): the 31 doors v0.13.0's map
+  carried answer the **SAME totals `0`×19 · `2`×5 · `4`×7** (ZERO door fact moved, as this ADR claims), and
+  this era's OWN eight shapes answer **rc `0`×7 + rc `4`×1**: `recipes` 12/12 at 12 993 B · `recipes --icons`
+  12/12 at 46 793 B · `--limit 0` **0 rows of matching 12** at 52 B with rc `0` (the rejected "0 = all" reading,
+  measured true where it was rejected) · `--limit -1` 12/12 at the SAME 12 993 B (the rejected `-1` reading,
+  measured true where it was rejected) · `--limit 12 --icons` the **SAME 46 793 B** as unbounded (the claim that
+  killed the cap: a bound at the matching count changes NOTHING) · `--offset 10` 2 of 12 at 2 174 B (ADR 0022's
+  pair, rode not moved) · `--profession Enchanting --icons` 2 of 2 at 4 634 B · `--limit 100 --icons` over the
+  EMPTY DB rc `4` carrying the door's OWN "the recipe table holds no row" words, never a new refusal. Money over
+  the door's OWN answers reads **0 pairing defects** with counts 19 / 19 / 19 (Enchanting 3) wearing NONE —
+  ADR 0015's count half survives the unbounded tab.
+* **The pinned pair on fresh 9671**: the v0.13.0 tree PINNED at the TAGGED `b927109` (a worktree whose OWN
+  build is green with ZERO named in 1 m 22 s, banner `0.13.0` PUT, the `recipes-pager` select PRESENT — the
+  BEFORE witness this ADR's cap census needs) vs the pushed tree over ONE fresh fixture process and ONE fresh
+  DB: **28/28 doors BYTE-IDENTICAL, ZERO DELTAs** — the nine card doors at 2 124 / 7 330 / 6 673 / 4 107 /
+  643 / 1 209 / 1 155 / 6 740 / 4 033 B, the recipes doors in BOTH shapes (unbounded `recipes --icons` **46
+  793 B on BOTH binaries**, `--limit 0` 52 B, `--limit -1` = the unbounded 12 993 B, `--limit 100 --icons`
+  46 793 B) and the pre-existing set (`status` 1 242 · `stats` 1 773 · `item 25/40 --cached` 4 341 / 4 076 ·
+  `search` 185 / 182 · `watch list` 8 · the `recipes` doors 12 993 / 3 382 / 2 174 / 2 185 / 4 634 B) — plus
+  **13/13 md5-equal** through BOTH binaries over the user's OWN file (cards 25 213 / 7 004 / 9 430 / 3 596 /
+  3 453 B, rc `4` on `8800111` at 113 B, `status` 1 098 · `stats` 4 554 · `item 25 --cached` 2 949 · `search`
+  979 · `watch list` 707 · the `recipes` doors 4 293 and 21 090 B). And this era's HEADLINE door over the user's
+  WHOLE file is byte-identical across the two binaries: **16 696 238 B, md5 `4f1982d6`, 1 240 rows of matching
+  1 240** — 3 778 reagent cells (3 514 icon-byte cells / 3 642 money-word cells / **3 778 counts carried with
+  NO money beside them**), 897 crafted cells carrying icon bytes / 873 money words / 884 live words, 133 rows
+  stating NO crafted item and 10 crafted ids with no row; the same set asked WITHOUT `--icons` costs 3 399 938
+  B. The claim this ADR stakes — kill the TAB's bound, keep the DOOR's — moves NOTHING that any pinned binary
+  answered, which is exactly what a ZERO-DELTAs pair says.
+* **The tab's shape on the pushed tree, quoted** (the launch-audit rule: the webview never renders in the build
+  room, so these are parse/grep witnesses and NEVER a rendered claim): `node --check` parses `ui/app.js` at rc
+  `0`, `recipes-pager` answers **ZERO** in BOTH UI files, the tab's argv reads `var argv = ["recipes", "--icons"];`
+  (line 271), the `recipes-profession` select stays ONE, the Search tab's hardcoded `argv.push("--limit", "40")`
+  stays PUT (line 192), the workflow answers **49** `cargo run --` mentions, and `Cargo.toml`'s banner reads
+  `version = "0.14.0"` while the pinned tree's still reads `0.13.0`.
+* **What stays NOT WITNESSED, stated as such:** the Watch button's reach was measured where writing was possible
+  — over the whole set its ONE batched `watch add` argv carries **1 095 ids of the 1 240 rows** (133 Enchanting
+  crafts with NO crafted item and 10 crafted ids with no row skipped honestly), answering rc `0` / 6 036 B on a
+  **SCRATCH COPY** of the user's file while `watch list` there answers **1 129 ids** (the file's 134 already
+  watched + 995 new) — but the user's file was NEVER written and NEVER crawled, and the DOM cost and the Tauri
+  IPC cost of painting 1 240 rows stay **NOT WITNESSED**: the era measured BYTES and refuses to claim a smooth
+  paint. The user's file still reads, through `sqlite3 -readonly`, schema **8** · 19 258 items · 4 602 tooltip
+  copies · **14 656 without** · 1 240 recipe rows / 1 240 distinct `spell_id`s · `learned_json` 1 240 set · watch
+  **134** · `vendor_sell` 4 231 · `price_min_now` 4 344 + `price_now_missing_at` 258 · pending 0 · `vendor_buy`
+  **0** · `price_trend_normal` **0** · tombstoned **0**, so ADR 0010's copy rule, ADR 0016's NULL homes and ADR
+  0017's once-EVER pending rule stay TRUE on this host.
+* **Tags stay put, read through the remote's OWN `^{}` lines** (30 tags): `v0.1.0` → `8685dea` · `v0.10.0` →
+  `e4d3447` · `v0.10.1` → `09c8d77` · `v0.11.0` → `59b0185` · `v0.11.1` → `3f20b51` · `v0.12.0` → `ace683a` ·
+  `v0.12.1` → `d2c26de` · `v0.13.0` → `b927109` · **`v0.14.0` → `c065815`** — ZERO tag moved, CI stays **49
+  step-lines + plant one**, and the fold leg is docs-only, so it cannot move the build. The run the fold's OWN
+  push starts is measured in the NEXT ladder row (ADR 0011's ladder), never chased here.
