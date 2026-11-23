@@ -203,3 +203,12 @@ abc". rc `4` on the user's file measured (112 B).
 shapes + the NULL) → `53d5977` feat(ui) (the ninth tab, the click, the renderer) → `2b1784f` ci
 (44 → 48 step-lines, ZERO requests, the rc-4 half on scratch) → `aa70092` chore (banner
 0.11.0 → 0.12.0 — a FEATURE era moves it) → this record carries `v0.12.0`.
+
+**GROWN AT v0.13.0 ([ADR 0027](./0027-a-cards-sizes-are-scoped-to-the-window.md)):** the WINDOW's
+paint moved, this door did not — its type ~1.45× and its icons 24 → 72 px through 21 id-scoped
+rules in `ui/app.css` (ZERO `app.js`, ZERO Rust, ZERO SQL line), and the era measured the strongest
+claim a paint era can make: **22/22 BYTE-IDENTICAL** answers vs the pinned v0.12.1 tree (the NINE
+card doors included) plus **13/13 md5-equal** through BOTH binaries over the user's own file, the
+mirror green 48/48 on three fresh ports at the SAME stage tallies and GET tallies (51 GETs, 17
+recipe-file GETs, ZERO added), the exit map at the SAME **31-door totals `0`×19 · `2`×5 · `4`×7**,
+and **0** money-pairing defects over the card doors' own answers.

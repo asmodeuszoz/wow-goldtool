@@ -5,6 +5,130 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-23 · v0.13.0 — the CARD WINDOW gets bigger: its type ~1.45×, its icons ×3 (24 → 72 px), and the frame's sizes stay PUT
+
+### What forced it
+
+The user's sixth ask: "in the recipe card, when I pull up a single recipe, everything needs to
+be larger, the font and the icon need a lot larger too." Read honestly, this is a SURFACE fact,
+not a door fact: a card is ONE entry opened on its OWN tab and read once from a distance, while
+the Recipes LIST, the search hits and the mini analytics rows are dense tables read by scanning.
+Before any line moved, the frame's OWN numbers were measured off the tree at `v0.12.1` (`ui/app.css`
+quoted, not remembered): the card was drawn with LIST sizes — its OWN type at 10.5 / 11 / 12 /
+12.5 / 13 / 13.5 px, its icons through `.listicon` at 24 px, the SAME class the Recipes LIST and
+the hits table ride (`table.mini .listicon` overrides that very class to 20 px for the mini rows
+— the frame already scopes a shared class to one surface), its `no bytes` stand-in `.noicon` at
+13 px, and its panel furniture at the list's grades (`h2` 15 · `.note` 12.5 · `.field`/`button.act`
+13 px, `.rcardbox` gap 8 / padding 12+14, `.rcell` gap 3 / padding 7+9, `.rcopy` gap 2 / padding
+5+8, border-left 2 px). The one size in the frame that belongs to a WINDOW rather than to a list
+is the Item card's own `.iconimg` at 56 px — and a card icon had to pass it, because the ask said
+"a lot larger".
+
+### The decision (ADR 0027 — grow the WINDOW, scope the SHARED sizes to it)
+
+* **The card's OWN classes move in place**: `rcardhead` 13 → 19 · `rcardname` 13.5 → 20 ·
+  `rcardlearn`/`rcardmats` 12 → 17 · `rcellname` 12.5 → 18 · `rcopy` 12 → 17 · `rcopyhead` 10.5 →
+  15 · `learn-word` 10.5 → 15 · `learn-none` 11 → 16 px — a step of ≈ ×1.45 with no half-pixel
+  residue (the frame's half-px values disappear rather than multiply).
+* **The icons take THREE times the box**: `#recipe-card .listicon { width: 72px; height: 72px }`
+  (24 → 72 px, larger than ANY icon the frame draws today, the Item card's 56 px included), and
+  the `no bytes` stand-in rides the SAME ×3 at 13 → **39 px** — not an invented number: the
+  frame's own 13/24 ratio times 72 = 39.0, so the box keeps its SHAPE instead of lying about the
+  space an icon would take.
+* **The panel furniture follows the type**: `#recipe-card` padding 16+18 → 22+24, `h2` 15 → 22,
+  `.note` 12.5 → 18 (and the card's error note 13 → 18), `.fields` gap 10 → 14, `.field`/`button.act`
+  13 → 19 px, and the container gaps with them (`.rcardbox` gap 8 → 14 / padding 12+14 → 18+20,
+  `.rcell` gap 3 → 6 / padding 7+9 → 12+14, `.rcopy` gap 2 → 4 / padding 5+8 → 9+12, border-left
+  2 → 3 px).
+* **The shared classes move ONLY inside the panel** — 21 id-scoped rules (`#recipe-card .chip` 12
+  → 17 · `.jobchip` 11.5 → 17 · `.skillchip` 11 → 16 · `.tierchip` 10.5 → 15 · `.mat` gap/padding ·
+  `.matname`/`.mat-none` → 17 · `.mat-not-in-db`/`.cooked-none`/`.cooked-not-in-db` 10.5 → 15 ·
+  `.cooked` 12 → 17 · `.live` 11 → 16 · `.live-missing`/`.live-none` 10.5 → 15 · `.listicon` 72 ·
+  `.noicon` 39 px). Scoping is the FRAME's OWN mechanism (`table.mini .listicon` already does it),
+  NOT a new one — so app.js draws the SAME classes it always drew and ADR 0014's one-code-path rule
+  survives: a card's material cell IS the code that draws a list row's.
+* **FOUR rejected alternatives, each with its measure** (ADR 0027 keeps them all): growing
+  `.listicon` itself would triple every Recipes LIST and hits row — the very doors whose paging
+  ADR 0022 measured at their row heights — and break the frame's `table.mini` fact; a NEW class
+  (`.cardicon` drawn by app.js) is a second icon renderer that could say something different about
+  ONE id's icon, which the v0.12.0 block in this file already forbids ("listicon/noicon: no second
+  copy of a money or icon cell"); `transform: scale()` scales painted output, not layout — the gaps
+  and paddings stay at their px values while the pixelated glyph overflows them; a root/`rem` step
+  would move the 12+ `font-size` rules the OTHER tabs ride. Inline `style="…"` in the JS was
+  rejected too: a paint fact that needs ZERO JS lines.
+* **NOTHING else moves**: the list/hits/mini/item-card sizes stay PUT and stay quoted (`.listicon`
+  24 px, `table.mini .listicon` 20 px, `.iconimg` 56 px, `.note` 12.5 px outside the card, `h2`
+  15 px), the quality palette stays the frame's (`.chip.c-<quality>` colours untouched), and the
+  money contract keeps ADR 0015's rule on the bigger words.
+
+### Measured (the era's own, all fresh)
+
+* **The diff:** `ui/app.css` ONLY — **49 insertions / 10 deletions**, 21 id-scoped rules + the
+  card's OWN classes moved in place; ZERO `ui/app.js` line, ZERO `ui/index.html` line (the section
+  already carries `id="recipe-card"`, measured — the tab mechanism owns it), ZERO Rust line, ZERO
+  `SQL_` const, ZERO schema line (schema stays **8**), ZERO exit-code line, ZERO money formatter,
+  ZERO request rule, ZERO fixture line, ZERO CI step-line (**48 step-lines stay**, plant one). The
+  FEATURE era's chore moves the Cargo banner **`0.12.0 → 0.13.0`** (`Cargo.toml` + `Cargo.lock`
+  together, the v0.11.0/v0.12.0 shape — contrast the v0.12.1 PATCH era that left it PUT).
+* **The witnesses (parse/grep, the launch-audit rule — the webview never renders in the build room):**
+  `cargo build` rc 0 with **ZERO named** warnings (11.49 s after the banner moved — the era touched
+  ZERO Rust, so a green build here is the claim that nothing ELSE moved); `cargo clippy --all-targets`
+  answers **0 errors / the SAME 811 advice lines**, rc 0 (unchanged, measured); `node --check` parses
+  `ui/app.js` rc 0 (it is the SAME file, unchanged); the CSS braces balance **142/142**; the card's
+  OWN class census answers the SAME **TWELVE** names app.js draws (`openrecipe rcardbox rcardhead
+  rcardname rcardlearn rcardmats rcell rcellname rcopy rcopyhead learn-word learn-none`) — ZERO new
+  class drawn; 21 `#recipe-card` rules present; the PUT sizes still quoted in the same file.
+* **The door's bytes do not move AT ALL** — the era is a paint era, so the honest claim is the
+  strong one: the PINNED v0.12.1 tree (worktree at the TAGGED `d2c26de`, whose OWN build is green
+  with ZERO named in 1 m 22 s, banner `0.12.0` PUT) vs the new tree, ONE fresh fixture process
+  (port 9451) + ONE fresh DB → **22/22 BYTE-IDENTICAL, ZERO DELTAs**: the NINE card doors (2 124
+  / 7 330 / 6 673 / 4 107 / 643 / 1 209 / 1 155 / 6 740 / 4 033 B) AND the thirteen pre-existing
+  (`status` 1 242 · `stats` 1 773 · `item 25/40 --cached` 4 341/4 076 · `search` 185/182 ·
+  `watch list` 8 · the four `recipes` doors 12 993 / 2 185 / 4 634 / 2 174 B); and **13/13 md5-equal**
+  through BOTH binaries over the user's OWN file (25 213 / 7 004 / 9 430 / 3 596 / 3 453 B cards,
+  rc `4` on `8800111` at 113 B) — LOCAL doors, ZERO requests, read-only.
+* **The mirror replay and the exit map, UNCHANGED:** the driver re-PARSED the committed block
+  (**48 `cargo run` step-lines**, plant one, ZERO step moved by this era) and replayed it on THREE
+  fresh ports (9391 / 9421 / 9461) → **48/48 rc 0, ZERO nonzero**, with the same stage presses
+  (budget-3 recipes 4 requests / 3 pages / 5 rows / `rate_limited` 1 · resumed-from-3 5 requests /
+  5 pages / 7 rows / complete · re-pull 8 requests / 8 pages / **8 answered the SAME copy** / 0
+  written), the four card steps answering **7 333 / 6 673 / 4 107 / 643 B**, the fixture's OWN GET
+  tallies ending where the crawl left them (**51 GETs, 17 of them recipe-file GETs** — ZERO added,
+  still the locality proof) and the census at recipe **12** / item 6 / copies 4 / `vendor_buy`
+  **0** / `price_trend_normal` **0**. The exit map on fresh 9407 answers **31 doors at rc `0`×19 ·
+  `2`×5 · `4`×7 — the SAME totals as v0.12.1's map** (nine card doors rc 0, FOUR rc-`4` doors in
+  the SAME words, rc-`2` usage at the same words 48 B / 40 B, `recipe 132 --fixture <DEAD>` rc 0
+  because the door sends ZERO asks and rc `3` is UNREACHABLE from it, `recipe 132 extra` rc 0 — the
+  door reads `words[0]`). Money over the card doors' OWN answers: **0 pairing defects**, counts
+  carried 2 / 2 / 2 / 2 / 2 with NO money beside them. TWO driver-side slips are recorded rather
+  than hidden: the block parser counts the fixture-start/sleep/env lines as "other" (so THIS
+  driver's total is 48 commands, while the earlier eras' drivers replayed fixture-start + sleep +
+  plant and reported 51 — the SAME block, both measured), and the fixture server logs requests on
+  STDERR via `BaseHTTPRequestHandler`, so a driver that sends stderr to /dev/null measures ZERO
+  GETs — fixed by capturing stderr, and the 51/17 above is the FIXED driver's measure.
+* **CI ladder, owed row MEASURED:** the v0.12.1 fold push's own run **45102837594 = SUCCESS**,
+  5/5 jobs green in **9 min 31 s** (02:54:26Z → 03:03:57Z, run #45, attempt 1, exactly ONE run id,
+  no CANCELLED sibling, head `290da81` = the fold record) — quality **7/7** with the Lint step
+  completed/success (0 errors / 811 advice on GitHub's own build), `test` **8/8** with the CLI
+  smoke step GREEN (the 48-step block, the four card steps included), linux 8/8, macos 7/8, windows
+  7/8 (their Ubuntu-libs step `skipped`, as designed). The era's OWN chain+tag run is measured in
+  the NEXT record (ADR 0011's ladder), never chased here.
+* **Limits kept:** schema `8`; tags stay put (`v0.10.0` → `e4d3447` · `v0.10.1` → `09c8d77` ·
+  `v0.11.0` → `59b0185` · `v0.11.1` → `3f20b51` · `v0.12.0` → `ace683a` · `v0.12.1` → `d2c26de`),
+  `v0.13.0` rides THIS record; the era's diff is TWO code-touching files (app.css + the banner pair)
+  and ZERO behaviour delta, which the byte-identity above measures rather than asserts; the user's
+  file was never written, never crawled, read read-only.
+
+### Chain
+
+`d2f532a` feat(ui) (the card window's sizes: ONE CSS file, 21 scoped rules, ZERO JS line) ·
+`1f4b08f` chore (the banner rides 0.13.0 — a FEATURE era moves it, toml + lock together) ·
+this record + annotated tag `v0.13.0`. ZERO fixture commit (ZERO behavior delta — and the byte-identity
+pair above IS the witness), ZERO ui JS commit (app.js draws the SAME classes), ZERO ci commit
+(the smoke block is the same 48 step-lines, unchanged).
+
+---
+
 ## 2026-11-23 · v0.12.1 — patch: the ONE clippy ERROR the era's own CI run rode dies BY NAME, the `-D warnings` gate stays OFF, and NOTHING moved
 
 ### What forced it

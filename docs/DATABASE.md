@@ -476,6 +476,14 @@ the pinned v0.12.0 binary over one fresh fixture DB, the NINE card doors include
 through BOTH binaries over the user's own file). The SELECT above did NOT move — only the SHAPE around it
 did, and [ADR 0026](./DECISIONS/0026-a-clippy-error-is-not-advice.md) keeps why the mute was rejected.
 
+**v0.13.0 (ADR 0027) grew this WINDOW's paint and moved NOTHING here** — the card's type ~1.45× and
+its icons 24 → 72 px, scoped to the panel (`#recipe-card .listicon`, 21 rules, the frame's OWN
+`table.mini .listicon` scoping mechanism): ZERO `SQL_` line, ZERO schema line (**8** stays), ZERO
+exit code, ZERO door, ZERO money line. The door's BYTES stayed put and the era measured it as the
+strongest claim available: **22/22 BYTE-IDENTICAL** pinned-v0.12.1-vs-new over one fresh fixture DB
+(the NINE card doors included) and **13/13 md5-equal** through BOTH binaries over the user's own
+file — a CSS era changes what a card LOOKS like, never what it ANSWERS.
+
 EVERYTHING else in a cell rides readers that ALREADY exist (`live_name_price_of` for name + stored
 min + the live twin + BOTH stamps, `money_of` for the words, `icon_b64_of`/`icon_at_of`/
 `icon_missing_at_of`, `tooltip_text_of`/`tooltip_at_of`/`tooltip_missing_at_of`, and the materials

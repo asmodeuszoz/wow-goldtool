@@ -6,6 +6,69 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.13.0 — the CARD WINDOW gets bigger: its type ~1.45×, its icons ×3 (24 → 72 px), and the frame's sizes stay PUT · 2026-11-23 · tag `v0.13.0`
+
+The user's sixth ask: "in the recipe card, when I pull up a single recipe, everything needs to
+be larger, the font and the icon need a lot larger too." A card is ONE entry on its OWN tab, read
+once from a distance; the Recipes LIST, the search hits and the mini analytics rows are dense
+tables read by scanning. So the sizes moved per SURFACE, and the frame's own numbers were measured
+BEFORE anything moved: at v0.12.1 the card was drawn with LIST sizes — its OWN type at 10.5–13.5 px,
+its icons through `.listicon` at 24 px, the SAME class the list and the hits ride (`table.mini
+.listicon` already overrides that class to 20 px for the mini rows — scoping a shared class to one
+surface is the frame's OWN mechanism, not a new one), its `no bytes` stand-in `.noicon` at 13 px,
+its panel furniture at list grades (`h2` 15 · `.note` 12.5 · `.field`/`button.act` 13 px). The only
+icon size in the frame that belongs to a WINDOW is the Item card's `.iconimg` at 56 px — and the
+card's icons had to PASS it ("a lot larger").
+
+Changed
+
+- **The card window's type and icons grow; every other surface stays put** (`feat(ui) d2f532a`, ONE
+  file `ui/app.css`): the card's OWN classes move in place (13 → 19 · 13.5 → 20 · 12.5 → 18 · 12 →
+  17 · 11 → 16 · 10.5 → 15 px, a step of ≈ ×1.45), its icons take THREE times the list's box
+  (`.listicon` 24 → **72 px**, larger than any icon the frame draws today, the Item card's 56 px
+  included), and the `no bytes` stand-in rides the SAME ×3 at 13 → **39 px** (the frame's own 13/24
+  ratio times 72 = 39.0 — the box keeps its SHAPE rather than lying about the space an icon would
+  take). The shared classes grow ONLY inside the panel: 21 id-scoped rules (`#recipe-card .chip` 12
+  → 17, `.jobchip` 11.5 → 17, `.skillchip` 11 → 16, `.tierchip` 10.5 → 15, `.matname`/`.mat-none`
+  → 17, `.mat-not-in-db`/`.cooked-none`/`.cooked-not-in-db` 10.5 → 15, `.live` 11 → 16,
+  `.live-missing`/`.live-none` 10.5 → 15, `.listicon` 72, `.noicon` 39) plus the panel furniture
+  (`h2` 15 → 22, `.note` 12.5 → 18, `.field`/`button.act` 13 → 19, gaps and paddings with them).
+  **ZERO `ui/app.js` line, ZERO `ui/index.html` line** — app.js draws the SAME TWELVE classes it
+  always drew, so ADR 0014's one-code-path rule survives intact (a card's material cell IS the code
+  that draws a list row's), and the sizes are the frame's own px mechanism, not `transform: scale()`
+  (rejected on measure: it paints, it does not lay out) and not a root/`rem` step (rejected: it would
+  move the 12+ `font-size` rules the OTHER tabs ride). PUT and still quoted in the same file: `.listicon`
+  24 px, `table.mini .listicon` 20 px, `.iconimg` 56 px, `.note` 12.5 px outside the card, `h2` 15 px.
+- **The door's answers move ZERO bytes** — measured, not asserted: the PINNED v0.12.1 tree (worktree
+  at the TAGGED `d2c26de`, its OWN build green with ZERO named in 1 m 22 s, banner `0.12.0` PUT) vs
+  the new tree over ONE fresh fixture process (port 9451) + ONE fresh DB answer **22/22 BYTE-IDENTICAL,
+  ZERO DELTAs** (the NINE card doors included, 2 124 / 7 330 / 6 673 / 4 107 / 643 / 1 209 / 1 155 /
+  6 740 / 4 033 B), and **13/13 md5-equal** through BOTH binaries over the user's OWN file (card doors
+  25 213 / 7 004 / 9 430 / 3 596 / 3 453 B, rc `4` on `8800111` at 113 B). The mirror replay stays
+  green on THREE fresh ports (48/48 rc 0, ZERO nonzero — the block re-PARSED at 48 step-lines, plant
+  one, the era moved NO step; the four card steps 7 333 / 6 673 / 4 107 / 643 B; the fixture's OWN
+  tallies 51 GETs with 17 recipe-file GETs, ZERO added = the locality proof; census recipe 12 / item
+  6 / copies 4 / `vendor_buy` 0 / trend 0) and the exit map re-runs at the **SAME 31-door totals
+  `0`×19 · `2`×5 · `4`×7** (fresh port 9407). Money over the card doors' OWN answers: **0 pairing
+  defects**, reagent COUNTS carried with NO money beside them (ADR 0015's count half).
+- **CI banner:** a FEATURE era MOVES the version banner `0.12.0 → 0.13.0` (`chore 1f4b08f`, `Cargo.toml`
+  + `Cargo.lock` together — the v0.11.0 / v0.12.0 shape; contrast the v0.12.1 PATCH era that left it
+  PUT). `cargo build` answers ZERO named warnings and `cargo clippy --all-targets` the SAME
+  **0 errors / 811 advice** (rc 0) — this era touched ZERO Rust, which is exactly what those witnesses
+  claim. Ladder row owed and measured: the v0.12.1 fold push's own run **45102837594 = SUCCESS**,
+  5/5 jobs green in **9 min 31 s** (02:54:26Z → 03:03:57Z, run #45, ONE run id, no CANCELLED sibling,
+  head `290da81`) — quality 7/7 Lint step GREEN, `test` 8/8 with the CLI smoke step GREEN, linux 8/8,
+  macos 7/8, windows 7/8 (`skipped` Ubuntu-libs). This era's own chain+tag run is measured in the
+  NEXT record (ADR 0011's ladder).
+
+Refs: [ADR 0027](./docs/DECISIONS/0027-a-cards-sizes-are-scoped-to-the-window.md) (this era's decision:
+a size is a SURFACE fact, with FOUR rejected alternatives and their measures),
+[ADR 0025](./docs/DECISIONS/0025-the-recipe-card-window.md) (the door whose cells got bigger — its bytes
+did NOT move), ADR 0014 (one code path — the reason a NEW icon class was rejected), ADR 0015 (the money
+contract on bigger words), ADR 0011 (measured witnesses, the launch-audit rule: the webview never renders
+in the build room, so NOTHING here claims a rendered card); [docs/DEVLOG.md](./docs/DEVLOG.md) carries
+the before/after size censuses, the pinned pair and the CI verdict.
+
 ## v0.12.1 — the `never_loop` ERROR the era's own CI run rode dies BY NAME: clippy answers 0 errors again, NOTHING was muted and NOTHING moved · 2026-11-23 · tag `v0.12.1`
 
 A PATCH era (contrast the v0.12.0 FEATURE era that MOVED the Cargo banner `0.11.0 → 0.12.0`: here the
