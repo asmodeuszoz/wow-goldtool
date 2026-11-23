@@ -5,6 +5,141 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-23 · v0.14.0 — the RECIPES TAB shows the WHOLE set: its pager dies, the door never had a cap, and ZERO door line moved
+
+### What forced it
+
+The user's seventh ask: "recipes tab, get rid of the limit for how many hits are to be shown and
+just show all at all times." Read honestly, a limit is asked FOR by a surface, and the question was
+where the Recipes tab's limit lived. Measured off the tree at `v0.13.0` before one line moved, the
+frame answered in FOUR places and the cap was in the TAB, not the door:
+
+| the bound lived here | its own words | measured |
+| -------------------- | ------------- | -------- |
+| the tab's control | `<select class="field" id="recipes-pager">` — options `25` / `50` / `100` "a page" | the tab could never show more than **100 of the set's 1 240** rows; it had no way to ask for more |
+| the tab's argv | `var argv = ["recipes", "--limit", limit, "--icons"]` | `recipes --limit 100 --icons` answers **100 rows of matching 1 240** at 1 363 515 B — the door HID 1 140 rows |
+| the door | `recipes_rows` through ADR 0022's `paging_clause` (no `--limit` = **the rest**, riding SQLite's own negative-limit token) | `recipes --icons` with NO bound answers **ALL 1 240 rows of matching 1 240** at 16 696 238 B (3 399 938 B without `--icons`); over the fixture's 12 rows it answers **12 of matching 12** at 46 793 B; and `--limit 1240 --icons` answers the **SAME 16 696 238 B** — a bound at or above the matching count changes NOTHING |
+| the Search tab's control | `argv.push("--limit", "40")` (hardcoded, no select) | a SECOND bound in a different shape, on a tab the ask never named — kept PUT, and the record names which bound is which |
+
+ADR 0022 had already put the rule on the door ("no `--limit` means the rest") for the paging doors;
+the Recipes tab simply never rode it. So this ask needed ZERO door line — it needed the tab to stop
+holding rows back, and to stop SAYING it holds rows back.
+
+### The decision (ADR 0028 — a bound is a SURFACE fact: kill the tab's, keep the door's)
+
+* **The tab's control dies** (`ui/index.html`): the `recipes-pager` select has no question left to
+  answer; the era's comment in the SAME file names the measure that killed it.
+* **The tab asks unbounded** (`ui/app.js`): `var argv = ["recipes", "--icons"]`, `--profession` only
+  when a job is picked — the tab's argv is then the door's OWN argv, so a `cargo run -- recipes
+  --icons` line shows the SAME rows (ADR 0021/0014's one-door rule, kept).
+* **The note moves the same breath** (ADR 0019's rule): the frame stops saying "showing 100 of
+  1240" and says **ALL the rows this filter answers are shown**, naming why a bound would be a lie
+  (a bound at or above the count answers the SAME bytes, so it only HID rows) and naming the
+  Watch button's reach honestly, since the shown set is now the whole set.
+* **The door keeps `--limit`.** A shell that prints 16.7 MB for the whole set must be able to bound
+  that ON REQUEST, and removing the flag would move ADR 0022's paging pair, the four bounded CI
+  recipe steps, the map doors measured with bounds and the Search tab's own bound. The bound is the
+  door's discipline; the tab simply stopped asking for it.
+* **SEVEN rejected alternatives with measures** (ADR 0028 keeps the set, every one measured before
+  one line moved): growing the pager ("2 500 a page", or an "all" option) — measured that a bound AT
+  or above matching answers the SAME bytes, so a bigger cap cannot do what it claims while still
+  offering a choice the ask refused; `--limit 0` as "all" — measured rc `0` / 52 B / **0 rows of
+  matching 12**, zero means NONE, not ALL (ADR 0004's EMPTY half, the door's OWN meaning, not to be
+  flipped); `--limit -1` — measured that it WORKS (SQLite's negative-limit token, 12 of 12 / 1 240 of
+  1 240) but hides the fact behind an SQLite accident, so the fact "this tab does not bound" becomes
+  invisible at every reader; removing the CLI's `--limit` flag — it would move ADR 0022's paging pair,
+  FOUR bounded CI steps, the map doors measured with bounds and the Search tab's own bound; a client-side
+  virtual scroll — a page size is a cap again, which is what the ask refused; re-aiming `btn-recipes-watch`
+  at a bounded set — ADR 0021's rule speaks of "the shown rows", so capping would give "shown" a second
+  meaning; and a second unbounded door (`recipes-all`) — refused by ADR 0014, a click and a list row would
+  then be able to disagree about the set.
+
+### Measured (the era's own, all fresh; the user's file read read-only, ZERO crawl)
+
+* **The diff:** `ui/index.html` + `ui/app.js`, **19 insertions / 9 deletions**, and the CI step —
+  ZERO Rust line, ZERO `SQL_` const, ZERO wire struct, ZERO schema line (the user's own file answers
+  **`8`**), ZERO exit code, ZERO money formatter, ZERO request rule, ZERO fixture line.
+* **CI grows ONE step, 48 → 49 step-lines** (plant one stays, 14 `- name:` steps unchanged, raw
+  `cargo run` mentions 48 → 49): the block gains the tab's OWN argv `cargo run -- recipes --icons`,
+  so CI can SEE the unbounded door — over the fixture's 12 rows it answers **12 of matching 12** at
+  46 793 B, 19 reagent cells (7 carrying the DB's OWN icon bytes, 8 money words, **19 counts carried
+  with 0 money beside a count** — ADR 0015's count half), 6 crafted cells carrying icon bytes, 2 rows
+  stating NO crafted item (the Enchanting shape). Measured on a fresh mirror **BEFORE the block
+  landed** (the driver parsed the committed block and added these very steps): **49/49 commands rc
+  `0`, ZERO NONZERO** (ports 9521 / 9531); measured AGAIN on the LANDED 49-step block (port 9541):
+  **49/49 rc 0, ZERO NONZERO**, stage presses UNCHANGED (budget-3 recipes 4 requests / 3 pages / 5
+  rows / `rate_limited` 1 · resumed-from-3 5 / 5 pages / 7 rows / complete · re-pull 8 requests / 8
+  pages / **8 answered the SAME copy** / 0 written), the fixture's OWN GET tallies ending where the
+  crawl left them — **51 GETs, 17 of them recipe-file GETs, ZERO added**, which IS the locality
+  proof (ADR 0012: the door is LOCAL) — and the census at recipe **12** / item 6 / copies 4 /
+  `vendor_buy` **0** / `price_trend_normal` **0**.
+* **The door's answers move ZERO bytes, measured as the strong pair:** the PINNED v0.13.0 tree
+  (worktree at the TAGGED `b927109`, whose OWN build is green with ZERO named in 1 m 22 s, banner
+  `0.13.0` PUT, the `recipes-pager` select PRESENT) vs the new tree over one fresh fixture process
+  (port 9561) + one fresh DB → **28/28 BYTE-IDENTICAL, ZERO DELTAs**: the NINE card doors (2 119 /
+  7 325 / 6 670 / 4 105 / 643 / 1 207 / 1 154 / 6 737 / 4 032 B), the recipes doors in BOTH shapes —
+  unbounded `recipes --icons` **46 768 B on BOTH binaries**, `--limit 0` 52 B, `--limit -1` = the
+  unbounded 12 968 B, `--limit 100 --icons` 46 768 B — and the pre-existing set (`status` 1 239 ·
+  `stats` 1 761 · `item 25/40 --cached` 4 336 / 4 072 · `search` 185 / 182 · `watch list` 8 · the
+  `recipes` doors 12 968 / 3 375 / 2 170 / 2 181 / 4 632 B); plus **13/13 md5-equal** through BOTH
+  binaries over the user's own file (cards 25 213 / 7 004 / 9 430 / 3 596 / 3 453 B, rc `4` on
+  `8800111` at 113 B, plus `status` 1 098 · `stats` 4 554 · `item 25 --cached` 2 949 · `search` 979
+  · `watch list` 707 · the `recipes` doors 4 293 / 21 090 B). The era's HEADLINE door over the user's
+  whole file is byte-identical across binaries too: **16 696 238 B, md5 `4f1982d6`, 1 240 rows of
+  matching 1 240** — 3 778 reagent cells (3 514 with icon bytes, 3 642 with money words, 3 778 counts
+  carried with NO money beside them), 897 crafted cells with icon bytes / 873 money words / 884 live
+  words, 133 rows with NO crafted item (Enchanting) and 10 crafted ids with no row; asked WITHOUT
+  `--icons` the same set costs 3 399 938 B.
+* **The exit map, FRESH port 9551** (fresh seed DB + fresh EMPTY DB + a DEAD port): the 31 doors
+  v0.13.0's map carried answer the **SAME totals `0`×19 · `2`×5 · `4`×7** — this era moved ZERO door
+  fact — and the era's OWN eight shapes answer **rc `0`×7 + rc `4`×1**: `recipes` 12/12 at 12 993 B,
+  `recipes --icons` 12/12 at 46 793 B, `--limit 0` 0 rows of matching 12 rc `0` (52 B — EMPTY, never
+  a 4), `--limit -1` 12/12, `--limit 12 --icons` the SAME 46 793 B as unbounded, `--offset 10` 2 of
+  12, `--profession Enchanting --icons` 2 of 2 at 4 634 B, and `recipes --limit 100 --icons` over the
+  EMPTY DB rc `4` on the door's OWN no-row words. Money over the door's OWN answers: **0 pairing
+  defects**, counts carried 19 / 19 / 19 with none of them wearing money.
+* **The tab's OWN cost, stated where it can only be stated:** the whole set costs 16 696 238 B of
+  door answer and 3 514 + 897 = **4 411 icon data URIs** to paint (vs the ≤100-row cap's 1 363 515
+  B). The webview never renders in the build room (the launch-audit rule), so **the DOM cost and the
+  Tauri IPC cost are NOT witnessed** — the era states the BYTES it measured and refuses to claim a
+  smooth 1 240-row paint. That is this era's honest limit.
+* **The Watch button's reach, measured where writing was possible:** ADR 0021's rule UNCHANGED
+  ("the cooked items of the SHOWN rows"), its target set NOT capped — over the whole set its ONE
+  batched `watch add` argv carries **1 095 ids of the 1 240 rows** (133 Enchanting crafts with NO
+  crafted item and 10 crafted ids with no row skipped honestly, the row already says so). Measured on
+  a **SCRATCH COPY** of the user's file (the user's file was NEVER written, NEVER crawled): rc `0`,
+  6 036 B, and the Details door then fetches exactly those records under ADR 0017's pending rule
+  (one ask per copied record EVER). The cost is a user-chosen click, not a click this era grew in
+  silence.
+* **CI ladder, owed rows MEASURED:** the previous era's rows land here as measured. Its chain+tag
+  run read **45199646115 SUCCESS**, 5/5 jobs green in **16 min 4 s** (run #46, attempt 1, head
+  `b927109` = that tag's target, quality **7/7** with the Lint step **completed/success** — the local
+  measure of the SAME command reads 0 errors / the SAME 811 advice lines — `test` **8/8** with the CLI
+  smoke step GREEN, linux **8/8**, macos **7/8**, windows **7/8**, one `skipped` Ubuntu-libs step on
+  each non-linux target as designed; the run reads longer than v0.12.x's 8–9 min because the macos job
+  opened 5 min 1 s after the run opened — a scheduling fact, said so). And the v0.13.0 **fold push's
+  own run**, which this era owes and had never been waited for, reads **45204000066 SUCCESS**, 5/5
+  jobs green in **9 min 56 s** (run #47, attempt 1, exactly ONE run id, no CANCELLED sibling, head
+  `6fd2e3e` = the FOLD commit itself; per-job ends: quality → 15:22:46Z, windows → 15:26:14Z, macos
+  → 15:28:30Z, linux → 15:29:44Z, `test` → 15:29:46Z; each job answers **12 end-actions, 11 success +
+  ONE skipped**, and the skipped one is the Rust-toolchain installer's OWN inner action
+  (`__dtolnay_rust-toolchain.__run_N`), never a workflow step — the Ubuntu-libs step is simply ABSENT
+  on the macos/windows jobs; the `test` job pressed exactly **48 `cargo run --` steps**, because the
+  fold's tree still carries the 48-step block: this era's `ci` commit landed AFTER the fold). The run
+  that this era's chain+tag push starts is measured in the NEXT record (ADR 0011's ladder), never
+  chased here.
+
+### Chain
+
+`d491877` feat(ui) (the pager dies, the tab asks unbounded, the note moves — TWO UI files, ZERO
+Rust line) · `ebc690b` ci (48 → 49 step-lines: the tab's OWN argv, ZERO requests) · `25846dc` chore
+(a FEATURE era MOVES the banner `0.13.0 → 0.14.0`, `Cargo.toml` + `Cargo.lock` together — the v0.11.0-
+through-v0.13.0 shape) · this record + annotated tag `v0.14.0`. ZERO fixture commit (ZERO behavior
+delta at any door — the byte-identical pair above IS the witness), ZERO Rust commit (ZERO Rust line),
+ZERO chore-skip (a FEATURE era moves the banner).
+
+---
+
 ## 2026-11-23 · v0.13.0 — the CARD WINDOW gets bigger: its type ~1.45×, its icons ×3 (24 → 72 px), and the frame's sizes stay PUT
 
 ### What forced it

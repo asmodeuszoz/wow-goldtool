@@ -90,3 +90,25 @@ sword --offset 4`), and BOTH DBs answer the same tallies (schema 8, 5 items, 4 p
 recipe rows — no schema delta to hide behind the fix). The working paging pair is byte-stable
 under the SAME doors, md5-equal both sides: `recipes --limit 4 --offset 10` **1 629 B** both,
 `search sword --limit 4 --offset 4` **182 B** both, `search sword --limit 4` **185 B** both.
+
+**RIDDEN AT v0.14.0 ([ADR 0028](./0028-a-hits-tab-shows-the-whole-answer.md)) — this composition
+moved NOTHING, the RECIPES TAB started riding it.** The tab's bound lived in the TAB (a `recipes-pager`
+select offering `25` / `50` / `100` "a page", feeding `--limit` N), measured off the tree at `v0.13.0`
+before one line moved: `recipes --limit 100 --icons` answers **100 rows of matching 1 240** at 1 363
+515 B — the door HID 1 140 rows — and the tab then said "showing 100". The tab now asks the door's OWN
+argv with NO bound (`["recipes","--icons"]`, `--profession` only when a job is picked), so the clause
+this composition writes takes its **ZERO branch** for that tab — and the answer is measured at the
+door's own bytes: **ALL 12 of matching 12** over the fixture (46 793 B) and **ALL 1 240 of matching 1
+240** over the user's file (16 696 238 B; 3 399 938 B asked without `--icons`), the same numbers the
+CI block's new 49th step presses (`cargo run -- recipes --icons`, measured 49/49 rc 0 / ZERO NONZERO on
+fresh mirrors 9521 / 9531 BEFORE it landed and again at 9541 on the landed block, the fixture's 51 GETs
+/ 17 recipe-file GETs unchanged — which IS ADR 0012's locality proof). `--limit` STAYS on the door:
+this ADR's own `--offset`-without-`--limit` pair (the rc `4` → rc `0` class), four bounded CI recipe
+steps, the exit map's bounded doors (`--limit 0` answers rc `0` / **0 rows** at 52 B) and the Search
+tab's hardcoded `--limit 40` all still need it. Two measures this rule now carries against "just make
+the number bigger": a bound AT or above the matching count — `--limit 1240 --icons` — answers the
+**SAME 16 696 238 B** as the unbounded door, so a bigger cap can only ever HIDE rows (which is why the
+cap DIED rather than grew); and `--limit -1`, this ADR's own negative-limit TOKEN, was measured WORKING
+(12 of 12 / 1 240 of 1 240) but rejected FOR THE TAB on legibility — a tab that sends `-1` is claiming
+"I bound" while meaning "I did not". What this rule now forbids outright is a TAB that bounds silently;
+the frame keeps TWO bounds and the record names which is which (Recipes: none; Search: 40).

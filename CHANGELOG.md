@@ -6,6 +6,109 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.14.0 — the RECIPES TAB shows the WHOLE set: its pager dies, the door never had a cap, and ZERO door line moved · 2026-11-23 · tag `v0.14.0`
+
+The user's seventh ask: "recipes tab, get rid of the limit for how many hits are to be shown and
+just show all at all times." A limit is asked FOR by a surface, so the era started by finding WHERE
+the Recipes tab's limit lived — measured off the tree at `v0.13.0` before one line moved: the tab
+owned a `<select class="field" id="recipes-pager">` with options `25` / `50` / `100` "a page", asked
+the door as `["recipes","--limit",limit,"--icons"]` (`--limit 100 --icons` answers **100 rows of
+matching 1 240** at 1 363 515 B — the door HID 1 140 rows), while the DOOR already answers the rest
+(ADR 0022's paging rule, riding SQLite's own negative-limit token): `recipes --icons` with NO bound
+answers **ALL 1 240 rows of matching 1 240** at 16 696 238 B, and `--limit 1240 --icons` answers the
+**SAME 16 696 238 B** — a bound at or above the count changes NOTHING, which is why the cap DIED
+instead of growing. The Search tab's second bound (`argv.push("--limit","40")`, hardcoded) was left
+PUT — the ask named the Recipes tab, and the record names which bound is which.
+
+Changed
+
+- **The tab stops bounding** (`feat(ui) d491877`, TWO files `ui/index.html` + `ui/app.js`, 19 ins /
+  9 del): the `recipes-pager` select dies (a control with no question left to answer), the tab asks
+  `["recipes","--icons"]` with `--profession` only when a job is picked — so the tab's argv IS the
+  door's OWN argv and a `cargo run -- recipes --icons` line shows the SAME rows (ADR 0021 / ADR 0014's
+  one-door rule kept) — and the tab's NOTE moves the same breath (ADR 0019's rule): no more "showing
+  100 of 1240", instead **ALL the rows this filter answers are shown**, naming why a bound would be a
+  lie and naming the Watch button's reach. **ZERO Rust line, ZERO `SQL_` const, ZERO wire struct,
+  ZERO schema line (`8` stays, measured), ZERO exit code, ZERO money formatter, ZERO request rule,
+  ZERO fixture line.** ADR 0028: a bound is a SURFACE fact — the door keeps `--limit` because a shell
+  that prints 16.7 MB for the whole set must be able to bound ON REQUEST, and killing the flag would
+  move ADR 0022's paging pair, four bounded CI steps, the map doors measured with bounds and the Search
+  tab's bound. SEVEN rejected alternatives with measures, all measured before one line moved (grow the pager
+  → a bound at/above matching answers the SAME bytes, so it cannot do what it claims; `--limit 0` → measured
+  0 rows of matching 12, zero means NONE not ALL, ADR 0004's EMPTY half; `--limit -1` → works via SQLite's
+  token but hides the fact behind it; a virtual scroll → a page size is a cap again, which is what the ask
+  refused; re-capping the Watch button → ADR 0021's rule speaks of the "shown rows", so capping would give
+  "shown" a second meaning; a second unbounded door `recipes-all` → refused by ADR 0014's one-code-path rule
+  (a click and a list row could then disagree about the set); and removing the door's `--limit` flag itself
+  → refused with the decision above, it would move ADR 0022's paging pair, four bounded CI steps, the map's
+  bounded doors and the Search tab's bound).
+- **CI grows ONE step, 48 → 49 step-lines** (`ci ebc690b`, plant one stays, 14 `- name:` steps
+  unchanged): the block gains the tab's OWN argv `cargo run -- recipes --icons`, ZERO requests — over
+  the fixture's 12 rows the door answers **12 of matching 12** at 46 793 B, 19 reagent cells (7 carrying
+  the DB's OWN icon bytes, 8 money words, **19 counts carried with 0 money beside a count** — ADR 0015's
+  count half), 6 crafted cells carrying icon bytes, 2 rows stating NO crafted item (the Enchanting shape).
+  Measured on fresh mirrors BEFORE the block landed (ports 9521 / 9531, driver parsed the committed block
+  + these very steps): **49/49 commands rc 0, ZERO NONZERO**; measured AGAIN on the landed block (9541):
+  **49/49 rc 0**, stage presses UNCHANGED (budget-3 recipes 4 / 3 / 5 / `rate_limited` 1 · resumed-from-3
+  5 / 5 / 7 complete · re-pull 8 requests / 8 pages / **8 the SAME copy** / 0 written), the fixture's OWN
+  tallies ending where the crawl left them — **51 GETs, 17 recipe-file GETs, ZERO added**, which IS the
+  locality proof — census recipe **12** / item 6 / copies 4 / `vendor_buy` **0** / trend **0**.
+- **The answers move ZERO BYTES, measured as the strongest pair a UI era can draw:** the PINNED v0.13.0
+  tree (worktree at the TAGGED `b927109`, its OWN build green with ZERO named in 1 m 22 s, banner
+  `0.13.0` PUT, the pager select PRESENT) vs the new tree over one fresh fixture process (9561) + one
+  fresh DB → **28/28 BYTE-IDENTICAL, ZERO DELTAs** — the nine card doors (2 119 / 7 325 / 6 670 / 4 105
+  / 643 / 1 207 / 1 154 / 6 737 / 4 032 B), the recipes doors in BOTH shapes (unbounded `recipes --icons`
+  **46 768 B on BOTH binaries**, `--limit 0` 52 B, `--limit -1` = the unbounded 12 968 B, `--limit 100
+  --icons` 46 768 B) and the pre-existing set (`status` 1 239 · `stats` 1 761 · `item 25/40 --cached`
+  4 336 / 4 072 · `search` 185 / 182 · `watch list` 8) — plus **13/13 md5-equal** through BOTH binaries
+  over the user's own file (cards 25 213 / 7 004 / 9 430 / 3 596 / 3 453 B, rc `4` on `8800111` at 113
+  B). The era's headline door over the user's WHOLE file is byte-identical across binaries too: **16 696
+  238 B, md5 `4f1982d6`, 1 240 rows of matching 1 240** (3 778 reagent cells: 3 514 icon-byte cells /
+  3 642 money-word cells / 3 778 counts carried with NO money beside them; 897 crafted cells with icon
+  bytes, 873 money words, 884 live words; 133 rows with NO crafted item — the Enchanting shape — and 10
+  crafted ids with no row; the same set WITHOUT `--icons` costs 3 399 938 B).
+- **The exit map keeps the totals it had:** the 31 doors v0.13.0's map carried answer the **SAME totals
+  `0`×19 · `2`×5 · `4`×7** (fresh port 9551 — this era moved ZERO door fact), and the era's OWN eight
+  shapes answer **rc `0`×7 + rc `4`×1** (the EMPTY-DB door's own no-row words, never a new refusal; `--limit
+  0` answers 0 rows at rc `0`, ADR 0004's EMPTY half). Money over the door's OWN answers: **0 pairing
+  defects**, counts carried 19 / 19 / 19 with none wearing money.
+- **The tab's cost, stated where it can only be stated:** the whole set costs 16 696 238 B of door answer
+  and **4 411 icon data URIs** (3 514 reagent + 897 crafted) to paint, against the old cap's ≈1 363 515 B.
+  The webview never renders in the build room (the launch-audit rule), so the DOM cost and the Tauri IPC
+  cost are **NOT witnessed** — this era states measured bytes and refuses to claim a smooth 1 240-row paint.
+  The Watch button's reach grew the same way (ADR 0021's rule UNCHANGED, NOT capped): its ONE batched
+  `watch add` argv carries **1 095 ids of the 1 240 rows** (133 Enchanting crafts with no crafted item and
+  10 ids with no row skipped honestly); measured on a **SCRATCH COPY** of the user's file the door answers
+  rc `0` / 6 036 B — the user's file was NEVER written, NEVER crawled — and the Details door then fetches
+  exactly those records under ADR 0017's once-EVER pending rule, so the cost is a user-chosen click.
+- **CI banner:** a FEATURE era MOVES the version banner `0.13.0 → 0.14.0` (`chore 25846dc`, `Cargo.toml`
+  + `Cargo.lock` together — the v0.11.0-through-v0.13.0 shape). `cargo build` answers ZERO named warnings
+  and `cargo clippy --all-targets` the SAME **0 errors / 811 advice lines** (rc 0) — the era touched ZERO
+  Rust, which is exactly what those witnesses claim.
+- **CI ladder, owed rows MEASURED:** the previous era's two rows land here as measured. Its chain+tag run
+  reads **45199646115 SUCCESS**, 5/5 jobs green in **16 min 4 s** (run #46, attempt 1, head `b927109` =
+  that tag's target: quality **7/7** with the Lint step **completed/success** — the local measure of the
+  SAME command reads 0 errors / the SAME 811 advice lines — `test` **8/8** with the CLI smoke step GREEN,
+  linux **8/8**, macos **7/8**, windows **7/8**, one `skipped` Ubuntu-libs step on each non-linux target
+  as designed; the run reads longer than v0.12.x's 8–9 min because the macos job opened 5 min 1 s after
+  the run opened — a scheduling fact, said so). And the v0.13.0 **fold push's own run**, which this era
+  owes and had never been waited for, reads **45204000066 SUCCESS**, 5/5 jobs green in **9 min 56 s**
+  (15:19:50Z → 15:29:46Z, run #47, attempt 1, exactly ONE run id, no CANCELLED sibling, head `6fd2e3e` =
+  the FOLD commit itself; per-job ends quality → 15:22:46Z · windows → 15:26:14Z · macos → 15:28:30Z ·
+  linux → 15:29:44Z · `test` → 15:29:46Z; each job answers **12 end-actions, 11 success + ONE skipped**,
+  and the skipped one is the Rust-toolchain installer's OWN inner action `__dtolnay_rust-toolchain.__run_N`,
+  never a workflow step — the Ubuntu-libs step is simply ABSENT on the macos/windows jobs; the `test` job
+  pressed exactly **48 `cargo run --` steps**, because the fold's tree still carries the 48-step block:
+  this era's `ci` commit landed AFTER the fold). The run this era's chain+tag push starts is measured in
+  the NEXT record (ADR 0011's ladder), never chased here.
+
+Refs: [ADR 0028](./docs/DECISIONS/0028-a-hits-tab-shows-the-whole-answer.md) (this era's decision: a bound
+is a SURFACE fact, with the measures and SEVEN rejected alternatives), [ADR 0022](./docs/DECISIONS/0022-one-paging-rule-per-door.md)
+(the paging rule the tab now rides: no `--limit` = the rest), [ADR 0021](./docs/DECISIONS/0021-the-recipe-doors.md)
+(the tab and the door it asks), ADR 0014 / ADR 0012 (one door, local door = ZERO requests), ADR 0015 (money never
+beside a COUNT — 3 778 counts stayed money-free), ADR 0011 (measured witnesses, the launch-audit rule); [docs/DEVLOG.md](./docs/DEVLOG.md)
+carries the cap census, the fresh mirrors, the pinned pair and the map.
+
 ## v0.13.0 — the CARD WINDOW gets bigger: its type ~1.45×, its icons ×3 (24 → 72 px), and the frame's sizes stay PUT · 2026-11-23 · tag `v0.13.0`
 
 The user's sixth ask: "in the recipe card, when I pull up a single recipe, everything needs to

@@ -226,3 +226,23 @@ stamps to the cell; the tab draws the live pair beside the stored money ONLY whe
 they differ and names the two NULL states from the stamps (ADR 0017's third state
 vs never-refreshed). READ only — no schema hop (the columns are schema 7's), `vendor_buy`
 / `price_trend_normal` still NULL (ADR 0016's grounds hold unchanged).
+
+**GROWN AT v0.14.0 ([ADR 0028](./0028-a-hits-tab-shows-the-whole-answer.md)): the TAB stopped
+bounding, this rule stayed UNCHANGED word-for-word.** The door and its JOIN stayed put — the bound
+that capped the tab's rows lived in the TAB (a `recipes-pager` select offering `25` / `50` / `100`
+"a page", feeding `--limit` N), measured off the tree at `v0.13.0` before one line moved: `recipes
+--limit 100 --icons` answers **100 rows of matching 1 240** at 1 363 515 B while the door's OWN
+argv, asked with NO bound, answers **ALL 1 240 of matching 1 240** at 16 696 238 B. The tab's argv
+became the door's OWN (`["recipes","--icons"]`, `--profession` only when a job is picked), so ADR
+0014's one-code-path rule keeps its teeth: a `cargo run -- recipes --icons` line and the tab show
+the SAME rows, and the CI block now presses exactly that argv as its 49th step (measured 49/49 rc
+0, ZERO NONZERO on fresh mirrors 9521 / 9531 and again on the landed block at 9541 — the fixture's
+51 GETs / 17 recipe-file GETs stay exactly where the crawl left them, which IS ADR 0012's locality
+proof). "The cooked items of the SHOWN rows" is NOT re-capped and NOT re-aimed — with the whole set
+shown, the Watch button's ONE batched `watch add` argv carries **1 095 ids of the 1 240 rows**
+(133 Enchanting crafts with NO crafted item and 10 crafted ids with no row skipped honestly, the
+row already says so): measured on a **SCRATCH COPY** of the user's file the door answers rc `0` /
+6 036 B, and the user's file was NEVER written and NEVER crawled. The card door below — this ADR's
+other half — moved NOTHING at this era (its bytes are the pinned pair's witness: 28/28 BYTE-IDENTICAL
+over one fresh fixture DB, 13/13 md5-equal over the user's file, `recipe 8800111` still rc `4` at
+113 B).

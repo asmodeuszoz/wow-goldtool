@@ -552,6 +552,24 @@ IDENTICAL to the bare SELECT's tail (measured today on the DB this tool links, s
 sentinel row-count or an arbitrary cap that would hide rows. The recipe door joins
 the SAME rule (ADR 0014: two doors, one clause).
 
+**RIDDEN AT v0.14.0 ([ADR 0028](./DECISIONS/0028-a-hits-tab-shows-the-whole-answer.md)) — and
+NOTHING in this file moved:** the clause, the SELECTs and the door's bound stayed PUT; what moved
+is that the **RECIPES TAB stopped asking for a bound** (its `recipes-pager` select died, its argv
+became the door's OWN `["recipes","--icons"]`), so it now rides the "no `--limit`" branch this
+paragraph already describes. The census measured where the bound had lived, off the tree at `v0.13.0`
+before one line moved: `recipes --limit 100 --icons` answers **100 rows of matching 1 240** at 1 363
+515 B — the door HID 1 140 rows — while `recipes --icons` with NO bound answers **ALL 1 240 rows of
+matching 1 240** at 16 696 238 B (3 399 938 B asked without `--icons`), and `--limit 1240 --icons`
+answers the **SAME 16 696 238 B**: a bound at or above the matching count changes NOTHING, so a cap
+only ever HID rows — which is why the tab's cap DIED instead of growing. The door KEEPS `--limit` (a
+shell that prints 16.7 MB must be able to bound that ON REQUEST, and the flag carries ADR 0022's own
+pair plus four bounded CI steps), and `--limit 0` was measured answering **0 rows of matching 12** at
+52 B with rc `0` — zero means NONE, not ALL (ADR 0004's EMPTY half, unchanged). `recipes --limit -1`
+was measured WORKING (12 of 12 / 1 240 of 1 240, this paragraph's own negative-limit token) and was
+rejected for the tab on legibility: ZERO bound is the SAME answer with the truth attached to it. The
+Search tab's SECOND bound (`--limit 40`, hardcoded, no select) stayed PUT — the ask named the Recipes
+tab, and the frame now keeps TWO bounds and the record names which is which.
+
 ```sql
 -- the count behind the same filter, so "showing 40 of 1250" cannot drift
 SELECT COUNT(1) FROM item WHERE name_lc LIKE ? ESCAPE '#' AND ...;
