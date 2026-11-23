@@ -289,6 +289,24 @@ jobs:
           cargo run -- recipes --profession Alchemy --limit 3
           cargo run -- recipes --profession Enchanting --icons --limit 4
           cargo run -- recipes --profession Cooking --limit 3
+          # v0.14.0 (ADR 0028): the RECIPES TAB asks this door WITHOUT a bound, so this
+          # next step is the tab's OWN argv - `recipes --icons`, ZERO requests. The bound
+          # that capped the tab's rows lived in the tab (a pager select feeding `--limit`
+          # 25/50/100) and died there; ADR 0022's rule already says no `--limit` = the rest,
+          # and this step makes the block SEE it: over the fixture's 12 recipe rows the door
+          # answers ALL 12 of matching 12 (19 reagent cells, 7 of them carrying the DB's OWN
+          # icon bytes, 6 crafted cells carrying them, 19 counts carried with NO money beside
+          # them - ADR 0015's count half, 0 money-beside-a-count; 2 rows state NO crafted item,
+          # the Enchanting shape) at 46 793 B. On the user's own 1 240-row file the same argv
+          # answers 1 240 rows of matching 1 240 at 16 696 238 B, and 3 399 938 B asked WITHOUT
+          # `--icons`, while a bound AT or ABOVE matching (`--limit 1240 --icons`) answers the
+          # SAME 16 696 238 B - so a bigger cap would only ever HIDE rows, which is why the cap
+          # died rather than grew. ZERO requests (the door is LOCAL, ADR 0012's rule), so the
+          # fixture's GET tally cannot move - the unchanged tally IS the locality proof. Measured
+          # on a fresh mirror BEFORE this block landed (driver parsed the committed block, added
+          # these very steps): 49/49 commands rc 0, ZERO NONZERO. Step count 48 -> 49 step-lines,
+          # plant line stays one.
+          cargo run -- recipes --icons
           # v0.10.1 (ADR 0022): the paging doors ride ONE composition rule, and these
           # two steps are green BECAUSE it holds - they are the measured defect class
           # (`--offset` WITHOUT `--limit`): before the fix each answered rc 4 carrying
