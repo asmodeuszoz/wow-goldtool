@@ -162,6 +162,19 @@ abc". rc `4` on the user's file measured (112 B).
   driver-side defect, fixed in the driver, forward).
 * Tags never move: ADR 0021 keeps its measured tables and gains a pointer at this door; ADR 0023's
   live-trio rule is reused, not restated.
+* ONE build-time defect found AFTER the tag, named BY NAME and NOT muted (the fold's measurement,
+  2026-11-23): the chain+tag run **45095439290 measured FAILURE** (4/5 jobs, 8 min 9 s, head
+  `ace683a`) because the quality job's lint step rode **ONE clippy ERROR** — `this loop never
+  actually loops` at `src/db.rs:3029:5` (`clippy::never_loop`, deny-by-default): `recipe_card`
+  iterates the ONE row the `spell_id` PRIMARY KEY can produce and its body ALWAYS returns, so the
+  loop can never take a second turn. `cargo build` stayed GREEN at every commit (an ERROR-level
+  clippy diagnostic is a DIFFERENT gate from rustc's named dead-code set — the record keeps the
+  two apart, ADR 0024's ZERO set is rustc's own words), and the DOOR WORKS (nine rc `0` witnesses
+  on the exit map, the 48-step smoke block GREEN on GitHub). The repair lands FORWARD in the v0.12.1
+  patch era: the loop takes the shape the established single-row doors already use (clippy's OWN
+  suggestion `if let Some(one_row) = mapped.next()`), plus the step's name and the workflow's header
+  comment move off their now-false "informational" claim — the step's rc DOES gate the run when an
+  ERROR rides it. No mute, no gate, no `#pragma`-style suppression anywhere.
 
 ## Chain
 
