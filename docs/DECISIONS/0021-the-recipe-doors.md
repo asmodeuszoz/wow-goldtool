@@ -247,3 +247,9 @@ row already says so): measured on a **SCRATCH COPY** of the user's file the door
 other half — moved NOTHING at this era (its bytes are the pinned pair's witness: 28/28 BYTE-IDENTICAL
 over one fresh fixture DB, 13/13 md5-equal over the user's file, `recipe 8800111` still rc `4` at
 113 B).
+**RIDDEN AT v0.15.0 ([ADR 0029](./0029-the-card-window-floats-over-the-tab-its-click-came-from.md)):**
+the row click stayed PUT end-to-end — the `openrecipe` name-cell button, the ONE delegated handler over
+`#recipe-hits` and the door's argv all ride — and what moved is WHERE the card lands: the window floats
+OVER the Recipes tab instead of switching to its nameplate (which died). The bounded/unbounded door pair
+and their measures above stay history, re-measured UNCHANGED at the era's own audit (unbounded `recipes
+--icons` 46 793 B = ALL 12 of matching 12, byte-identical on BOTH binaries of the pinned v0.14.0 pair).

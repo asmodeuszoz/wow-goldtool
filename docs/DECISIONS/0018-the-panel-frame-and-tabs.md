@@ -131,3 +131,11 @@ exactly one run id for that head, no CANCELLED sibling, no rerun (matched by id/
 pushing, honest: only the fold's OWN push lands FORWARD in the next record. Tags stay put (`v0.9.6` ->
 `4ced794`, `v0.9.7` -> `dfb8826`) Tags stay
 put (`v0.9.6` → `4ced794`, `v0.9.7` → this record's commit).
+**CHANGED AT v0.15.0 ([ADR 0029](./0029-the-card-window-floats-over-the-tab-its-click-came-from.md)):**
+the strip shrank NINE → **SEVEN** nameplates and the layout sentence above stayed TRUE of what it owns:
+the ONE truth now counts SEVEN `button.tab[data-tab]` and EIGHT `section[data-tab]` — the TWO card windows
+LEFT this machinery (their sections carry NO `data-tab` any more, their nameplates died), and a window's
+visibility is held by `open_pip`/`close_pip` ALONE: it floats OVER whatever tab this truth shows, and the
+loop never hides or moves it. A window carries its OWN `Close this window` closer; the seven activities and
+their one-at-a-time rule stay PUT. ADR 0029 keeps the decision, the census (9 nameplates / 10 `data-tab`
+sections measured off the tree at `e449b60`) and the SEVEN rejected alternatives.

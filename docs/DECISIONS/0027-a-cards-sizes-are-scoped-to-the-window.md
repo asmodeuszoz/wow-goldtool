@@ -123,3 +123,8 @@ Rejected, each with its measure:
   TRUE and the card's live chips stay a TRUTH on this host — the two facts the NEXT era inherits, alongside the
   surface-vs-class rule this ADR states. The fold's OWN push starts the NEXT run, measured in the NEXT record
   (ADR 0011's ladder), never chased here.
+**RIDDEN AT v0.15.0 ([ADR 0029](./0029-the-card-window-floats-over-the-tab-its-click-came-from.md)):**
+the overlay paints UNDER those rules: the `#recipe-card` id stayed, all **21 id-scoped rules** (`.listicon`
+72 / `.noicon` 39 px included) ride the floated panel UNTOUCHED — measured in the era's census, still 21 —
+and the pinned pair proves the whole card answered BYTE-IDENTICAL across the move. The id-scoping above is
+why the move was free: a window wears what the id paints. ADR 0029 keeps the overlay decision.

@@ -6,6 +6,96 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.15.0 — the CARD WINDOWS stop being tabs: a row click floats the card OVER the tab it came from, the two card nameplates die, and the doors answer BYTE-IDENTICAL · 2026-11-23 · tag `v0.15.0`
+
+The user's eighth ask: "make the recipe card no longer a tab but a window-in-window overlay when
+clicking a recipe in the Recipes tab — the same for the search: clicking an item should pull up a
+picture-in-picture item card instead of the item card being a whole tab." A card's WHAT was decided
+at v0.12.0 (ADR 0025); this ask is its WHERE, measured off the tree at `e449b60` before one line
+moved: the strip answered **NINE nameplates**, **TWO of them ARE card windows**, and ADR 0018's
+`show_tab` loop (the ONE truth, 10 `data-tab` sections) hides every other section the moment a card
+tab turns on — so clicking a row and opening its card tab **hides the list the click came from**
+(`display: none` gets no events: the frame's own comment above app.js says so, the clicked row
+vanishes beside its own window). The cure the ask names: the window opens ON the tab that is already
+in front. Measured too: the search rows carried **ZERO** open-a-card affordance today, while the
+recipe rows already ride the `openrecipe` button + ONE delegated handler; and ADR 0027's **21
+id-scoped `#recipe-card` rules** are id-scoped, NOT tab-scoped — they can ride an overlay untouched.
+
+Changed
+
+- **The two card nameplates die; the windows ride the clicks** (`feat(ui) b5bcb25`, TWO files
+  `ui/index.html` + `ui/app.js`, 89 ins / 15 del): the `tab-card` / `tab-recipe-card` buttons die
+  (strip NINE → **SEVEN** nameplates) and the two sections drop their `data-tab` — ADR 0018's loop
+  NEVER sees a card window again; the windows' visibility is held by `open_pip`/`close_pip` ALONE
+  (`pip-closed` hides with the frame's OWN `display: none` mechanism, `pip` floats). Each window
+  grows its OWN `Close this window` button — the ONLY closer: closing hides the window back where
+  it was born, the tab underneath stays where it was. The recipe click stays EXACTLY PUT (button,
+  delegated handler, door `recipe SPELL_ID --icons`) with ONLY `show_tab("recipe-card")` →
+  `open_pip("recipe-card")`; the search row grows the opener it never had (measured ZERO today):
+  a `pipbtn` button carrying the SAME item id as the watch toggle, and the ONE delegated handler
+  over `#hits` splits the halves BY CLASS — the opener fills the window's field and lands on
+  `runCard(false)` = `item ID --cached`, ZERO requests, the window answers offline like its door.
+  Notes move with the surfaces (ADR 0019's rule). **ZERO Rust line, ZERO `SQL_` const, ZERO wire
+  struct, ZERO schema line (`8` stays), ZERO exit code, ZERO money formatter, ZERO request rule,
+  ZERO fixture line, ZERO CI step.** ADR 0029 keeps the decision, the census table and the SEVEN
+  rejected alternatives with their measures (restyle-with-nameplates-left, switch-underneath,
+  second renderer — ADR 0014's drift, new door/flag — the pinned pair measures the doors
+  BYTE-IDENTICAL so the window IS a paint fact, whole-cell clicks — the delegated pattern's
+  `event.target` is the button, re-parent — `position: fixed` floats without moving a node,
+  auto-close — a window with a hidden second lifecycle answers nothing about why).
+- **The overlay's paint is the frame's OWN silhouette again** (`feat(ui) 6b4f50c`, ONE file
+  `ui/app.css`, 32 ins, FOUR rules): `.pip` floats the SAME `.card` panel — fixed inset, lit-brass
+  trim (`--edge-lit`), gold hairline, DEEPER shadow than a laid panel — so the window sits visibly
+  IN FRONT of its tab: picture in picture; `button.pipbtn` rides `.rowact`'s furniture. ZERO new
+  colour token, ZERO new mechanism, ZERO `index.html`/`app.js` line in this commit.
+- **CI stays PUT at 49 step-lines + plant one** — this era grew ZERO door argv, so the smoke block
+  did not move; the mirror's OWN parse says so, and measured **49/49 commands rc `0`, ZERO
+  NONZERO** on fresh port **9711** with stage presses UNCHANGED (budget-3 recipes 4 / 3 / 5 /
+  `rate_limited` 1 · resumed-from-3 5 / 5 / 7 complete · re-pull 8 requests / 8 pages / **8 the
+  SAME copy** / 0 written), the fixture's tallies ending where the crawl left them — **51 GETs,
+  17 recipe-file GETs, ZERO added** = the locality proof — census recipe 12 / item 6 / copies 4 /
+  `vendor_buy` 0 / trend 0.
+- **The exit map at the SAME 31-door totals `0`×19 · `2`×5 · `4`×7** on fresh port **9741** (fresh
+  seed + fresh EMPTY DB + a DEAD port): ZERO door fact moved, and v0.14.0's OWN eight shapes answer
+  AGAIN **rc `0`×7 + rc `4`×1** (`recipes` 12 968 B · `recipes --icons` 46 768 B = **ALL 12 of
+  matching 12** · `--limit 0` 0 rows at 52 B rc `0` · `--limit -1` 12/12 · `--limit 12 --icons` the
+  SAME 46 768 B · `--offset 10` 2 of 12 · `--profession Enchanting --icons` 2 of 2 at 4 632 B ·
+  EMPTY-DB rc `4`); this era grew **ZERO new door shape** (the window rides existing doors). Money
+  over the door's OWN answers: **0 pairing defects**, counts 19/19/19 with **none wearing money**.
+- **The answers move ZERO BYTES, measured as the strong pair** (fresh port 9771 + ONE fresh DB):
+  the PINNED v0.14.0 tree (worktree at the TAGGED `c065815`, its OWN build green ZERO named, banner
+  `0.14.0` PUT, NINE nameplates + the card tabs PRESENT = the BEFORE witness) vs the new tree →
+  **28/28 BYTE-IDENTICAL, ZERO DELTAs** (the nine card doors 2 124 / 7 330 / 6 673 / 4 107 / 643 /
+  1 209 / 1 155 / 6 740 / 4 033 B, the recipes doors in BOTH shapes — unbounded `recipes --icons`
+  **46 793 B on BOTH binaries** — and the pre-existing set `status` 1 242 / `stats` 1 773 / `item
+  25/40 --cached` 4 341 / 4 076 / `search` 185 / 182 / `watch list` 8) — plus **13/13 md5-equal**
+  through BOTH binaries over the user's OWN file (LOCAL read-only doors, ZERO requests). The pair's
+  surface census rides too: pinned `data-tab="recipe-card"` PRESENT / `pip-closed` ABSENT / `open_pip`
+  ABSENT vs new ABSENT / PRESENT / PRESENT, banners `0.14.0` PUT vs `0.15.0` MOVED.
+- **UI launch witnesses** (parse/grep ONLY — the webview NEVER renders in the build room, DOM/IPC
+  cost stays **NOT WITNESSED**): `node --check` PARSE OK, SEVEN nameplates, 15 `data-tab` attrs
+  (7 buttons + 8 sections), ZERO `data-tab="card"`/`"recipe-card"`, ZERO `show_tab("card")`/`"recipe-card"`
+  sites, `open_pip`/`close_pip` 3 each, 2 closers, the `pipbtn` census, FOUR CSS rules, ADR 0027's
+  **21 id-scoped `#recipe-card` rules STILL 21** (`.listicon` 72 / `.noicon` 39 px), `recipes-pager`
+  0, the Search tab's `--limit 40` PUT. The user's file census UNCHANGED: schema **8** · 19 258
+  items · 4 602 copies / **14 656 without** · 1 240 recipes / 1 240 distinct spell ids · `learned_json`
+  1 240 set · watch **134** · `vendor_sell` 4 231 · `price_min_now` 4 344 + 258 price-less · pending
+  0 · `vendor_buy` 0 · trend 0 · tombstoned 0 (`sqlite3 -readonly`, NEVER written, NEVER crawled).
+  Builds named **ZERO** on every commit (FS notice aside); clippy the SAME **0 errors / 811 advice**.
+- **CI ladder, owed row MEASURED:** the v0.14.0 fold push's own run **45222898599 SUCCESS**, 5/5
+  jobs green in **17 min 36 s** (17:00:47Z → 17:18:23Z, run #49, attempt 1, ONE run id, no
+  CANCELLED sibling, head `e449b60` = that FOLD commit); per-job ends quality → 17:02:41Z · linux
+  → 17:09:08Z · windows → 17:09:51Z · `test` → 17:15:53Z · **macos → 17:18:23Z** (the macos job
+  CLOSED it — a scheduling fact, said so); each job **12 end-actions = 11 success + 1 skipped**
+  (`__dtolnay_rust-toolchain.__run_2` on windows, `__run_3` on the others — the installer's OWN
+  inner action, never a workflow step), Ubuntu-libs step ABSENT on macos/windows; the `test` job
+  pressed exactly **49 `cargo run --` steps** (this era moved ZERO CI line) and the unbounded
+  `recipes --icons` step answered ALL 12 of matching 12 at 46 792 B with **19 counts, 0 money
+  beside them**. ADR 0018/0021/0025/0027/0028 gained CHANGED/GROWN/RIDDEN pointers; tags never
+  moved. FEATURE era MOVES the banner (`chore ff84417`): `0.14.0 → 0.15.0`. Chain: `b5bcb25`
+  feat(ui) · `6b4f50c` feat(ui) · `ff84417` chore · this record + tag `v0.15.0`; the fold measures
+  the post-tag witnesses and the run this push starts, FORWARD (ADR 0011's ladder).
+
 ## v0.14.0 — the RECIPES TAB shows the WHOLE set: its pager dies, the door never had a cap, and ZERO door line moved · 2026-11-23 · tag `v0.14.0`
 
 The user's seventh ask: "recipes tab, get rid of the limit for how many hits are to be shown and

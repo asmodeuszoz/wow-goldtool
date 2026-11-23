@@ -570,6 +570,14 @@ rejected for the tab on legibility: ZERO bound is the SAME answer with the truth
 Search tab's SECOND bound (`--limit 40`, hardcoded, no select) stayed PUT — the ask named the Recipes
 tab, and the frame now keeps TWO bounds and the record names which is which.
 
+**RIDDEN AT v0.15.0 ([ADR 0029](./DECISIONS/0029-the-card-window-floats-over-the-tab-its-click-came-from.md))
+— NOTHING in this file moved:** the card windows changed WHERE a card opens, never WHAT a door answers —
+the recipe window rides `recipe SPELL_ID [--icons]` and the item window `item ID --cached`, both ZERO-request
+doors UNTOUCHED, and the pinned pair against the TAGGED `c065815` tree measures **28/28 BYTE-IDENTICAL +
+13/13 md5-equal** across the move (unbounded `recipes --icons` 46 793 B = ALL 12 of matching 12 on BOTH
+binaries); every bound named above stayed PUT, the Search tab's `--limit 40` measured still there beside the
+new window opener.
+
 ```sql
 -- the count behind the same filter, so "showing 40 of 1250" cannot drift
 SELECT COUNT(1) FROM item WHERE name_lc LIKE ? ESCAPE '#' AND ...;

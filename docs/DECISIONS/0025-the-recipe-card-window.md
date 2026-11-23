@@ -220,3 +220,10 @@ plus **13/13 md5-equal** on fresh 9501, so the door's bytes stayed put on BOTH s
 TWICE rather than asserted; GitHub's own verdict for the tag's tree is **45199646115 SUCCESS**, 5/5 jobs
 green in **16 min 4 s** (14:56:38Z → 15:12:42Z, run #46, head `b927109` = the tag's target) — quality 7/7
 Lint step GREEN, `test` 8/8 with the CLI smoke step GREEN, linux 8/8, macos 7/8, windows 7/8.
+**GROWN AT v0.15.0 ([ADR 0029](./0029-the-card-window-floats-over-the-tab-its-click-came-from.md)):**
+WHERE its window opens moved — the card is no longer the NINTH nameplate tab but the WINDOW a row click
+floats OVER the Recipes tab (nameplate + `data-tab` died; `Close this window` is the window's OWN closer
+and the tab underneath stays where it was). Everything else above stays PUT word-for-word: the click path,
+the delegated handler, the ONE local door, the composition and the honest gaps. The pinned pair measured
+the card doors **BYTE-IDENTICAL** (fixture answers 2 124 / 7 330 / 6 673 / 4 107 / 643 / 1 209 / 1 155 /
+6 740 / 4 033 B against the TAGGED v0.14.0 tree) — this era moved a SURFACE, not a truth.

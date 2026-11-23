@@ -186,3 +186,8 @@ landed:
   `v0.12.1` → `d2c26de` · `v0.13.0` → `b927109` · **`v0.14.0` → `c065815`** — ZERO tag moved, CI stays **49
   step-lines + plant one**, and the fold leg is docs-only, so it cannot move the build. The run the fold's OWN
   push starts is measured in the NEXT ladder row (ADR 0011's ladder), never chased here.
+**RIDDEN AT v0.15.0 ([ADR 0029](./0029-the-card-window-floats-over-the-tab-its-click-came-from.md)):**
+the tab's UNBOUNDED argv stayed PUT above — re-measured byte-identical on both binaries of the pinned v0.14.0
+pair (46 793 B = ALL 12 of matching 12, `--limit`/`--offset` bounds unchanged at the door) — and the Search
+tab's `--limit 40` stays PUT, now measured beside the new window opener (`pipbtn`). ADR 0028's cap census and
+its SEVEN rejected alternatives stay history; ZERO bound moved at v0.15.0.
