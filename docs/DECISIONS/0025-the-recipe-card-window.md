@@ -184,7 +184,16 @@ abc". rc `4` on the user's file measured (112 B).
   included — plus **13/13 md5-equal** through both binaries over the user's OWN file: behavior moved
   ZERO. The bullet above stays put, its measures stay history, and the workflow gained NO line: at 0
   errors the step's own NAME is true again, measured rather than assumed (ADR 0026 keeps the decision
-  and its FOUR rejected alternatives, the mute among them).
+  and its FOUR rejected alternatives, the mute among them). **MEASURED IN THE FOLD:** the era's own
+  chain+tag run — head = the TAGGED tree `d2c26de` — answered **45101284057 SUCCESS**, 5/5 jobs green
+  in **8 min 13 s** (02:37:33Z → 02:45:46Z, run #44), quality **7/7 with the Lint step GREEN** (the
+  FIRST green lint step since v0.11.1) and `test` 8/8 with the CLI smoke step GREEN, while its sibling
+  (the v0.12.0 fold push's run, head `89cab34`) measured **45098365666 FAILURE** with the SAME failing
+  step: the verdict moved FAILURE → SUCCESS because the TREE's shape moved, with ZERO workflow lines
+  moved and ZERO mutes (ADR 0026 keeps the fold and its witnesses — mirror 51/51 rc 0 on fresh 9341,
+  the map at the SAME 31-door totals on fresh 9373, the pinned v0.12.0 pair 16/16 md5-equal over the
+  user's own file, whose tallies carry the fact this fix rides: 1 240 recipe rows / 1 240 DISTINCT
+  `spell_id`s).
 
 
 ## Chain

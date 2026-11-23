@@ -73,5 +73,29 @@ Rejected, each with its measure:
   the ERROR and the named set are DIFFERENT gates); [ADR 0025](./0025-the-recipe-card-window.md)'s
   consequence bullet gains its CLOSED pointer; the workflow's step name and header comment are
   untouched because they are true again at v0.12.1.
+* **THE FOLD, MEASURED (2026-11-23, post-tag, fresh ports/DBs — this era's own ladder row):** the era's
+  chain+tag run — head = the TAGGED tree `d2c26de` — measured **45101284057 SUCCESS**, 5/5 jobs green in
+  **8 min 13 s** (02:37:33Z → 02:45:46Z, run #44, attempt 1, ONE run id, no CANCELLED sibling): quality
+  **7/7** with "Lint (informational — clippy's own advice; our named set died at v0.11.1, see
+  docs/DEVELOPMENT.md)" **completed/success** — GREEN for the FIRST time since v0.11.1 — and `test` **8/8**
+  with the CLI smoke step GREEN on GitHub's own build of the tagged tree; linux 8/8, macos 7/8, windows
+  7/8 (the Ubuntu-libs step `skipped`, as designed). The era's claim is now measured rather than argued:
+  the verdict moved **FAILURE → SUCCESS with ZERO workflow lines moved** — same step text, same gate
+  (still off), the ONLY delta is the tree's shape. Its sibling, measured in the same breath: the v0.12.0
+  fold push's run **45098365666 = FAILURE** (4/5 in 11 min 20 s, head `89cab34`), SAME failing step, exactly
+  what the tree implied BEFORE it was read. Post-tag witnesses on FRESH ports: mirror replay **51/51 rc 0,
+  ZERO nonzero** (fresh 9341; the block re-PARSED at 48 step-lines + plant one, the era moved NO step; the
+  four card steps at 7 333 / 6 673 / 4 107 / 643 B; the fixture's own GET tallies 51 with 17 recipe-file
+  GETs, **ZERO added** — that is the locality proof); exit map at the **SAME 31-door totals `0`×19 ·
+  `2`×5 · `4`×7** (fresh 9373, FOUR rc-`4` doors in the SAME words, `recipe 132 --fixture <DEAD>` rc 0 with
+  rc `3` UNREACHABLE from this door); and the PINNED v0.12.0 binary (`ace683a`, banner `0.12.0` PUT) vs the
+  pushed tree **16/16 md5-equal, ZERO DELTAs** over the user's OWN file (card doors 25 213 / 7 004 / 9 430
+  / 3 596 / 3 453 B, `recipe 27835` BARE 3 705 B, rc `4` on `638` 109 B · `8800111` 113 B · `999999` 112 B),
+  whose own tallies carry the FACT this fix rides, read ON the file rather than cited: **1 240 recipe rows
+  AND 1 240 DISTINCT `spell_id`s** — at most ONE row can answer the card read. Money over those very answers:
+  **0 pairing defects**, COUNTS 6/2/2/1/1 with NO money beside them (ADR 0015's count half). The fold's own
+  push starts the NEXT run, measured in the NEXT record (ADR 0011's ladder), never chased here.
 * The next defect class this makes explicit: **a red CI run is read BEFORE it is explained** — the
-  ladder row says which step moved, in that step's own name, and only then which gate it rides.
+  ladder row says which step moved, in that step's own name, and only then which gate it rides. Measured,
+  the class CLOSED at this era: the same step that rode the FAILURE at v0.12.0 answers GREEN at v0.12.1,
+  so the NAME is true again and the verdict moved on the tree's own account, not on a workflow's.

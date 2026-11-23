@@ -46,7 +46,24 @@ Fixed
   rode, which is exactly what the tree implied BEFORE the read (NOTHING about the code moved between the
   tag and that push, so the ERROR still rode it); the expectation was stated first, the measure agreed, per
   ADR 0011's ladder. This era's own chain+tag run — the FIRST tree since v0.12.0 whose lint step measures
-  0 errors — is measured in the NEXT record, never chased here.
+  0 errors — **MEASURED IN THE FOLD: `45101284057 = SUCCESS`**, 5/5 jobs green in **8 min 13 s** (02:37:33Z
+  → 02:45:46Z, run #44, attempt 1, ONE run id, no CANCELLED sibling, head `d2c26de` = the TAGGED tree) —
+  quality **7/7 with the Lint step completed/success**, GREEN for the FIRST time since v0.11.1 (so its
+  "informational" NAME is true of this tree again), `test` **8/8 with the CLI smoke step GREEN** (the 48-step
+  block, the four card steps included, on GitHub's own build of the tagged tree), linux 8/8 · macos 7/8 ·
+  windows 7/8 (their Ubuntu-dev-libraries step `skipped`, as designed). The verdict moved **FAILURE → SUCCESS
+  with ZERO workflow lines moved** — the step is the same text and the `-D warnings` gate is still off, only
+  the tree's shape moved, and that is what this era claims, measured. Post-tag witnesses (fresh ports/DBs,
+  the real host seen NOTHING, the user's file read read-only): mirror replay on fresh 9341 **51/51 rc 0** with
+  the SAME stage tallies and the card steps at 7 333 / 6 673 / 4 107 / 643 B, the fixture's GET tallies ending
+  where the crawl left them (51 GETs, 17 recipe-file GETs, **ZERO added** = the locality proof); the exit map
+  on fresh 9373 at the **SAME 31-door totals `0`×19 · `2`×5 · `4`×7** (a PATCH era moves ZERO semantics); and
+  the PINNED v0.12.0 binary (`ace683a`, banner `0.12.0` PUT) vs the pushed tree **16/16 md5-equal, ZERO DELTAs**
+  over the user's OWN file — card doors 25 213 / 7 004 / 9 430 / 3 596 / 3 453 B plus `recipe 27835` BARE 3 705
+  B, rc `4` on `638` 109 B · `8800111` 113 B · `999999` 112 B — with the PRIMARY-KEY fact the fix rides read
+  ON that file (**1 240 recipe rows, 1 240 DISTINCT `spell_id`s**) and **0 money-pairing defects** over these
+  very answers. The fold's own push starts the NEXT run, measured in the NEXT record (ADR 0011's ladder),
+  never chased here.
 
 Refs: [ADR 0026](./docs/DECISIONS/0026-a-clippy-error-is-not-advice.md) (the era's ADR: an ERROR rides
 the run, so it dies BY NAME), [ADR 0025](./docs/DECISIONS/0025-the-recipe-card-window.md) (whose
