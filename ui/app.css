@@ -354,6 +354,39 @@ th.col-job, th.col-recipe, th.col-skill, th.col-mats, th.col-cooked {
 .recipes-fields select option { color: var(--text); background: var(--field-2); }
 #btn-recipes-fetch.running { color: var(--gold); }
 
+/* v0.12.0 (ADR 0025): the recipe card panel + the recipe row's CLICK. The classes
+ * app.js DRAWS here are named exactly: openrecipe (the row's name cell = the click
+ * target, carrying data-spell), rcardbox / rcardhead / rcardname / rcardlearn /
+ * rcardmats / rcell / rcellname / rcopy / rcopyhead, and the two NEW state chips
+ * learn-word / learn-none (the set named a word, or stated nothing at all).
+ * EVERYTHING else rides classes this frame already owns - jobchip/skillchip/tier-
+ * chip, mat/matname/mat-none/mat-not-in-db, cooked-none/cooked-not-in-db, chip
+ * plus chip.c-<quality> (the quality colours are the frame's, never a second
+ * palette here), moneycell, the live trio live/live-missing/live-none, listicon/
+ * noicon: no second copy of a money or icon cell (the rule the Recipes tab's own
+ * block above states). The webview never launched in the build room, so this is a
+ * parse/grep witness, not a rendered claim (the launch-audit rule, kept). */
+#recipe-hits tr td button.openrecipe {
+  color: var(--gold);
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline dotted;
+}
+.rcardbox { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 12px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--field-2); }
+.rcardbox .rcardhead { color: var(--text); font-size: 13px; }
+.rcardname { color: var(--text); font-size: 13.5px; }
+.rcardlearn, .rcardmats { color: var(--muted); font-size: 12px; }
+.rcell { display: grid; grid-template-columns: 1fr; gap: 3px; padding: 7px 9px; border: 1px solid var(--edge); border-radius: 7px; background: var(--field-1); }
+.rcellname { color: var(--text); font-size: 12.5px; }
+.rcopy { display: grid; grid-template-columns: 1fr; gap: 2px; padding: 5px 8px; border-left: 2px solid var(--gold); color: var(--parch); font-size: 12px; }
+.rcopyhead { color: var(--gold); font-size: 10.5px; }
+.learn-word { display: inline-block; color: var(--parch); background: rgba(94, 72, 50, 0.5); border-radius: 6px; padding: 1px 6px; font-size: 10.5px; }
+.learn-none { color: var(--muted); font-style: italic; font-size: 11px; }
+#btn-recipe-card.running { color: var(--gold); }
+
 /* footer: the developer-terms attribution - it stays OUTSIDE the tabs so it
  * reaches every screen (docs/API.md's rule: the link is required in every answer) */
 footer {

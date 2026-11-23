@@ -36,6 +36,19 @@
            says so beside its dataset name, and an enchanting craft says it has NO
            crafted item at all (measured: 133 of the set carry no crafted id). -->
       <button class="tab" id="tab-recipes" data-tab="recipes" type="button">Recipes</button>
+      <!-- v0.12.0 (ADR 0025): the NINTH nameplate tab. Its rows are reached by
+           CLICKING a recipe row's name in the tab above - the name cell is a button
+           carrying that row's spell id - and by typing an id here. ONE door answers
+           it: `recipe SPELL_ID`, LOCAL, ZERO requests, so a click and a `cargo run
+           -- recipe 132` line stay one code path (ADR 0014). The card shows the
+           entry as the GAME shows it: the scroll that teaches it, the item it crafts
+           and the materials it asks for, each as the DB's OWN cell (name, quality,
+           level, the game's money, icon bytes, and the record's copied tooltip
+           where one exists), beside the fetched set's own job/skill words. Every
+           gap keeps its own state word (ADR 0004): the set may name no scroll, name
+           one this DB never saw, or state nothing at all about how a recipe is
+           learned. -->
+      <button class="tab" id="tab-recipe-card" data-tab="recipe-card" type="button">Recipe card</button>
     </nav>
 
     <section class="card" id="status-card" data-tab="overview">
@@ -154,6 +167,16 @@
       </div>
       <div class="cardbox" id="card-box"></div>
       <div class="note" id="card-note">the card reads the DB: it answers offline, prices are shown as the game&#8217;s money with the exact copper in each hover, the live min buyout row reads "no price" until the price refresh ran - the Sync tab&#8217;s Price button or the CLI stage, one live ask per copied record ever, and the door can also answer that the AH offers nothing right now - and on the card itself "Re-check online" is the only button that touches the API</div>
+    </section>
+
+    <section class="card wide tab-off" id="recipe-card" data-tab="recipe-card">
+      <h2>Recipe card — one entry, as the game shows it</h2>
+      <div class="fields" id="recipe-card-fields">
+        <input class="field" id="recipe-card-id" type="text" placeholder="spell id (the Recipes tab&#8217;s rows name theirs)" />
+        <button class="act" id="btn-recipe-card" type="button">Read the DB</button>
+      </div>
+      <div class="rcardbox" id="recipe-card-box"></div>
+      <div class="note" id="recipe-card-note">the card reads the DB: ZERO requests leave this door. The entry&#8217;s job, name and skill words are the fetched set&#8217;s own; every cell answers through the item rows this DB owns, BY VALUE on the ids the set states - the scroll that teaches this recipe is named by the set&#8217;s OWN learned-from bytes, the crafted item and the materials by their ids. A gap keeps its own state word: the set may name no scroll at all, name one this DB never saw, state nothing about how the recipe is learned, or name no crafted item at all (the set&#8217;s enchanting entries). A cell shows the game&#8217;s money beside every copper number and the record&#8217;s OWN copied tooltip where the tooltip stage copied one</div>
     </section>
 
     <section class="card tab-off" id="edit-card" data-tab="writes">

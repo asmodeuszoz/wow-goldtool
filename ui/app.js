@@ -275,7 +275,7 @@ async function runRecipes() {
     }
     document.querySelector("#recipe-hits tbody").innerHTML = rows;
     var shown = found.recipes.length;
-    var note = "showing " + shown + " of " + num(found.matching) + " recipe rows \u2014 the job words, skill numbers and material LISTS are the FETCHED set's own (the Sync tab\u2019s Recipes button: 8 files, MIT second source, cited here): the API has no professions door and its recipe cards never name a job or materials (measured); icons and money beside the materials are YOUR DB\u2019S OWN \u2014 an item the DB never saw says so beside its dataset name, and an enchanting craft says it has NO crafted item at all";
+    var note = "showing " + shown + " of " + num(found.matching) + " recipe rows \u2014 the job words, skill numbers and material LISTS are the FETCHED set's own (the Sync tab\u2019s Recipes button: 8 files, MIT second source, cited here): the API has no professions door and its recipe cards never name a job or materials (measured); icons and money beside the materials are YOUR DB\u2019S OWN \u2014 an item the DB never saw says so beside its dataset name, and an enchanting craft says it has NO crafted item at all; clicking a row\u2019s recipe name opens that entry\u2019s CARD (the local door, ZERO requests)";
     if (found.matching === 0) {
       note = "no recipe rows for this filter \u2014 the set is fetched by the Sync tab\u2019s Recipes button (or the CLI stage), read here ever after";
     }
@@ -370,9 +370,14 @@ function recipe_row(one) {
     skill = chip_word("skill " + String(one.skill_required), "skillchip") + " ";
   }
   var tier = one.skill_tier ? chip_word(one.skill_tier, "tierchip") + " " : "";
+  // v0.12.0 (ADR 0025): the name cell IS the click target, and it carries the
+  // spell id it belongs to (the same delegated pattern the search hits ride -
+  // rows need no per-row listeners). The click fills the card door's id and reads
+  // the SAME argv a `cargo run -- recipe N` line takes (ADR 0014's one-code-path
+  // rule); the list itself stays a list.
   return "<tr>"
     + '<td class="col-job">' + chip_word(one.profession, "jobchip") + "</td>"
-    + '<td class="col-recipe">' + esc(one.recipe_name || one.spell_id) + "</td>"
+    + '<td class="col-recipe"><button class="openrecipe" data-spell="' + esc(String(one.spell_id)) + '" type="button">' + esc(one.recipe_name || one.spell_id) + "</button></td>"
     + '<td class="col-skill">' + skill + tier + "</td>"
     + '<td class="col-mats">' + recipe_mats(one) + "</td>"
     + '<td class="col-cooked">' + recipe_crafted(one) + "</td>"
@@ -417,6 +422,175 @@ async function watchRecipes() {
     set_note(document.getElementById("recipes-note"), problem.message, true);
   }
 }
+// ---- the recipe card (v0.12.0, ADR 0025) ------------------------------------
+// ONE door answers this panel: `recipe SPELL_ID` - LOCAL, ZERO requests - so the
+// click on a recipe row and a `cargo run -- recipe 132` line are ONE code path
+// (ADR 0014's rule). The card shows the entry as the GAME shows it, composed from
+// TWO sources that never merge: the fetched set's OWN words (job, name, the skill
+// band it states) and the DB's OWN cells, reached BY VALUE through the ids the set
+// states - the SCROLL that teaches it comes from the set's own learned-from bytes
+// (measured census, ADR 0025: 804 of 1 240 real entries name a scroll item, 413
+// state the `trainer` word, 23 the `automatic` word, and 8 NULLs state nothing at
+// all), the crafted item and the materials through their ids. The cell machinery
+// RIDES the row helpers above (recipe_icon / money_cell / live_cell / recipe_mats
+// / chip_word), so a card cell cannot say something different from a list row.
+// Money keeps ADR 0015's contract (words beside EVERY copper, never beside a
+// count), and every gap names ITSELF (ADR 0004's no-invented-answers rule).
+// The click hands the door its id directly (the row's name button carries it);
+// typing an id into the field answers the same way. Both land in the SAME argv.
+async function runRecipeCard(from_click) {
+  show_tab("recipe-card");
+  var field = document.getElementById("recipe-card-id");
+  var raw = "";
+  if (from_click !== undefined && from_click !== "") {
+    raw = from_click;
+    field.value = from_click;
+  } else {
+    raw = field.value.trim();
+  }
+  if (raw === "") {
+    set_note(document.getElementById("recipe-card-note"), "type a spell id first \u2014 the Recipes tab\u2019s rows name theirs, and clicking a row\u2019s recipe name fills it for you", true);
+    return;
+  }
+  try {
+    var found = await cli_ok(["recipe", raw, "--icons"]);
+    live_shown = false;
+    show_recipe_card(found);
+    var named = 0;
+    var answered = 0;
+    if (found.result !== null && found.result !== undefined) {
+      named = named + 1;
+      if (found.result.in_db === true) { answered = answered + 1; }
+    }
+    if (found.scroll !== null && found.scroll !== undefined) {
+      named = named + 1;
+      if (found.scroll.in_db === true) { answered = answered + 1; }
+    }
+    for (var m = 0; m < found.materials.length; m = m + 1) {
+      named = named + 1;
+      if (found.materials[m].in_db === true) { answered = answered + 1; }
+    }
+    var line = "spell id " + String(found.spell_id) + " read LOCALLY, ZERO requests left this door: " + answered + " of " + named + " ids the entry names answered from your DB (the rest say so beside the set\u2019s own words) \u2014 the cells\u2019 name, quality, level, money, icon and tooltip words are YOUR DB\u2019S OWN; the entry\u2019s job, name and skill words are the fetched set\u2019s (source " + (found.source === null || found.source === undefined ? "unstated" : found.source) + ")";
+    if (live_shown) {
+      line = line + " \u2014 the money IN a cell is the STORED min; the LIVE words beside it are what the AH offered at the LAST price ask (never merged, the exact copper stays in the hover)";
+    }
+    set_note(document.getElementById("recipe-card-note"), line, false);
+  } catch (problem) {
+    if (problem.kind === "not-found") {
+      set_note(document.getElementById("recipe-card-note"), problem.message + " \u2014 the Recipes tab lists the spell ids this DB does hold", false);
+    } else {
+      set_note(document.getElementById("recipe-card-note"), problem.message, true);
+    }
+  }
+}
+
+function show_recipe_card(found) {
+  var parts = [];
+  parts.push('<div class="rcardhead">' + card_head(found) + "</div>");
+  parts.push('<div class="rcardlearn">' + learn_line(found) + "</div>");
+  if (found.result !== null && found.result !== undefined) {
+    parts.push(card_cell(found.result, "crafts"));
+  } else {
+    parts.push(chip_word("no crafted item \u2014 this craft puts an enchant on a slot", "cooked-none"));
+  }
+  if (found.scroll !== null && found.scroll !== undefined) {
+    parts.push(card_cell(found.scroll, "teaches the spell"));
+  }
+  parts.push('<div class="rcardmats">' + recipe_mats({ "reagents": found.materials }) + "</div>");
+  document.getElementById("recipe-card-box").innerHTML = parts.join("");
+}
+
+// The entry's own words (the SET's) plus what its learned-from bytes NAMED. Two
+// different NULLs ride apart here (ADR 0004/0016's rule again): `learned_type`
+// NULL = the set stated nothing, a type word with no `learned_scroll_id` = the
+// set stated a WORD that names no item (trainer / automatic, measured 413 / 23
+// over the real set). The plain `acquisition` word the list chip read (ADR 0021)
+// rides beside the new type word, never instead of it.
+function card_head(found) {
+  var out = chip_word(found.profession, "jobchip") + " ";
+  out = out + '<span class="rcardname">' + esc(found.recipe_name === null || found.recipe_name === undefined ? ("spell " + String(found.spell_id)) : found.recipe_name) + "</span> ";
+  out = out + chip_word("spell id " + String(found.spell_id), "learn-word") + " ";
+  if (found.skill_required !== null && found.skill_required !== undefined) {
+    out = out + chip_word("skill " + String(found.skill_required), "skillchip") + " ";
+  }
+  if (found.skill_tier !== null && found.skill_tier !== undefined) {
+    out = out + chip_word(found.skill_tier, "tierchip") + " ";
+  }
+  if (found.trivial_low !== null && found.trivial_low !== undefined
+      && found.trivial_high !== null && found.trivial_high !== undefined) {
+    out = out + chip_word("grey-to-green band " + String(found.trivial_low) + " to " + String(found.trivial_high), "tierchip") + " ";
+  }
+  if (found.acquisition !== null && found.acquisition !== undefined) {
+    out = out + chip_word(found.acquisition, "learn-word") + " ";
+  }
+  if (found.acquisition_note !== null && found.acquisition_note !== undefined) {
+    out = out + '<span class="mat-none">' + esc(found.acquisition_note) + "</span> ";
+  }
+  if (found.source !== null && found.source !== undefined) {
+    out = out + '<span class="mat-none">set source: ' + esc(found.source) + "</span>";
+  }
+  return out;
+}
+
+function learn_line(found) {
+  if (found.learned_type === null || found.learned_type === undefined) {
+    return chip_word("the set states NOTHING about how this recipe is learned", "learn-none");
+  }
+  var out = chip_word("learned by: " + found.learned_type, "learn-word") + " ";
+  if (found.learned_scroll_id === null || found.learned_scroll_id === undefined) {
+    out = out + chip_word("the set states the word alone \u2014 no scroll item exists for this kind of learning", "learn-none");
+    return out;
+  }
+  out = out + chip_word("the set states the scroll BY VALUE (item id " + String(found.learned_scroll_id) + ")", "learn-word") + " ";
+  if (found.learned_scroll_name !== null && found.learned_scroll_name !== undefined) {
+    out = out + '<span class="matname">' + esc(found.learned_scroll_name) + "</span>";
+  }
+  return out;
+}
+
+// One cell: the DB's OWN words for one id the set named. `in_db` false keeps the
+// tombstone rule honest (a row the user buried is NOT a row the card shows - ADR
+// 0010's rule, and the door's own SELECT carries the same guard). The tooltip
+// block is the record's OWN copy, printed as TEXT: upstream's markup never reaches
+// the page (ADR 0012's readable twin is what renders).
+function card_cell(cell, verb) {
+  var name = cell.db_name || cell.dataset_name || ("item " + String(cell.item_id));
+  var out = '<div class="rcell"><span class="rcellname">' + esc(verb) + " \u2014 " + esc(name);
+  if (cell.db_name !== null && cell.db_name !== undefined && cell.dataset_name !== null && cell.dataset_name !== undefined && cell.db_name !== cell.dataset_name) {
+    out = out + " (the set calls it " + esc(cell.dataset_name);
+  }
+  out = out + "</span> ";
+  if (cell.in_db !== true) {
+    out = out + chip_word("the DB never saw this id alive", "cooked-not-in-db");
+    return out + "</div>";
+  }
+  if (cell.db_name !== null && cell.db_name !== undefined && cell.dataset_name !== null && cell.dataset_name !== undefined && cell.db_name !== cell.dataset_name) {
+    out = out + ") ";
+  }
+  if (cell.quality !== null && cell.quality !== undefined) {
+    out = out + chip_word(cell.quality, "chip c-" + esc(cell.quality)) + " ";
+  }
+  out = out + recipe_icon(cell.icon_b64, cell.icon_at, name) + " ";
+  if (cell.item_level !== null && cell.item_level !== undefined) {
+    out = out + chip_word("item level " + String(cell.item_level), "skillchip") + " ";
+  }
+  if (cell.required_level !== null && cell.required_level !== undefined) {
+    out = out + chip_word("requires level " + String(cell.required_level), "skillchip") + " ";
+  }
+  if (cell.vendor_sell !== null && cell.vendor_sell !== undefined) {
+    out = out + "vendor sell " + money_cell(cell.vendor_sell_money, cell.vendor_sell) + " ";
+  }
+  out = out + "min " + money_cell(cell.price_money, cell.price_copper) + " " + live_cell(cell.price_now_money, cell.price_now_copper, cell.price_copper, cell.price_now_at, cell.price_now_missing_at) + " ";
+  if (cell.tooltip_text !== null && cell.tooltip_text !== undefined) {
+    out = out + '<div class="rcopy"><span class="rcopyhead">the game\u2019s own words \u2014 this record\u2019s copied tooltip (copied ' + when(cell.tooltip_at) + ")</span><span>" + esc(cell.tooltip_text) + "</span></div>";
+  } else if (cell.tooltip_missing_at !== null && cell.tooltip_missing_at !== undefined) {
+    out = out + '<span class="mat-none">this record was checked as having NO description upstream (' + when(cell.tooltip_missing_at) + ")</span>";
+  } else {
+    out = out + '<span class="mat-none">no copy yet \u2014 the Descriptions stage asks this record once</span>';
+  }
+  return out + "</div>";
+}
+
 // ---- liveness while one chunk is in flight --------------------------------
 // A chunk is seconds (pacing at 2/s) or minutes (a Retry-After wait on a 429),
 // and the await for it is exactly where the page could look dead. It does not:
@@ -1145,6 +1319,18 @@ document.getElementById("btn-price").addEventListener("click", function () { run
 document.getElementById("btn-recipes").addEventListener("click", function () { runRecipes(); });
 document.getElementById("btn-recipes-fetch").addEventListener("click", function () { runSync("recipes"); });
 document.getElementById("btn-recipes-watch").addEventListener("click", function () { watchRecipes(); });
+document.getElementById("btn-recipe-card").addEventListener("click", function () { runRecipeCard(); });
+
+// v0.12.0 (ADR 0025): ONE delegated handler over the recipe hits table - the row's
+// name button carries the spell id it belongs to (the same delegated pattern the
+// search hits and the tab strip ride, so a 100-row page plants no closures). The
+// click fills the card door's id, reads the SAME argv a `cargo run -- recipe N`
+// line takes (ADR 0014), and lands on the card tab. Anything else inside the table
+// answers nothing.
+document.getElementById("recipe-hits").addEventListener("click", function (event) {
+  var node = event.target;
+  if (node.dataset.spell !== undefined) { runRecipeCard(node.dataset.spell); }
+});
 document.getElementById("btn-card-db").addEventListener("click", function () { runCard(false); });
 document.getElementById("btn-card-live").addEventListener("click", function () { runCard(true); });
 document.getElementById("btn-live").addEventListener("click", function () { runLive(); });
