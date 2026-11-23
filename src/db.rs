@@ -3005,7 +3005,7 @@ pub fn recipe_card(conn: &Connection, spell_id: i64, with_icons: bool) -> AppRes
     };
     let mut single: Vec<Value> = [].to_vec();
     single.push(Value::Integer(spell_id));
-    let mapped = match stmt.query_map(params_from_iter(single), |row|
+    let mut mapped = match stmt.query_map(params_from_iter(single), |row|
         Ok(RawRecipeCard {
             spell_id: row.get(0)?,
             profession: row.get(1)?,
@@ -3026,7 +3026,12 @@ pub fn recipe_card(conn: &Connection, spell_id: i64, with_icons: bool) -> AppRes
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
         Ok(value) => value,
     };
-    for one_row in mapped {
+    // `spell_id` is the table's PRIMARY KEY, so AT MOST ONE row answers this read:
+    // the read takes the row, it does not walk a table (the established single-row
+    // doors ride the same shape; a `for` here could never take a second turn, which
+    // is what `clippy::never_loop` called an ERROR at v0.12.0 - fixed BY NAME here,
+    // never muted, ADR 0024's rule kept)
+    if let Some(one_row) = mapped.next() {
         match one_row {
             Err(problem) => return Err(AppError::db(format!("{}", problem))),
             Ok(raw) => {
