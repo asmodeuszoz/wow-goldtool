@@ -98,6 +98,17 @@
       <div class="note" id="search-note"></div>
     </section>
 
+    <!-- v0.14.0 (ADR 0028): this tab shows the WHOLE answer. The pager select that
+         capped its rows died HERE: the bound was the TAB's, never the door's (ADR 0022's
+         rule, restated at this tab: no `--limit` means the rest). Measured: the door
+         answers ALL the fixture's 12 recipe rows and ALL 1 240 of the fetched set; a
+         bound AT or ABOVE the matching count answers the SAME bytes, so a bigger cap
+         would only ever HIDE rows - the reason the cap died rather than grew. The tab
+         still asks the door's OWN argv (`recipes --icons`, ZERO requests), so a cargo
+         line shows the same rows. The Watch button below rides EVERY row shown - with
+         the whole set that is the whole set's cooked items, and the Details door then
+         fetches exactly those (measured: 1 095 ids of 1 240 rows, the 133 Enchanting
+         crafts with NO crafted item and the 10 ids with no row skipped honestly). -->
     <section class="card wide tab-off" id="recipes-card" data-tab="recipes">
       <h2>Recipes — what the jobs can craft (the fetched set)</h2>
       <div class="fields" id="recipes-fields">
@@ -111,11 +122,6 @@
           <option value="First Aid">First Aid</option>
           <option value="Leatherworking">Leatherworking</option>
           <option value="Tailoring">Tailoring</option>
-        </select>
-        <select class="field" id="recipes-pager">
-          <option value="25">25 a page</option>
-          <option value="50">50 a page</option>
-          <option value="100">100 a page</option>
         </select>
         <button class="act" id="btn-recipes" type="button">Read the DB</button>
         <button class="act" id="btn-recipes-watch" type="button">Watch the cooked items</button>

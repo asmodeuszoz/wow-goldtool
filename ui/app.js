@@ -262,8 +262,13 @@ function hit_row(hit) {
 // merge: an unjoined reagent keeps its dataset name and carries a state chip.
 async function runRecipes() {
   var profession = document.getElementById("recipes-profession").value;
-  var limit = document.getElementById("recipes-pager").value;
-  var argv = ["recipes", "--limit", limit, "--icons"];
+  // v0.14.0 (ADR 0028): NO bound. The bound lived HERE (a pager select feeding `--limit`
+  // N), never in the door: ADR 0022's rule says no `--limit` means the rest, measured -
+  // the door answers ALL the fixture's 12 rows and ALL 1 240 of the fetched set, and a
+  // bound at or above the matching count answers the SAME bytes, so a cap only HID rows.
+  // The tab asks the door's OWN argv, so a `cargo run -- recipes --icons` line shows the
+  // same rows (ADR 0014's one-code-path rule).
+  var argv = ["recipes", "--icons"];
   if (profession !== "") { argv.push("--profession", profession); }
   try {
     var found = await cli_ok(argv);
@@ -274,8 +279,7 @@ async function runRecipes() {
       rows = rows + recipe_row(found.recipes[i]);
     }
     document.querySelector("#recipe-hits tbody").innerHTML = rows;
-    var shown = found.recipes.length;
-    var note = "showing " + shown + " of " + num(found.matching) + " recipe rows \u2014 the job words, skill numbers and material LISTS are the FETCHED set's own (the Sync tab\u2019s Recipes button: 8 files, MIT second source, cited here): the API has no professions door and its recipe cards never name a job or materials (measured); icons and money beside the materials are YOUR DB\u2019S OWN \u2014 an item the DB never saw says so beside its dataset name, and an enchanting craft says it has NO crafted item at all; clicking a row\u2019s recipe name opens that entry\u2019s CARD (the local door, ZERO requests)";
+    var note = "ALL " + num(found.matching) + " recipe rows this filter answers are shown \u2014 the tab asks the door WITHOUT a bound (ADR 0028: the cap lived in the tab, the door never had one; a bound at or above this count would answer the SAME bytes, so a cap only HID rows, and growing it was rejected on that measure): the job words, skill numbers and material LISTS are the FETCHED set's own (the Sync tab\u2019s Recipes button: 8 files, MIT second source, cited here): the API has no professions door and its recipe cards never name a job or materials (measured); icons and money beside the materials are YOUR DB\u2019S OWN \u2014 an item the DB never saw says so beside its dataset name, and an enchanting craft says it has NO crafted item at all; clicking a row\u2019s recipe name opens that entry\u2019s CARD (the local door, ZERO requests); the Watch button rides EVERY row shown, so it reaches the whole set\u2019s cooked items and the Details door then fetches exactly those records";
     if (found.matching === 0) {
       note = "no recipe rows for this filter \u2014 the set is fetched by the Sync tab\u2019s Recipes button (or the CLI stage), read here ever after";
     }
