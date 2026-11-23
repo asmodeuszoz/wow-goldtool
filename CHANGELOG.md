@@ -6,6 +6,114 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.12.0 — a recipe row OPENS ITS OWN CARD: one click reads ONE local door, and the card shows the entry as the GAME shows it · 2026-11-22 · tag `v0.12.0`
+
+The user's ask: "when looking at a recipe, clicking it in the list should open a detailed window
+showing it like it would appear in the game." "As the game shows it" is only honest if the window is
+built from words the TWO sources already own — nothing was invented. The fetched set states the
+entry itself (job, name, the skill number + tier word + its grey-to-green band) AND names the
+**scroll that teaches it BY VALUE** in `learned_json` (measured on the user's own file today:
+**804 of 1 240** entries state a `schematic_item` with an `item_id`, **413** state the `trainer`
+word, **23** the `automatic` word — and 747 of the 804 stated ids have an item row, 477 of those
+carry the scroll's OWN tooltip copy). The item rows this DB owns carry the in-game cells: name,
+quality, the two levels, the game's money, the icon bytes and the record's copied description
+(ADR 0012's readable twin). Two other candidate joins were REJECTED on measurement, not on looks:
+`spell_id` as an item id (651 spell ids land on an item row but only 20 of those rows are `Recipe`
+rows — spell ids and item ids are different namespaces) and the name link `"Recipe: " + crafted
+name` (**123** of 1 240 entries reach an item row at all, while 716 items carry `item_type Recipe`
+and just 250 are named `Recipe:*` — and of those 123 that reach, ZERO land on this entry's own
+crafted id: all 123 attach to a DIFFERENT item, so the name join does not merely under-reach, it
+MIS-attaches). So the card composes: the SCROLL cell through
+the set's own stated id, the RESULT cell through `crafted_item_id`, and one cell per MATERIAL
+through the reagent ids — every join BY VALUE, and every gap a state word the door ships. Bonus,
+recorded where it lives: `learned_json` gets its FIRST reader here, which closes the stored-with-
+no-reader debt ADR 0021 wrote about that very column.
+
+Added
+
+- **the card door's read + its cells** (`feat(db) 0b717a4`): `recipe_card(conn, spell_id, with_icons)`
+  reads ONE `recipe` row (its own `SQL_RECIPE_CARD_ROW`, because the LIST door's SELECT never
+  reaches `learned_json`) and answers `Option<RecipeCard>` — `None` = "this spell id has no row",
+  which the verb turns into rc `4`. Each cell (`RecipeCell`) rides the readers the item card and
+  the list joins ALREADY use — `live_name_price_of` (name + stored min + the live twin + BOTH stamps),
+  `money_of`, `icon_b64_of` / `icon_at_of` / `icon_missing_at_of`, `tooltip_text_of` / `tooltip_at_of`
+  / `tooltip_missing_at_of` — and the materials ride `join_recipe_reagent` UNTOUCHED, so a card
+  cell cannot say something different from a list row about the same id (ADR 0014's one-code-path
+  rule). Only FOUR columns the list door never reads come from a SELECT of its own
+  (`SQL_CARD_CELL`: quality, the two levels, vendor sell) — and it carries the SAME `deleted_at IS
+  NULL` guard, because the stamp readers above have no tombstone guard of their own, so the door
+  asks them ONLY for a row it saw alive (ADR 0010's rule made true, measured: `SQL_TOOLTIP_*` /
+  `SQL_ICON_*` select on `id` alone).
+- **the verb `recipe SPELL_ID [--icons]`** (`feat(cli) 29ac737`): LOCAL, ZERO requests (ADR 0009/0012's
+  local-door rule). The exit trio measured on the user's own file: an unknown spell id answers rc
+  `4` naming the stage that would have written it (112 B), a missing id answers rc `2` "recipe wants
+  a spell id, for example: recipe 132" (48 B), a non-numeric one answers rc `2` "recipe wants a
+  numeric spell id, got abc" (40 B) — ADR 0004's contract, identical CLI/GUI. The usage line names
+  the verb (`recipe SPELL_ID [--icons]`), and the parser's existing multi-word verb reading is
+  untouched (`recipe abc` still answers "unknown verb recipe abc" — the door is ONE word).
+- **the fixture speaks the THREE `learned_from` shapes the real host was measured carrying**
+  (`test(fixture) a03008b`): keys exactly `item_id · item_name · type` — row 132 states a
+  `schematic_item` naming item 60 (a row the detail stage wrote AND the tooltip stage copied),
+  637 states one naming 2589 (an id the DB never saw), 202 states the `trainer` word alone,
+  334 the `automatic` word, and 638 keeps the explicit NULL. The door's answer over the fixture's
+  12 rows (fresh port + fresh DB, ONE observation window): 8 doors rc `0` (7 330 · 1 155 · 6 673 ·
+  4 033 · 4 107 · 643 · 1 209 · 6 740 B) and rc `4` on `999999`; the scroll cell for 132 answers
+  IN GAME (`in_db true`, db name "Fixture Detail 60" beside the set's own, `Common`, both levels,
+  vendor `500 ↔ 5s`, stored `17624 ↔ 1g 76s 24c` with live `15624 ↔ 1g 56s 24c` at 1795394930 — the
+  RUN's pair, fixture prices seed per process — the copy's own 44-char words ("Fixture Detail 60 Item
+  Level 1 Sell Price: 7c") and row 60's icon answering CHECKED-GONE (`icon_at` NULL, `icon_missing_at`
+  1795394929 SET, ZERO copied bytes — the third icon state); 637's scroll cell answers `in_db false` with the SET's name
+  beside it and NO crafted cell at all (the enchanting shape); the money contract measured on
+  these very answers: **0 pairing defects** (a money word beside EVERY copper — vendor sell, stored
+  min, live twin) and **13 counts carried with NO money beside them** (ADR 0015's count half);
+  `vendor_buy` / `price_trend_normal` read **0 / 0** in the fixture census, ADR 0016's NULLs still
+  unwritten.
+- **the NINTH nameplate tab + the row CLICK** (`feat(ui) 53d5977`): clicking a recipe row's name
+  opens THAT entry's card — the name cell is a button carrying its own spell id, and ONE delegated
+  handler over the hits table reads it (the same pattern the search hits and the tab strip ride, so
+  a 100-row page plants no closures), fills the door's id and runs the SAME argv a `cargo run --
+  recipe N` line takes (ADR 0014). The list stays a list. The panel draws the entry's own words
+  (job chip · name · spell id · skill number · tier word · the set's grey-to-green band · the
+  `acquisition` word + note + the set's provenance) and then the cells: `crafts` / `teaches the
+  spell` / the material cells — via `recipe_mats` REUSED on the card's materials, so the material
+  markup is the SAME code the rows draw. Quality rides the frame's OWN `.chip c-<quality>` classes
+  exactly as the search hits draw them (no second palette); the tooltip block is labelled as the
+  record's OWN copy, printed as TEXT (ADR 0012's twin, never upstream's markup). The new chips name
+  the gaps: `the set states NOTHING about how this recipe is learned` / `the set states the word
+  alone — no scroll item exists…` / `the DB never saw this id alive` / `no crafted item — this
+  craft puts an enchant on a slot`. UI witnesses stay parse/grep (launch-audit rule, no display in
+  the build room): `node --check` parses the grown app.js, and the CSS names the EXACT twelve new
+  classes app.js draws (`openrecipe`, `rcardbox`, `rcardhead`, `rcardname`, `rcardlearn`, `rcardmats`,
+  `rcell`, `rcellname`, `rcopy`, `rcopyhead`, `learn-word`, `learn-none`) with everything else riding
+  existing classes.
+- **CI's smoke block grows the card door's four green steps** (`ci 2b1784f`): **44 → 48 step-lines**,
+  plant line stays one (measured: 14 `- name:` steps unchanged, raw `cargo run` mentions 46 → 50) —
+  `recipe 132 --icons` / `recipe 202 --icons` / `recipe 637 --icons` / `recipe 638`, the four
+  learned-from shapes, ZERO requests, so the fixture's GET tallies cannot move and the unchanged
+  tally IS the proof the door asks nothing. The door's rc `4` is NOT committed as a green step
+  (ADR 0011's split rule, kept from v0.10.0): it is measured on scratch, as is the pinned BEFORE
+  witness that this verb is NEW — the v0.11.1 binary answering the same argv rc `2` "unknown verb
+  recipe".
+- **the Cargo banner rides 0.12.0** (`chore aa70092`): a FEATURE era, so the banner MOVES
+  `0.11.0 → 0.12.0` (`Cargo.toml` + `Cargo.lock`) — the shape the v0.10.0/v0.11.0 feature eras
+  moved and the v0.9.1/v0.10.1/v0.11.1 patch eras left put, honestly contrasted.
+
+
+Changed
+
+- **ADR 0021's `learned_json` bullet gets a pointer**: the column's stored-with-no-reader debt
+  closes AT this door (its measured tables stay history, the pointer pattern ADR 0010/0011 established).
+- **`docs/DATABASE.md`** names the card door (its SELECTs, the four columns it adds, the tombstone
+  rule made true in the DOOR because the stamp readers carry none) and moves `learned_json`'s
+  "no reader yet" line to what the card reads.
+- **`docs/API.md`** grows the second source's `learned_from` census — an upstream fact, measured
+  today (804 `schematic_item` / 413 `trainer` / 23 `automatic`, keys `item_id · item_name · type`,
+  and the reach 804 → 747 rows → 477 copies).
+- **README status + roadmap row**, **`docs/DEVELOPMENT.md` milestone row**: the named-warning set
+  stays ZERO at this release (this era planted NINE names and killed them with the door that reads
+  them — recorded, not muted).
+
+
 ## v0.11.1 — the FOUR named build warnings die BY NAME: the named set shrinks FOUR to ZERO, and not one of them was muted · 2026-11-22 · tag `v0.11.1`
 
 A patch era answering "fix them and if not fixable mute them": the FOUR named warnings

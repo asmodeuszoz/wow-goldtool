@@ -117,7 +117,11 @@ release. Nobody owns all of the tab's words:
   over the API's doors; the recipe set is a whole dataset on ANOTHER host, fetched whole,
   eight conditional files. Not a refresh either: it writes LOCAL rows from fetched bytes.
 * **`learned_json` on the wire** — stored, NO reader yet (ADR 0011's dead-code rule kept: the
-  door's chip reads the entry's plain `acquisition` word).
+  door's chip reads the entry's plain `acquisition` word). CLOSED FORWARD, one era later: v0.12.0's
+  recipe CARD door ([ADR 0025](./DECISIONS/0025-the-recipe-card-window.md)) is that column's FIRST
+  reader — read BY KEY (`type` is reserved, so the door uses `serde_json` `Value` accessors, not a
+  renamed field, keeping the rule stated next to this very struct). This bullet stays put and the
+  measured tables above stay history: tags never move.
 * **Money for the set's `vendor_sell_price` / `confidence`** — untouched: ADR 0015's money rides
   copper THIS DB has; a dataset number nobody's door reads would float money beside nothing.
 * **Merging the API's recipe CARDS into the tab** — not merged: 699 copies' "Teaches you how

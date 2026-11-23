@@ -290,6 +290,28 @@ GET https://raw.githubusercontent.com/Nyte-fyre/ReagentRoute/main/data/{alchemy,
   reagent ids**, **415 have an item row**, **1 has none**, and **392** of the joined reagents
   already answer a `price_min`. The stage wrote **1 240 rows** for those 8 files end to end
   against the real host (rc 0, 8 requests) — the tool's own first real-set witness.
+* **`learned_from` speaks the SCROLL, and it states it BY VALUE** (measured 2026-11-22 on the
+  user's OWN fetched 1 240 rows, read-only, ZERO requests — the day v0.12.0 gave the column its
+  FIRST reader, [ADR 0025](./DECISIONS/0025-the-recipe-card-window.md)). The object's keys are
+  exactly THREE: `item_id · item_name · type` — no more, no fewer. The `type` census over all
+  1 240 entries sums to the whole set, so NO entry leaves learning unstated in this shape:
+  **804** state `schematic_item` and name a scroll id + the set's OWN name for it, **413** state
+  the `trainer` word ALONE (no `item_id` key at all), **23** the `automatic` word ALONE. Of the
+  **804** stated ids **747** have a visible item row in this DB and **477** of those carry the
+  scroll's OWN tooltip copy — so a scroll cell exists for 804 entries, shows the scroll's own
+  in-game words for 477 of them, and the other 57 stated ids answer "the DB never saw this id
+  alive" beside the set's name. Rejected the SAME pass as links, with their measures: `spell_id`
+  used as an item id (651 lands, only **20** of them `Recipe`-typed rows) and the name link
+  `"Recipe: " + crafted_item_name` (reaches **123** of 1 240, and of those 123 ZERO land on the
+  entry's own `crafted_item_id` — all 123 attach elsewhere; the DB has 716 `Recipe`-typed rows,
+  ALL 716 with a copy, but only **122** of them are named `Recipe:*`). The set's own words stay
+  the set's: the DB's OWN names differ (the detail stage overwrites, deprecated prefixes), which
+  is exactly why a name join writes lies. Upstream's `vendor_sell_price` / `confidence` /
+  `auto_granted` keys are still NOT read by this tool (serde ignores them; `vendor_sell_price` is
+  the SET's claim about an id whose OWN `vendor_sell` column already answers — ADR 0016's grounds
+  that only the API's OWN copy may fill a column, kept): recorded here so the census stays visible
+  where upstream facts live, and the `type` key's spelling stays in `docs/DATABASE.md`, where the
+  read lives (its key is a reserved word, so the door reads it by KEY, never by field name).
 * **The set's `*_forever_recipes.json` files are NOT this set**: they carry
   `game_version "forever-beta"` in a DIFFERENT id space (`spell_id 1283400`,
   `crafted_item_id 279961`) that does not join these rows. Rejected, recorded.

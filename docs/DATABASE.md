@@ -137,9 +137,20 @@ or the `price_now_missing_at` stamp through the tooltip door's `fields.price`. T
 ETag — the per-record `<x>_etag` columns above never name it), each answer UPSERTing its
 entries into `recipe` (`ON CONFLICT (spell_id) DO UPDATE`, so a re-pull that answers 304
 writes NOTHING and a re-pull that answers 200 keeps the rows, never twins them). `reagents_json`
-is the entry's OWN array (`[{item_id,item_name,count},…]`, verbatim); `learned_json` is stored
-for a later reader and has NO reader yet (ADR 0021 records this — the door's chip reads the
-entry's plain `acquisition` word). A NULL `crafted_item_id` means "the set states no crafted
+is the entry's OWN array (`[{item_id,item_name,count},…]`, verbatim); `learned_json` carried NO
+reader from v0.10.0 until v0.12.0 — ADR 0021 wrote that debt where it lives, and the recipe CARD
+door (v0.12.0, [ADR 0025](./DECISIONS/0025-the-recipe-card-window.md)) is its FIRST reader: it reads
+the stored object BY KEY through `serde_json` `Value` accessors (`word_at` / `id_at` take the KEY as
+a string), because its key is `type`, a reserved word nothing may reach for (the rule ADR 0021 states
+next to that struct, kept rather than renamed into a serde `rename` — `models.rs` carries ZERO serde
+attributes and one renamed field would put a wire key's spelling on a type that answers other doors).
+Measured on the user's own file (read-only) the day that door was written: the object is
+`{"item_id":…,"item_name":…,"type":"schematic_item"}` — **804** of the 1 240 fetched entries state
+`schematic_item` and name a SCROLL id, **413** state the `trainer` word and **23** the `automatic`
+word with NO id at all (the three sum to 1 240: the fetched shape leaves no entry silent about
+learning); of the 804 stated ids **747** have a visible item row and **477** of those carry the
+scroll's OWN tooltip copy. The list door still reads only the entry's plain `acquisition` word: the
+CARD door is what grew the `SQL_RECIPE_CARD_ROW` SELECT that reaches `learned_json`. A NULL `crafted_item_id` means "the set states no crafted
 item", which is NOT the same as "the DB never saw this id" — the first is the dataset's own
 truth, the second is a join fact the door reports with `in_db`/`crafted_db_name`). A NULL
 price column in `item` still means "not fetched yet", distinct from "fetched and not on the
@@ -436,6 +447,64 @@ refreshed yet` for both-NULL stamps, nothing for live == stored, NO live fields 
 all for an id with no DB row. The search-hit shape did NOT move (`HIT_COLUMNS` +
 the Hit money pair stay v0.9.4's — ADR 0020's deferral, measured unchanged);
 `vendor_buy` / `price_trend_normal` stay NULL (ADR 0016).
+
+### The recipe CARD door (v0.12.0, [ADR 0025](./DECISIONS/0025-the-recipe-card-window.md))
+
+`cargo run -- recipe SPELL_ID [--icons]` answers ONE fetched entry as far as the TWO sources
+say it — LOCAL, ZERO requests (ADR 0009/0012's local-door rule: it reads the `recipe` row and joins
+BY VALUE through the `item` rows this DB owns; the UI's click on a recipe row's name runs exactly
+this argv, so a click and a cargo line are ONE code path, ADR 0014). TWO SELECTs, and only ONE of
+them is new to this door:
+
+```sql
+-- the door's OWN row read: the LIST door's SELECT never reaches learned_json, so this
+-- door reads its own const (spell_id is the table's PRIMARY KEY: at most ONE row answers)
+SELECT spell_id, profession, recipe_name, crafted_item_id, crafted_item_name, skill_required,
+       skill_tier, trivial_low, trivial_high, reagents_json, learned_json, acquisition,
+       acquisition_note, source FROM recipe WHERE spell_id = ?
+
+-- the FOUR columns the LIST door never reads, for ONE id, tombstone-guarded like its twin
+SELECT quality, item_level, required_level, vendor_sell FROM item WHERE id = ? AND deleted_at IS NULL
+```
+
+EVERYTHING else in a cell rides readers that ALREADY exist (`live_name_price_of` for name + stored
+min + the live twin + BOTH stamps, `money_of` for the words, `icon_b64_of`/`icon_at_of`/
+`icon_missing_at_of`, `tooltip_text_of`/`tooltip_at_of`/`tooltip_missing_at_of`, and the materials
+ride `join_recipe_reagent` UNTOUCHED) — a card's cell is the SAME code the item card and the list
+joins use, so the two CANNOT say different things about one id (ADR 0014's one-path rule). The
+tombstone rule is MADE true in the DOOR, not assumed: measured, the six stamp SELECTs
+(`SQL_TOOLTIP_TEXT_OF` / `SQL_TOOLTIP_AT_OF` / `SQL_TOOLTIP_MISSING_AT_OF` / `SQL_ICON_BLOB_OF` /
+`SQL_ICON_AT_OF` / `SQL_ICON_MISSING_AT_OF`) ask on `id` ALONE with NO `deleted_at` clause, so the
+card door asks them ONLY for a row whose `SQL_CARD_CELL` read saw it alive — a row the user buried
+keeps its stamps buried, and its cell answers through the set's own bytes with `in_db` false
+(ADR 0010's rule, kept where the card ships). Money keeps ADR 0015's contract on the new surface
+(vendor sell, stored min and the live twin each carry their words beside their copper; the audit
+over the fixture's own answers measures 0 pairing defects and 13 reagent COUNTS carried with NO
+money beside them), and `vendor_buy` / `price_trend_normal` stay NULL — this door READS the live
+twin, it grows NO producer for the other two homes (ADR 0016's grounds, read back 0/0 in the
+fixture census). `tooltip_html` is NOT in this answer at all: the card carries the readable twin
+only, ADR 0012's rule that an upstream body printed into a page would let upstream write it.
+
+**A recipe entry's scroll is a FOURTH state set, all named (v0.12.0)** — and the door's whole
+honestness lives in these four NULLs, measured on the user's file (read-only, ZERO requests) the
+day the door was written:
+
+| state | columns / words | meaning |
+| ----- | --------------- | ------- |
+| the set states a SCROLL by value | `learned_json` carries `type: "schematic_item"` + an `item_id` | 804 of 1 240 entries: the SET itself states the scroll that teaches this recipe, so its cell reads the DB's OWN row for that id (747 reach a visible row, 477 of those carry the scroll's OWN tooltip copy) |
+| the set states a WORD that names no item | `type: "trainer"` (413) / `type: "automatic"` (23) | the card states the type word and NO scroll cell at all — the gap is the DATASET's own truth, not a missing join |
+| the set states NOTHING | `learned_json` NULL | the fetched shape's own absence (the fixture's row 638 keeps it; measured 8 NULLs of 12 rows there) — never the same answer as the two words above |
+| a stated id this DB has no VISIBLE row for | `scroll.in_db` false + the set's own `dataset_name` | 57 of the 804 stated ids have no visible row (804 − 747); the set's name rides BESIDE the state word, never instead of it, and a BURIED row answers the same chip (the tombstone rule above) |
+
+Measured and REJECTED as links, the same pass (this is why the card has honest limits, not
+decorative ones): `spell_id` used as an item id answers **651** lands on an item row of which only
+**20** carry `item_type Recipe` — spell ids and item ids are two namespaces, and 631 wrong cells
+would ride a card that looks right; the name link `"Recipe: " + crafted_item_name` reaches only
+**123** of 1 240 (case-sensitive and case-folded answer the SAME number) and of those 123 **ZERO**
+land on the entry's own `crafted_item_id` — **all 123** attach to a DIFFERENT item, so that join does
+not merely under-reach, it MIS-attaches (716 `Recipe`-typed rows all carry copies but only **122**
+of them are named `Recipe:*`, and only 250 items anywhere are). No invented name, id or chip
+anywhere on this path (ADR 0004's no-invented-answers rule again).
 
 
 ## Query recipes

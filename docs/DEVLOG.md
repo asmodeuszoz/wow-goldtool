@@ -5,6 +5,191 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-22 · v0.12.0 — a recipe row OPENS ITS OWN CARD: one click reads ONE local door, and the card shows the entry as the GAME shows it
+
+### What forced it
+
+The user's ask: "when looking at a recipe, clicking it in the list should open a detailed window
+showing it like it would appear in the game." Read as decoration, that ask is a UI job; read as it
+must be for this tool, it is a JOIN question — and a window that guesses which item a recipe belongs
+to is a window that lies. So the join was MEASURED before one line of code was written, on the user's
+own file, read-only, ZERO requests. What the game shows for a recipe is a SCROLL you can read, an
+ITEM it crafts, the MATERIALS it asks for and the SKILL band it sits in — four things, and only TWO
+sources exist here: the fetched classic recipe set (the second source, ADR 0021) and the item rows
+this DB owns. A card is therefore only honest if every cell is a BY-VALUE link one of those two
+sources ACTUALLY states, and every gap names which source is silent.
+
+### The join censuses, measured on the user's own file (read-only, ZERO requests, 2026-11-22)
+
+Base: **1 240** fetched `recipe` entries · **19 258** visible item rows · **4 602** tooltip copies ·
+**14 656** rows with none. What can be linked, and what cannot — the rejected two are rejected on
+MEASUREMENT, not on looks:
+
+* `spell_id` used as an item id (the tempting "the spell IS the scroll row"): **651** of 1 240 spell
+  ids land on a visible item row, and only **20** of those rows carry `item_type Recipe` — the other
+  **631** land on rows that are not scroll items at all. **REJECTED**: spell ids and item ids are two
+  namespaces, and 631 wrong cells would ride a card that looks right.
+* the name link `"Recipe: " + crafted_item_name`: only **123** of 1 240 entries reach an item row
+  (case-sensitive and case-folded answer the SAME number), while **716** items carry `item_type Recipe`
+  and only **250** items anywhere are named `Recipe:*` — and, the sharper witness measured the same
+  pass: of those 123 reaches, **ZERO** land on the item id this very entry states as
+  `crafted_item_id`; **all 123** attach to a DIFFERENT item. **REJECTED**: not merely under-reaching,
+  it silently MIS-attaches (the DB's OWN names differ from the set's — the detail stage overwrites,
+  deprecated prefixes, non-localisation).
+* `learned_json` read BY VALUE — the accepted scroll link: **804** entries state
+  `{"item_id":…,"item_name":…,"type":"schematic_item"}` and name an id, **413** state the `trainer`
+  word, **23** the `automatic` word (sums to 1 240: the fetched shape leaves NO entry silent about
+  learning). Of the **804** stated ids **747** have a visible item row, **477** of those carry the
+  scroll's OWN tooltip copy. The set itself states the scroll: no invention anywhere on this path.
+* `crafted_item_id` (ADR 0021's join, REUSED untouched): **1 105** distinct ids → **1 095** have a
+  row, **897** carry a copy, **198** have a row but no copy, **10** have none; **133** entries name
+  NO crafted item at all (all `Enchanting`: an enchant is a slot effect, not an item in a bag).
+* reagent ids (ADR 0021's join, REUSED untouched): **3 778** mentions over **416** distinct ids →
+  **415** have rows (**393** with a copy, **22** row-no-copy), **1** id has no row.
+* the DB's own scroll words are a THIRD census: **716** `item_type Recipe` rows, ALL 716 with a copy,
+  but only **122** of them are named `Recipe:*` — which is exactly why the name join above cannot find
+  them (631 of the 716 rows the set would need are not named that way at all).
+
+### The decision (ADR 0025 — five parts, one per truth)
+
+1 — **ONE door, ONE verb, ONE code path (ADR 0014).** The click does not grow a second answer shape:
+`cargo run -- recipe SPELL_ID [--icons]` is the door and the webview calls exactly that argv through
+`cli_ok`. A card is auditable from a shell, and the click's answer IS the CLI's answer. Rejected: a
+flag on the list door (`recipes --id N`) — one argv answering two shapes is the drift ADR 0014
+refuses — and a webview-only shape no audit can witness.
+2 — **The door is LOCAL, ZERO requests (ADR 0009/0012's local-door rule).** It reads the rows the
+recipe stage wrote and joins BY VALUE through the item rows this DB owns; nothing upstream is asked
+for a card. `--icons` rides because a copied icon is about 3.1 K chars once encoded (ADR 0014's
+measured reason the bytes stay opt-in); the door is bounded by ONE spell id, but the rule stays the
+same rather than silently shipping a fat answer.
+3 — **Cells REUSE the item card's and the list's readers, so a card cannot drift from a row.**
+`live_name_price_of` answers name + stored min + the live twin + BOTH stamps, `money_of` writes the
+words, `icon_b64_of`/`icon_at_of`/`icon_missing_at_of` and `tooltip_text_of`/`tooltip_at_of`/
+`tooltip_missing_at_of` answer the copy and icon states, and the MATERIALS ride `join_recipe_reagent`
+UNTouched — a card's material cell is the same code that draws a list row's material cell. ONLY the
+FOUR columns the list door never reads (quality, item level, required level, vendor sell) come from a
+SELECT of this door's own (`SQL_CARD_CELL`), and it carries the SAME `deleted_at IS NULL` guard.
+The tombstone rule is MADE TRUE in the door, not assumed: measured, the six stamp SELECTs
+(`SQL_TOOLTIP_TEXT_OF` / `SQL_TOOLTIP_AT_OF` / `SQL_TOOLTIP_MISSING_AT_OF` / `SQL_ICON_BLOB_OF` /
+`SQL_ICON_AT_OF` / `SQL_ICON_MISSING_AT_OF`) carry NO `deleted_at` clause, so the door asks them ONLY
+for a row it saw alive — a row the user buried keeps its stamps buried.
+4 — **Money keeps ADR 0015's contract on the NEW surface, and ADR 0016's NULLs stay unwritten.**
+Measured over the fixture's own answers: **0 pairing defects** (vendor sell, stored min and the live
+twin each carry their money word beside their copper) and **13 counts** carried with **NO** money
+beside them. `vendor_buy` / `price_trend_normal` read **0 / 0** in the fixture census: this door READS
+the live twin, it never grows a producer for the other two homes.
+5 — **`learned_json` gets its FIRST reader, and ADR 0021's debt closes where it was written.** The
+column is read BY KEY, never by field name: its `type` key is a reserved word, so the door uses
+`serde_json.Value` accessors (`word_at` / `id_at` take the KEY as a string) — the rule ADR 0021 states
+next to that very struct, kept here rather than renamed into a serde `rename` (models.rs carries ZERO
+serde attributes, and one renamed field would put a wire key's spelling on a type that answers other
+doors). ADR 0021's bullet now points here; its measured tables stay history (tags never move).
+
+### Measured (pre-tag)
+
+* builds: exit `0` at EVERY commit. The named tally rode **ZERO → NINE → ZERO** — `feat(db)` PLANTED
+  nine names whose reader lands in the very next commit, all nine named BY NAME (`constant SQL_CARD_CELL`,
+  `constant SQL_RECIPE_CARD_ROW`, `struct RawRecipeCard`, `struct RecipeCard`, `struct RecipeCell`,
+  `function word_at`, `function id_at`, `function recipe_cell`, `function recipe_card`) and the build
+  stayed `rc 0`; `feat(cli)` — the door that reads them — built with ZERO named, as did the final tree
+  (**4 m 19 s**, prints `Compiling wow-goldtool v0.12.0`, ZERO warnings of any kind). Nine planted and
+  killed by the next commit is a fact about THIS era, recorded not muted: ADR 0024's rule, and the
+  named set stays ZERO at this release. The `hard linking … incremental cache` notice answered ZERO
+  times across this era's own cache-clear builds — where it rode today it rode a DRIVER's `cargo run`,
+  and that line is recorded below as a driver-side defect, not a fifth named warning.
+* diff scope (`git diff 0b717a4^..aa70092`): **NINE files, 725 insertions / 6 deletions** —
+  `src/db.rs` +371 (the card row + `SQL_CARD_CELL` + the three shapes + the two Value readers + the
+  two cell doors), `src/cli.rs` +45 −2 (the verb, its JSON, its usage words, its dispatch line,
+  two import names), `tests/fixture_api.py` +27 (four rows grown with `learned_from`, plus the block
+  that names the three shapes), `ui/index.html` +23 (the ninth tab button + the panel), `ui/app.js`
+  +188 −2 (the renderer, the click, the delegated handler), `ui/app.css` +33 (TWELVE new classes),
+  `.github/workflows/ci.yml` +36 (the card paragraph + four steps), `Cargo.toml` +1 −1 and `Cargo.lock` +1 −1 (the banner MOVES together with its
+  lock twin, `0.11.0 → 0.12.0` — the v0.11.0 shape kept: a FEATURE era takes BOTH files, the shape
+  the v0.9.1 / v0.10.1 / v0.11.1 patch eras left PUT, honestly contrasted). `src/` answers an EMPTY
+  diff across the fixture / ui / ci commits, so those three commits CANNOT move the build. ZERO SQL
+  or wire line moved in `feat(cli)` (the diff answers ZERO matches for `SQL_` / `vendor_buy` /
+  `price_trend_normal` / `SCHEMA`), ZERO schema or
+  migration line (schema stays **8** — `learned_json` ALREADY existed, which is what makes this door
+  need no bump), ZERO money-formatter line, ZERO new quality palette (quality rides the frame's OWN
+  `.chip c-<quality>` classes), ZERO new live-state chip (the v0.11.0 trio is REUSED), ZERO `vendor_buy`
+  / `price_trend_normal` producer, ZERO per-row listener in the webview (ONE delegated handler).
+* CI: **44 → 48 step-lines**, plant line stays one (measured with the same parse the prior eras used:
+  **14 `- name:` steps unchanged**, raw `cargo run` mentions **46 → 50**) — the four new steps are
+  `recipe 132 --icons` / `recipe 202 --icons` / `recipe 637 --icons` / `recipe 638`, the four learned-from
+  shapes. The door's rc `4` is NOT committed as a green step (ADR 0011's split rule, kept from v0.10.0):
+  it is measured on scratch, as is the pinned BEFORE witness that this verb is NEW.
+* the fixture door, over its OWN 12 rows (fresh port 9159 + fresh scratch DB, ONE observation window,
+  driver log `/tmp/opencode/card012-witness.log`): the crawl's own presses stayed the era's — budget-1
+  list 3 written, resumed-from-2 list complete; detail 4 fetched + 1 checked-removed, targeted 2 fetched
+  + 2 unchanged; icons 3 copied + 1 checked-gone; tooltip 3 copies + 1 checked-none; price 2 live + 1
+  checked-price-less; recipes budget-3 3 of 8 files / 5 rows / 4 requests / `rate_limited 1`, resumed-from-3
+  5 of 8 files / 7 rows / 5 requests / complete → **12 rows / 8 files**. The door then answered
+  **8 rc 0** (7 330 · 1 155 · 6 673 · 4 033 · 4 107 · 643 · 1 209 · 6 740 B) and **rc 4** on `999999`.
+  The fixture's own census: `learned_json` **8 NULL / 1** schematic naming 60 / **1 trainer / 1 automatic
+  / 1** schematic naming 2589 · 12 recipe rows · 5 item rows · 3 tooltip copies · 1 checked-no-tooltip ·
+  2 live set · 1 checked-price-less · 3 icon copies · 1 checked-no-icon · 4 vendor_sell · `vendor_buy`
+  **0** / `price_trend_normal` **0**. The four shapes, named: 132's scroll cell for item 60 answers
+  IN GAME (`in_db true`, "Fixture Detail 60" beside the set's own words, `Common`, levels 1/1, vendor
+  `500 ↔ 5s`, stored `17624 ↔ 1g 76s 24c` with live `15624 ↔ 1g 56s 24c` at 1795394930 — the RUN's pair —
+  the copy's 44 chars, and row 60's icon answering CHECKED-GONE: `icon_at` NULL with `icon_missing_at`
+  1795394929 SET and ZERO bytes, the third icon state, not empty bytes); 202 answers `learned_type
+  "trainer"` with `learned_scroll_id` NULL and `scroll` NULL — the WORD alone — while its crafted 40
+  answers `price_now_missing_at` 1795394930 SET with EVERY live field NULL; 637's scroll cell answers
+  `in_db false` with the SET's name beside it and `result` NULL (the enchanting shape); 638 answers
+  `learned_type` NULL. Money: **0 pairing defects**, **13 counts with no money**. The fixture's own
+  GET tallies END where the crawl left them — the door asked NOTHING, which is the proof it is local.
+* the real-host door, the user's OWN file, read-only, ZERO requests: `recipe 27835 --icons` rc `0` /
+  25 212 B — scroll 22390 answers IN GAME (`epic`, `item_level 63`, `vendor_sell 20000 ↔ 2g`, stored
+  `309600 ↔ 30g 96s`, live `420000 ↔ 42g` at 1795393867, a 176-char copy, 3 524 icon chars) and the
+  result "Persuader" answers `required_level 58`, vendor `80554 ↔ 8g 5s 54c`, stored `8870000 ↔ 887g`
+  with live `8670000 ↔ 867g`, a 244-char copy, 2 928 icon chars; 6 materials, ALL in the DB, 5 with
+  money AND live. `recipe 2171 --icons` rc `0` / 7 003 B — scroll 2404 has a row, and EVERY price / copy
+  / icon field is NULL (never asked: the honest chip-less state). `recipe 2177 --icons` rc `0` / 9 429 B
+  — the `trainer` word, `learned_scroll_id` NULL, NO scroll cell, and a complete result cell with a
+  208-char copy and live `230 ↔ 2s 30c` beside stored `250 ↔ 2s 50c`. `recipe 8800111 --icons` rc
+  `4` / 112 B naming the stage. Usage rc `2` measured THREE ways: 48 B "recipe wants a spell id, for
+  example: recipe 132" · 40 B "recipe wants a numeric spell id, got abc" · 50 B "recipe wants a numeric
+  spell id, got 27835 --icons" (a GLUED token — a real rc 2 of the door's numeric guard, found by the
+  driver's own quoting slip and recorded as such). The parser stayed as it was: `recipe abc` answers rc
+  `2` 51 B "unknown verb recipe abc (run help to see the verbs)" and `recipe 27835 extra` answers the
+  same shape at 59 B — the door is ONE word. The usage line names `recipe SPELL_ID [--icons]`.
+* the BEFORE witness (the v0.11.1 tree, built green first): `recipe 132` answered rc `2`
+  "unknown verb recipe (run help to see the verbs)" — the verb is NEW, not a renamed one.
+* the era's price press on the user's OWN file (the WRITER that makes the card's live cells answer
+  something, and the honest record of an ABORT): pending basis (ADR 0017's rule: `tooltip_at` set AND
+  both price columns NULL AND no `deleted_at` / `manual_at` stamp) started at **4 602**; chunk 1 wrote
+  939 + 61 checked-price-less → **3 602** left · chunk 2 976 + 24 → 2 602 · chunk 3 952 + 48 → 1 602 ·
+  chunk 4 934 + 66 → **602** · chunk 5 answered **rc 101** and the pass ABORTED there, the rest staying
+  a later run's question. The DB now answers `price_min_now` **3 801** / `price_now_missing_at` **199**
+  / pending **602**. Chunk 5's rc 101 is an incremental-cache ICE — rustc panicked
+  `index out of bounds: the len is 620587 but the index is 1073741824` at
+  `rustc_query_system/src/dep_graph/serialized.rs:243:34`, next to the `hard linking … incremental
+  cache` notice — caused by the press's own `cargo run` rebuild colliding with the era's `rm -rf
+  target/debug/incremental`: a DRIVER-side defect, NOT a door fact (the same tree built green minutes
+  earlier, and this era's audit drivers were rewritten to exec the ALREADY-BUILT binary so no compile
+  is EVER in flight during an audit). The pass must RESUME later on a PINNED binary, never `cargo run`;
+  and until it does, the 602 pending plus the **14 656** rows that have no tooltip copy (ADR 0010's rule
+  refuses those) keep answering `live price not refreshed yet` — the card's live chips are a TRUTH on
+  this host, not a defect.
+
+### Chain
+
+`0b717a4` feat(db) (the read + the cells: NINE names planted, build rc 0) · `29ac737` feat(cli)
+(the verb: ZERO named, rc 4 + the THREE rc 2 usages measured) · `a03008b` test(fixture) (the THREE
+`learned_from` shapes + the explicit NULL) · `53d5977` feat(ui) (the ninth tab, the panel, the row
+CLICK, the renderer) · `2b1784f` ci (44 → 48 step-lines, ZERO requests, the rc-4 half on scratch) ·
+`aa70092` chore (banner 0.11.0 → 0.12.0 — a FEATURE era moves it) · record + tag `v0.12.0`. The
+post-tag audits (the 48-step mirror replay on fresh ports, the exit map GROWN with the card doors'
+rc `0` / `2` / `4`, the pinned v0.11.1 binary refusing the new argv as the BEFORE witness, the user's
+file read read-only) land FORWARD in this era's fold, never chased here. The ladder line the previous
+era owed lands HERE: the v0.11.1 fold push's own run measured **45059534810** success 5/5 in **10 min
+48 s** (19:13:33Z → 19:24:21Z, exactly ONE run id, no CANCELLED sibling) — its `cargo build` (dev +
+release) jobs printed NO named warning on three targets while its lint step answered its own **0
+errors / 817 warnings** (clippy's advice, ADR 0011's rule that the gate stays off). That run was
+waited for BEFORE this chain pushed, per ADR 0011's ordering rule.
+
+---
+
 ## 2026-11-22 · v0.11.1 — patch: the FOUR named build warnings die BY NAME, the set shrinks FOUR to ZERO, and NOTHING was muted
 
 ### What forced it
