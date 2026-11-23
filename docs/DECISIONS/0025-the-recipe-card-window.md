@@ -175,6 +175,17 @@ abc". rc `4` on the user's file measured (112 B).
   suggestion `if let Some(one_row) = mapped.next()`), plus the step's name and the workflow's header
   comment move off their now-false "informational" claim — the step's rc DOES gate the run when an
   ERROR rides it. No mute, no gate, no `#pragma`-style suppression anywhere.
+* **CLOSED, ONE PATCH COMMIT LATER (v0.12.1, `fix(db) 56e0356`, [ADR 0026](./0026-a-clippy-error-is-not-advice.md)):**
+  the loop header became `if let Some(one_row) = mapped.next()` (clippy's OWN suggestion) with a comment
+  naming the PRIMARY-KEY fact, the era's diff is **ONE file / 7 insertions / 2 deletions**, `cargo clippy
+  --all-targets` measures **0 errors / the SAME 811 advice lines** (rc 101 → rc 0) while rustc's named
+  tally stays **ZERO on both sides of the pair** (this was never a dead-code warning: the ERROR rides a
+  DIFFERENT gate), and the pinned pair measures **22/22 BYTE-IDENTICAL** answers — the NINE card doors
+  included — plus **13/13 md5-equal** through both binaries over the user's OWN file: behavior moved
+  ZERO. The bullet above stays put, its measures stay history, and the workflow gained NO line: at 0
+  errors the step's own NAME is true again, measured rather than assumed (ADR 0026 keeps the decision
+  and its FOUR rejected alternatives, the mute among them).
+
 
 ## Chain
 

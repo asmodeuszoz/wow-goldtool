@@ -6,6 +6,55 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.12.1 — the `never_loop` ERROR the era's own CI run rode dies BY NAME: clippy answers 0 errors again, NOTHING was muted and NOTHING moved · 2026-11-23 · tag `v0.12.1`
+
+A PATCH era (contrast the v0.12.0 FEATURE era that MOVED the Cargo banner `0.11.0 → 0.12.0`: here the
+banner stays PUT at `0.12.0` and `Cargo.toml` / `Cargo.lock` answer an EMPTY diff, the shape the v0.9.1 /
+v0.10.1 / v0.11.1 patch eras rode). It answers the ONE build-time defect v0.12.0's fold measured on its
+OWN chain+tag run: GitHub's run **45095439290 measured FAILURE** (4/5 jobs, 8 min 9 s) because the quality
+job's lint step rode **ONE clippy ERROR** — `error: this loop never actually loops` at
+`src/db.rs:3029:5`. The door was NEVER broken (its rc `0` witnesses are v0.12.0's, and the smoke block was
+GREEN on GitHub): the shape it was written in is a lie about the read. `spell_id` is the `recipe` table's
+PRIMARY KEY (measured: 1 240 rows, ids distinct, the card door's map answered rc `4` for absent ids, never
+two rows), so AT MOST ONE row answers; a `for` around a body that always returns can never take a second
+turn, which is exactly what `clippy::never_loop` — DENY-by-default — calls an ERROR. The honest repair is
+clippy's OWN suggestion: take the row (`if let Some(one_row) = mapped.next()`), the shape the established
+single-row doors already ride. NO mute, NO gate (ADR 0024's rule kept: a mute would keep the lie; ADR 0011's
+`-D warnings` gate STAYS OFF for clippy's ADVICE — an ERROR is not advice, and it is fixed instead).
+
+Fixed
+
+- **`recipe_card` TAKES the one row the PRIMARY KEY states** (`fix(db) 56e0356`): the always-returning
+  `for one_row in mapped {` becomes `if let Some(one_row) = mapped.next()` plus a comment naming WHY
+  (the key states at most one row; the walk could never repeat; the ERROR is what v0.12.0's run rode,
+  fixed BY NAME). `cargo clippy --all-targets` goes **1 ERROR / 811 advice → 0 errors / 811 advice**
+  (rc 101 → rc 0, the same 811 lines, 0 `never` hits), so the lint step is informational AGAIN and its
+  step NAME plus `ci.yml`'s header comment are true again — the workflow needed NO move. The named
+  rustc tally stays ZERO before and after (this was never a dead-code warning: an ERROR-level clippy
+  diagnostic is a DIFFERENT gate, and the record keeps the two apart). Behavior moves ZERO: measured on
+  FRESH ports/DBs, the pinned v0.12.0 binary (`ace683a`, its OWN build green in 1 m 23 s, banner `0.12.0`)
+  vs the fixed binary answer **22/22 BYTE-IDENTICAL** on the fixture DB — the NINE card doors included,
+  where earlier patch pairs compared only the pre-existing doors — and **13/13 md5-equal** through BOTH
+  binaries over the user's OWN 19 258-row file (read-only, ZERO requests), and the mirror replay stays
+  **51/51 rc 0** with the same stage tallies (48 step-lines unchanged, plant one).
+- **CI ladder, measured since the tag:** the v0.12.0 fold push's own run measured
+  **45098365666 = FAILURE**, 4/5 jobs green in **11 min 20 s** (02:07:22Z → 02:18:42Z, run #43, attempt 1,
+  ONE run id, no CANCELLED sibling, head `89cab34` = the fold record) — linux build 8/8 · macos 7/8 ·
+  windows 7/8 (their Ubuntu-dev-libraries step `skipped`, as designed: only the linux target links gtk) ·
+  `test` 8/8 with the **CLI smoke step GREEN** (the 48-step block, the four card steps included, passes on
+  GitHub's own builds) — quality 6/7 with the **Lint step = failure**, the SAME step its v0.12.0 sibling
+  rode, which is exactly what the tree implied BEFORE the read (NOTHING about the code moved between the
+  tag and that push, so the ERROR still rode it); the expectation was stated first, the measure agreed, per
+  ADR 0011's ladder. This era's own chain+tag run — the FIRST tree since v0.12.0 whose lint step measures
+  0 errors — is measured in the NEXT record, never chased here.
+
+Refs: [ADR 0026](./docs/DECISIONS/0026-a-clippy-error-is-not-advice.md) (the era's ADR: an ERROR rides
+the run, so it dies BY NAME), [ADR 0025](./docs/DECISIONS/0025-the-recipe-card-window.md) (whose
+consequence bullet this closes), [ADR 0024](./docs/DECISIONS/0024-the-four-named-warnings-die-by-name.md)
+(fix-not-mute, and every rejected mute recorded), [ADR 0011](./docs/DECISIONS/0011-ci-asserts-only-what-is-true.md)
+(the `-D warnings` gate stays off, CI states only measured truths); [docs/DEVLOG.md](./docs/DEVLOG.md)
+carries the censuses, the pinned pair and the CI verdict.
+
 ## v0.12.0 — a recipe row OPENS ITS OWN CARD: one click reads ONE local door, and the card shows the entry as the GAME shows it · 2026-11-22 · tag `v0.12.0`
 
 The user's ask: "when looking at a recipe, clicking it in the list should open a detailed window

@@ -5,6 +5,93 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-23 · v0.12.1 — patch: the ONE clippy ERROR the era's own CI run rode dies BY NAME, the `-D warnings` gate stays OFF, and NOTHING moved
+
+### What forced it
+
+The v0.12.0 fold's OWN CI ladder row was a FAILURE, said so: the chain+tag run **45095439290**
+(head = the TAGGED tree `ace683a`) measured **4/5 jobs green in 8 min 9 s**, and the failing step was
+"Lint (informational — clippy's own advice; our named set died at v0.11.1, see docs/DEVELOPMENT.md)".
+Reading that NAME as a plan was the mistake this era refuses: an "informational" step rode the run's
+verdict because an **ERROR** rode it, and an ERROR is not advice. The era's own tree was the witness:
+`cargo clippy --all-targets` answers **1 ERROR / 811 advice** — `error: this loop never actually loops`
+at `src/db.rs:3029:5`, `clippy::never_loop`, `#[deny(…)]` ON by default. Nothing about the DOOR was
+wrong (its rc `0` witnesses, its LOCAL rule, its money rule all hold; the smoke block was GREEN on
+GitHub's own builds), so the fix is a shape fact, not a behavior question.
+
+### The two gates, and where the ERROR sits (measured 2026-11-23, both sides of the pair)
+
+| gate | pinned v0.12.0 tree (`ace683a`) | the fixed tree |
+| ---- | ------------------------------ | -------------- |
+| `cargo build` (rustc) | ZERO named warnings (rc 0, 1 m 23 s — the pinned worktree's OWN build is the BEFORE witness) | ZERO named warnings (rc 0, 3 m 11 s with the cache cleared) |
+| the lint step, `cargo clippy --all-targets` | **3 `^error` lines** = 1 real ERROR (`this loop never actually loops` at `src/db.rs:3029:5`) + its two "could not compile … due to 1 previous error; 811 warnings emitted" tails; rc `101` | **ZERO `^error` lines**, rc `0`, still **811 advice lines** (the same census: `question_mark`, `needless_return`, `len_zero`, `clone_on_copy`, `single_match`…) and ZERO `never actually loops` hits |
+| `cargo fmt --check` | answers a diff (the house style, ADR 0011's measured reason no gate exists) | unchanged: ZERO lines of this era touch formatting |
+
+The ERROR's own claim is a FACT this tree already states elsewhere: the doc comment above `recipe_card`
+says `spell_id` is the table's PRIMARY KEY (docs/DATABASE.md's schema block says the same, and the map's
+own answers prove the read: `recipe 132` answers ONE card, `recipe 999999` answers rc `4`, never two
+rows). So a `for` around a body that always returns could never take a second turn. [ADR 0026](./DECISIONS/0026-a-clippy-error-is-not-advice.md) keeps the decision and its FOUR rejected alternatives (the mute — ADR 0024's rule kept for a NEW gate: an `allow` keeps the lie and hides the ERROR from the next era; a gate — measured 811 advice lines, so `-D warnings` would fail on clippy's OWN style, and it STAYS OFF; letting the run stay red behind an "informational" NAME; a Vec-collect rewrite for a read that states ONE row, noisier than the shape the other single-row readers already ride).
+
+### Measured (the era's own, all fresh)
+
+* **The fix, ONE file:** `git diff 89cab34..56e0356` = `src/db.rs`, **7 insertions / 2 deletions** — the
+  loop header becomes `if let Some(one_row) = mapped.next()` (clippy's OWN suggestion) plus a comment
+  naming the PRIMARY-KEY fact, and `let mapped` gains its `mut`. ZERO `SQL_` line, ZERO wire struct,
+  ZERO `vendor_buy` / `price_trend_normal` producer, ZERO money line, ZERO schema line (schema stays `8`),
+  ZERO fixture / ui / ci / Cargo lines (`Cargo.toml` + `Cargo.lock` an EMPTY diff — a PATCH era leaves the
+  banner PUT at `0.12.0`, contrast the v0.12.0 FEATURE era that MOVED it).
+* **The door answers UNCHANGED, byte-for-byte:** the pinned pair — the worktree at the tagged tree
+  `ace683a` (its OWN build green in 1 m 23 s, banner `0.12.0`) vs the fixed binary, ONE fresh fixture
+  process (9307) + ONE fresh DB (the crawl ran ONCE, with the new binary, and every compared door is
+  LOCAL and read-only) — **22/22 BYTE-IDENTICAL, ZERO deltas**: the NINE card doors (132 bare ·
+  132 `--icons` · 202 · 637 · 638 · 683 · 1723 · 4977 · 334 · `999999` bare and `--icons`) AND the
+  thirteen pre-existing doors. This is a STRONGER pair than earlier patch eras drew: v0.11.1 compared
+  15 pre-existing doors because it added none; here the NEW doors exist in BOTH binaries, so the fix's
+  "behavior moved ZERO" claim rides the doors it touched, not only their neighbours.
+* **The user's OWN file through BOTH binaries** (read-only, LOCAL, ZERO requests): **13/13 md5-equal** —
+  the five card doors 25 213 / 7 004 / 9 430 / 3 596 / 3 453 B (27835, 2171, 2177, and the two REAL
+  null-crafted Enchanting entries 7418 `automatic` and 7422 `trainer`), rc `4` on `8800111`, plus
+  `status` 1 098 B · `stats` 4 554 B · `item 25 --cached` 2 949 B · `search sword --limit 2 --offset 1`
+  979 B · `watch list` 707 B · `recipes --limit 3` 4 293 B · `recipes --profession Blacksmithing --icons --limit 3`
+  21 090 B. The file's tallies stay INTACT after the fix (19 258 items / 4 602 copies / 14 656 without /
+  1 240 recipe rows / `learned_json` 1 240 set · 0 NULL / `price_min_now` 4 344 + `price_now_missing_at`
+  258 = the copies each asked ONCE / pending 0 / `vendor_buy` 0 / `price_trend_normal` 0 / tombstoned 0).
+* **The mirror replay and the exit map, UNCHANGED:** the driver re-PARSED the committed block (48 step-lines
+  + plant one, the era moved NO step) and replayed it on fresh 9289 → **51/51 commands rc `0`, ZERO nonzero**,
+  same stage tallies (budget-3 recipes 4 requests / 3 pages / 5 rows / `rate_limited 1` · resumed-from-3
+  5/5/7 · re-pull 8 requests / **8 answered the same copy** / 0 written) and the four card steps answering
+  the SAME 7 333 / 6 673 / 4 107 / 643 B as the v0.12.0 fold's run; the fixture's OWN GET tallies END where
+  the crawl left them (51 GETs, 17 recipe-file GETs) — the card steps added ZERO, still the locality proof.
+  The exit map on fresh 9277 answers **31 doors at rc `0`×19 · `2`×5 · `4`×7 — the SAME totals as
+  v0.12.0's map**, the nine card doors at rc `0`, rc `4` on `999999` and on `recipe 132` over an EMPTY DB,
+  rc `2` usage at the same words (48 B / 40 B), `recipe 132 --fixture <DEAD>` rc `0` (ZERO asks, rc 3
+  unreachable from this door) — byte sizes ride the RUN's own seed pair (2 124 / 7 330 / 6 673 / 4 107 /
+  643 / 1 209 / 1 155 / 6 740 / 4 033 B here against the prior run's 2 119 / 7 325 / 6 670 / 4 105 / …),
+  which is why the totals and the rc, not the bytes, are this map's claim.
+* **CI ladder, owed rows:** the v0.12.0 fold push's own run **45098365666** (head `89cab34`, the
+  SAME code tree as the tagged one plus the fold record) measured **FAILURE**, 4 of 5 jobs green in
+  **11 min 20 s** (created/run_started 02:07:22Z → updated 02:18:42Z, run #43, attempt 1, exactly
+  ONE run id, no CANCELLED sibling): linux build 8/8 · macos 7/8 · windows 7/8 (their Ubuntu-dev-libraries
+  step `skipped`, as designed — only the linux target links gtk) · `test` 8/8 with the **CLI smoke step
+  GREEN** (the 48-step block, the four card steps included, passes on GitHub's own build) — while the
+  quality job answered 6/7 with "Lint (informational — clippy's own advice; our named set died at
+  v0.11.1, see docs/DEVELOPMENT.md)" = **failure**, the SAME step its v0.12.0 sibling rode. The tree
+  implied that verdict BEFORE it was read (NOTHING about the code moved between the tag and that push,
+  so the ERROR still rode the step), and the measure agreed; saying so first, then measuring, is ADR
+  0011's ladder form — the run was never waited for blindly. This era's OWN chain+tag run — head = the
+  TAGGED tree `v0.12.1`, the FIRST tree since v0.12.0 whose lint step measures 0 errors / 811 advice —
+  is measured FORWARD in the next record, never chased here.
+
+### Chain
+
+`56e0356` fix(db) (the ONE row taken, not walked: the ONLY era line) · this record + annotated tag
+`v0.12.1`. Patch era: NO chore (the banner stays PUT at `0.12.0` — `Cargo.toml` and `Cargo.lock` answer an
+EMPTY diff), ZERO fixture commit (no behavior delta to smoke — and the fixture's door answers ARE the
+byte-equality witness above), ZERO ui commit (nothing moved), ZERO ci commit (the step's NAME is true
+AGAIN at 0 errors / 811 advice, measured not assumed).
+
+---
+
 ## 2026-11-22 · v0.12.0 — a recipe row OPENS ITS OWN CARD: one click reads ONE local door, and the card shows the entry as the GAME shows it
 
 ### What forced it

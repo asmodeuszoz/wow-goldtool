@@ -467,6 +467,15 @@ SELECT spell_id, profession, recipe_name, crafted_item_id, crafted_item_name, sk
 SELECT quality, item_level, required_level, vendor_sell FROM item WHERE id = ? AND deleted_at IS NULL
 ```
 
+**v0.12.1 (ADR 0026) made the CODE say what the comment above already states:** the door TAKES
+the ONE row the `spell_id` PRIMARY KEY states, it never walks it (`if let Some(one_row) = mapped.next()`,
+`fix(db) 56e0356`) — clippy's DENY-by-default `never_loop` ERROR (`error: this loop never actually loops`,
+`src/db.rs:3029:5`, the one build-time line that moved a CI verdict at v0.12.0) died BY NAME, NOTHING was
+muted and NO gate was added, and the door's answers moved ZERO bytes (measured: 22/22 BYTE-IDENTICAL against
+the pinned v0.12.0 binary over one fresh fixture DB, the NINE card doors included, plus 13/13 md5-equal
+through BOTH binaries over the user's own file). The SELECT above did NOT move — only the SHAPE around it
+did, and [ADR 0026](./DECISIONS/0026-a-clippy-error-is-not-advice.md) keeps why the mute was rejected.
+
 EVERYTHING else in a cell rides readers that ALREADY exist (`live_name_price_of` for name + stored
 min + the live twin + BOTH stamps, `money_of` for the words, `icon_b64_of`/`icon_at_of`/
 `icon_missing_at_of`, `tooltip_text_of`/`tooltip_at_of`/`tooltip_missing_at_of`, and the materials
