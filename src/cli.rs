@@ -9,7 +9,7 @@ use crate::errors::AppError;
 use crate::errors::AppResult;
 use crate::errors::ErrorKind;
 
-use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_b64_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, money_of, next_manual_id, open_db_at, price_min, price_market, price_min_now_of, raw_json_of, recipes_count, recipes_rows, refresh_twins, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, tooltip_text_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, RecipeRow, RefreshTally, SyncState, unix_now};
+use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_b64_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, money_of, next_manual_id, open_db_at, price_min, price_market, price_min_now_of, raw_json_of, recipe_card, recipes_count, recipes_rows, refresh_twins, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, tooltip_text_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, RecipeCard, RecipeRow, RefreshTally, SyncState, unix_now};
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
@@ -27,7 +27,7 @@ use std::env::set_var;
 /// What the CLI can answer. Keeping the list here means an unknown verb becomes a
 /// usage error that names what the user actually typed.
 pub fn usage_text() -> String {
-    return "usage: status | sync --stage list|detail|icons|tooltip|price|recipes [--budget N] [--ids A,B,C] [--watch] | search TEXT [--icons --where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id|price-now --limit N --offset N] | stats [--icons --limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | recipes [--profession NAME] [--limit N] [--offset N] | status [--db PATH] [--fixture URL]".to_string();
+    return "usage: status | sync --stage list|detail|icons|tooltip|price|recipes [--budget N] [--ids A,B,C] [--watch] | search TEXT [--icons --where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id|price-now --limit N --offset N] | stats [--icons --limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | recipes [--profession NAME] [--limit N] [--offset N] | recipe SPELL_ID [--icons] | status [--db PATH] [--fixture URL]".to_string();
 }
 
 /// The verbs of one invocation plus its flags. Unknown flags are kept rather than
@@ -323,6 +323,48 @@ pub fn cmd_recipes(inv: &Invocation) -> AppResult<String> {
     parts.push(fragment("matching".to_string(), format!("{}", total)));
     parts.push(fragment("recipes".to_string(), json_recipes(rows.clone())));
     return Ok(object(parts));
+}
+
+/// The card door's answer: serde again, never hand-joined money (the same rule
+/// `json_item` and `json_recipes` ride).
+pub fn json_recipe_card(card: RecipeCard) -> String {
+    match to_string(&card.clone()) {
+        Err(_) => "{}".to_string(),
+        Ok(text) => text,
+    }
+}
+
+/// THE RECIPE CARD door (v0.12.0, ADR 0025): ONE entry of the fetched set, LOCAL,
+/// ZERO requests - it reads the rows the recipe stage wrote and joins them by value
+/// through the item rows this DB owns, so a click in the webview and this cargo line
+/// are ONE code path (ADR 0014's rule). A spell id the table never got answers rc 4
+/// (ADR 0004's contract, identical CLI/GUI): the door refuses to describe a recipe
+/// from air, and says which stage would have written it. `--icons` rides the door's
+/// OWN bound cells (this ask names at most one scroll + one result + N materials,
+/// so a card is bounded WITHOUT a pager - but a copy is about 3.1 K chars once
+/// encoded, ADR 0014's measured reason the bytes stay opt-in).
+pub fn cmd_recipe(inv: &Invocation) -> AppResult<String> {
+    if inv.words.len() < 1 {
+        return Err(AppError::usage("recipe wants a spell id, for example: recipe 132".to_string()));
+    }
+    let asked: Option<i64> = as_int(inv.words[0].clone());
+    match asked {
+        None => return Err(AppError::usage(format!("recipe wants a numeric spell id, got {}", inv.words[0]))),
+        Some(number) => {
+            let conn: Connection = match open_at(inv) {
+                Err(problem) => return Err(problem),
+                Ok(value) => value,
+            };
+            let found: Option<RecipeCard> = match recipe_card(&conn, number, inv.icons) {
+                Err(problem) => return Err(problem),
+                Ok(value) => value,
+            };
+            match found {
+                None => return Err(AppError::not_found(format!("no recipe row for spell id {}: the recipe table answers only after sync --stage recipes wrote it (ADR 0021)", number))),
+                Some(card) => return Ok(json_recipe_card(card.clone())),
+            }
+        },
+    }
 }
 
 pub fn json_report(report: SyncReport) -> String {
@@ -1591,6 +1633,7 @@ pub fn dispatch(inv: Invocation) -> AppResult<String> {
     if inv.verb == "undelete-item" { return cmd_undelete_item(&inv); }
     if inv.verb == "refresh-twins" { return cmd_refresh_twins(&inv); }
     if inv.verb == "recipes" { return cmd_recipes(&inv); }
+    if inv.verb == "recipe" { return cmd_recipe(&inv); }
     if inv.verb == "help" {
         eprintln!("{}", usage_text());
         return Ok("{}".to_string());
