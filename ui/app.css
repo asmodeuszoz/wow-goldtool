@@ -121,6 +121,38 @@ button.tab.tab-on {
   border-color: rgba(226, 190, 106, 0.45);
 }
 
+/* v0.15.0 (ADR 0029): the card windows are OVERLAY windows ON the tab already
+ * open, not nameplates in the strip. pip-closed hides a window (the frame's OWN
+ * display:none mechanism, under a name that is not a tab); pip floats the very
+ * same .card panel OVER the layout - the frame's silhouette again: a lit-brass
+ * trim (--edge-lit, the hover trim the frame already drew), the inner gold
+ * hairline, and a DEEPER drop shadow than a laid panel (0.55 vs 0.45, 16px vs
+ * 10px) so the window visibly sits IN FRONT of the tab underneath: picture in
+ * picture, window in window. NO new token is born: every colour here is one the
+ * frame already drew. */
+.pip-closed { display: none; }
+.pip {
+  position: fixed;
+  top: 16px; left: 16px; right: 16px; bottom: 16px;
+  z-index: 30;
+  overflow: auto;
+  border: 1px solid var(--edge-lit);
+  box-shadow: inset 0 0 1px var(--gold-hair), 0 16px 34px rgba(0, 0, 0, 0.55);
+}
+/* the row button that OPENS a window: the SAME furniture the watch toggle
+ * (.rowact) rides in the same cell - one row, two buttons, two honest verbs. */
+button.pipbtn {
+  cursor: pointer;
+  color: var(--muted);
+  background: var(--field-2);
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-size: 11.5px;
+  margin: 0 0 0 6px;
+}
+button.pipbtn:hover { border-color: var(--gold); color: var(--gold); }
+
 /* ---- sections (one visible tab's worth at a time) ---- */
 .card {
   background: var(--field);
