@@ -375,16 +375,55 @@ th.col-job, th.col-recipe, th.col-skill, th.col-mats, th.col-cooked {
   cursor: pointer;
   text-decoration: underline dotted;
 }
-.rcardbox { display: grid; grid-template-columns: 1fr; gap: 8px; padding: 12px 14px; border: 1px solid var(--edge); border-radius: 8px; background: var(--field-2); }
-.rcardbox .rcardhead { color: var(--text); font-size: 13px; }
-.rcardname { color: var(--text); font-size: 13.5px; }
-.rcardlearn, .rcardmats { color: var(--muted); font-size: 12px; }
-.rcell { display: grid; grid-template-columns: 1fr; gap: 3px; padding: 7px 9px; border: 1px solid var(--edge); border-radius: 7px; background: var(--field-1); }
-.rcellname { color: var(--text); font-size: 12.5px; }
-.rcopy { display: grid; grid-template-columns: 1fr; gap: 2px; padding: 5px 8px; border-left: 2px solid var(--gold); color: var(--parch); font-size: 12px; }
-.rcopyhead { color: var(--gold); font-size: 10.5px; }
-.learn-word { display: inline-block; color: var(--parch); background: rgba(94, 72, 50, 0.5); border-radius: 6px; padding: 1px 6px; font-size: 10.5px; }
-.learn-none { color: var(--muted); font-style: italic; font-size: 11px; }
+.rcardbox { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 18px 20px; border: 1px solid var(--edge); border-radius: 8px; background: var(--field-2); }
+.rcardbox .rcardhead { color: var(--text); font-size: 19px; }
+.rcardname { color: var(--text); font-size: 20px; }
+.rcardlearn, .rcardmats { color: var(--muted); font-size: 17px; }
+.rcell { display: grid; grid-template-columns: 1fr; gap: 6px; padding: 12px 14px; border: 1px solid var(--edge); border-radius: 7px; background: var(--field-1); }
+.rcellname { color: var(--text); font-size: 18px; }
+.rcopy { display: grid; grid-template-columns: 1fr; gap: 4px; padding: 9px 12px; border-left: 3px solid var(--gold); color: var(--parch); font-size: 17px; }
+.rcopyhead { color: var(--gold); font-size: 15px; }
+.learn-word { display: inline-block; color: var(--parch); background: rgba(94, 72, 50, 0.5); border-radius: 6px; padding: 3px 10px; font-size: 15px; }
+.learn-none { color: var(--muted); font-style: italic; font-size: 16px; }
+
+/* v0.13.0 (ADR 0027): THE CARD GETS BIGGER, the frame stays put. Measured before
+ * this era (the tree at v0.12.1): the card's OWN type rode 10.5 / 11 / 12 / 12.5 /
+ * 13 / 13.5 px and its icons `.listicon` at 24 px, the SAME box the Recipes LIST,
+ * the search hits and the mini analytics rows ride (measured: `table.mini .listicon`
+ * answers 20 px, plain `.listicon` 24 px, the Item card's OWN `.iconimg` 56 px). The
+ * ask was a WINDOW fact: a card is read once, from a distance, on its own tab - so
+ * the card's type moves ~1.45x (12 -> 17 · 12.5 -> 18 · 13.5 -> 20 · 10.5 -> 15) and
+ * its icons THREE times (24 -> 72 px, larger than any icon the frame draws today,
+ * the Item card's 56 px included; the `no bytes` stand-in `.noicon` rides the SAME
+ * x3 step at 13 -> 39 px, the frame's OWN 13/24 ratio times 72 = 39.0, so the box
+ * keeps its shape rather than lying about the space an icon would take). NOTHING else
+ * moves: the list, the hits and the mini rows keep their sizes (ADR 0027's rejected
+ * alternatives, with their measures, stay in the ADR). Scoping is the FRAME's OWN
+ * pattern, not a new mechanism - `table.mini .listicon { width: 20px }` already scopes
+ * a shared class to one surface - so ONE id-scoped block grows the SHARED classes inside
+ * the card panel while app.js draws the SAME classes it always drew (ADR 0014's one-code-path
+ * rule: a card's cell IS the list's cell, ZERO second icon or money cell, ZERO JS line). */
+#recipe-card { padding: 22px 24px; }
+#recipe-card h2 { font-size: 22px; margin: 4px 0 14px; }
+#recipe-card .note { font-size: 18px; margin: 12px 0 0; }
+#recipe-card .note.bad { font-size: 18px; }
+#recipe-card .fields { gap: 14px; margin: 6px 0 16px; }
+#recipe-card .field { font-size: 19px; padding: 10px 14px; }
+#recipe-card button.act { font-size: 19px; padding: 10px 16px; }
+#recipe-card .chip { font-size: 17px; padding: 3px 9px; }
+#recipe-card .jobchip { font-size: 17px; padding: 3px 9px; }
+#recipe-card .skillchip { font-size: 16px; padding: 2px 8px; }
+#recipe-card .tierchip { font-size: 15px; padding: 2px 8px; }
+#recipe-card .mat { gap: 8px; padding: 3px 9px; }
+#recipe-card .matname { font-size: 17px; }
+#recipe-card .mat-none { font-size: 17px; }
+#recipe-card .mat-not-in-db { font-size: 15px; padding: 2px 8px; }
+#recipe-card .cooked { font-size: 17px; }
+#recipe-card .cooked-none, #recipe-card .cooked-not-in-db { font-size: 15px; padding: 2px 8px; }
+#recipe-card .live { font-size: 16px; }
+#recipe-card .live-missing, #recipe-card .live-none { font-size: 15px; padding: 2px 8px; }
+#recipe-card .listicon { width: 72px; height: 72px; }
+#recipe-card .noicon { font-size: 39px; }
 #btn-recipe-card.running { color: var(--gold); }
 
 /* footer: the developer-terms attribution - it stays OUTSIDE the tabs so it
