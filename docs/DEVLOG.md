@@ -92,8 +92,48 @@ ins / 7 del) → `239c2a4` feat(ui) (the look rides openrecipe's ONE rule by JOI
 TWO rules die — ONE file ui/app.css, 15 ins / 14 del) → `fecb6c2` chore (banner `0.15.0 → 0.16.0` — a
 FEATURE era moves it; house note kept honest: the lock's OWN version line follows the banner in the SAME
 commit, settling `0.14.0 → 0.16.0` in one jump — the lock had lagged one banner since v0.15.0's build)
-→ this record carries `v0.16.0` (annotated tag). Post-tag witnesses + the run this push starts land in
-the FOLD commit, measured then, never assumed (ADR 0011's ladder).
+→ this record carries `v0.16.0` (annotated tag).
+
+**FOLDED — measured post-tag on the PUSHED tree at `4f3c217` (all FRESH ports/processes/DBs:
+9921/9951/9981; the real host untouched, the user's file read read-only through LOCAL doors, ZERO
+requests, ZERO crawl).** The tag's tree was verified through the remote's OWN `^{}` line `d5fab777…`
+→ `4f3c217` (tag object `d5fab777`, payload 9 559 B).
+
+* **The era's OWN chain+tag run reads 45265336918 SUCCESS**, 5/5 jobs green in **9 min 50 s** (21:01:18Z
+  → 21:11:08Z, run **#52**, attempt 1, exactly ONE run id, no CANCELLED sibling, head `4f3c217` = this record
+  = the tag's target); per-job ends quality → 21:03:32Z · macos → 21:07:52Z · `test` → 21:08:28Z · windows →
+  21:10:38Z · **linux → 21:11:08Z — the linux job CLOSED it** (the SECOND linux-closed run in the chain, after
+  v0.15.0's own; where jobs land is a scheduling fact, said so — and 9 min 50 s is the SHORTEST measured run in
+  the chain, the era grew ZERO CI step). Each job answers **12 end-actions, 11 success + ONE skipped** — every
+  skipped one the Rust-toolchain installer's OWN inner action (`__run_2` windows, `__run_3` the other four), never
+  a workflow step; Ubuntu-libs reads 7 on `test`/quality/linux logs, 0 on macos/windows. The `test` job pressed
+  exactly **49 `cargo run --` steps** — the block stayed PUT — and from GitHub's OWN test-job log the step answers
+  read `recipes` 12 992 B, **`recipes --icons` 46 792 B (ALL 12 of matching 12)** and `--offset 10` 2 173 B: my
+  fresh mirror's 46 793 B on that argv again says the bytes ride the seed, the tallies do not.
+* **Post-tag witnesses on the PUSHED tree, ALL SAME against the era's pre-tag measures:** mirror **49/49 rc `0`,
+  ZERO NONZERO** (9921 — driver's OWN parse: 49 committed step-lines, ZERO step moved, plant one; presses UNCHANGED
+  4/3/5/`rate_limited`1 · 5/5/7 complete · 8/8 pages/**8 SAME copy**/0 written; tallies ending where the crawl left
+  them — **51 GETs, 17 recipe-file GETs, ZERO added** — locality proof; census 12/6/4/0/0). Exit map (9951, fresh seed
+  + EMPTY DB + DEAD port): the **SAME 31-door totals `0`×19 · `2`×5 · `4`×7**, whole map 39 doors `0`×26 · `2`×5 ·
+  `4`×8, the eight shapes AGAIN `0`×7 + `4`×1 (this seed: `recipes` 12 993 B 12/12 · `recipes --icons` 46 793 B =
+  ALL 12 of matching 12, 7 reagent icon-byte cells + 6 crafted · `--limit 0` 0 rows at 52 B rc `0` EMPTY not 4 ·
+  `--limit -1` 12/12 · `--limit 12 --icons` the SAME 46 793 B · `--offset 10` 2 of 12 at 2 174 B · Enchanting 2 of 2
+  at 4 634 B · EMPTY-DB rc `4`), money **0 pairing defects**, counts 19/19/19 wearing none. **The pinned v0.14.0 pair
+  AGAIN 28/28 BYTE-IDENTICAL, ZERO DELTAs + 13/13 md5-equal** (9981 vs the worktree @ TAGGED `c065815`: nine card
+  doors 2 124 / 7 330 / 6 673 / 4 107 / 643 / 1 209 / 1 155 / 6 740 / 4 033 B, item doors 4 341/4 076 B, search doors
+  185/182 B — unbounded `recipes --icons` **46 793 B = ALL 12 of matching 12 on BOTH binaries**; user md5s UNCHANGED:
+  `stats` be44e700 · `item 25 --cached` 82e349c1 · `search` 5d8e2281 · `watch list` 02b3e228 · `recipes --limit 3`
+  bbc17f2d · Blacksmithing c1fe9d13). The pair's OWN surface census quotes the moved name shape both sides: new SEVEN
+  nameplates + `pip-closed`/`open_pip` PRESENT + banner `0.16.0` MOVED vs pinned NINE + `pip-closed` ABSENT + banner
+  `0.14.0` PUT.
+* **Tag census on the remote: 64 lines · 32 tags, ZERO moved** — `v0.16.0` → `4f3c217` (object `d5fab777`), `v0.15.0`
+  → `eaeee89`, `v0.14.0` → `c065815` and the older anchors stay where they were. CI on the pushed tree: parse still
+  **49 cargo step-lines + plant one**. User's file census UNCHANGED (`sqlite3 -readonly`, NEVER written, NEVER crawled):
+  schema **8** · 19 258 · 4 602/14 656 · 1 240/1 240 · 1 240 `learned_json` · 134 · 4 231 · 4 344 + 258 · `vendor_buy`
+  **0** · trend **0** · deleted **0** · `sync_state` 6. The pushed tree re-measures the UI witnesses again (same rule:
+  DOM/IPC NOT WITNESSED): PARSE OK, `>card</button>` count ZERO, the name draw EXACTLY 1, the ONE joined selector,
+  standalone pipbtn blocks + hover ZERO, 7 nameplates + 15 attrs PUT, 21 id rules STILL 21, `--limit 40` PUT.
+* The fold's OWN push starts the NEXT run — measured in the NEXT era's record (ADR 0011's ladder), never chased here.
 
 ---
 

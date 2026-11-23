@@ -128,5 +128,32 @@ ui/app.js, 14 ins / 7 del) → `239c2a4` feat(ui) (the look rides openrecipe's O
 the chip's TWO rules die — ONE file ui/app.css, 15 ins / 14 del) → `fecb6c2` chore (banner `0.15.0 → 0.16.0`
 — a FEATURE era moves it; the lock's OWN version line follows in the SAME commit — a house note: the
 lock lagged one banner since v0.15.0, this commit settles `0.14.0 → 0.16.0` in one jump) → this record
-carries `v0.16.0` (annotated tag). Post-tag witnesses + the run this push starts land in the FOLD commit
-(fresh mirror/map/pair ports, measured not assumed — ADR 0011's ladder).
+carries `v0.16.0` (annotated tag).
+
+**FOLD (measured post-tag on the PUSHED tree at `4f3c217`, fresh ports 9921/9951/9981):** the tag's
+tree verified through the remote's OWN `^{}` line `d5fab777…` → `4f3c217` (tag object `d5fab777`,
+payload 9 559 B), and the pushed tree answers the way every sentence above says, measured AGAIN rather
+than cited: mirror **49/49 rc `0`, ZERO NONZERO** (9921 — the driver's OWN parse: 49 step-lines committed,
+ZERO step moved, plant one; presses UNCHANGED; **51 GETs / 17 recipe GETs ZERO added** = the locality proof;
+census 12/6/4/0/0), the exit map at the **SAME 31-door totals `0`×19 · `2`×5 · `4`×7** (9951, fresh seed +
+EMPTY DB + DEAD port; the eight carried shapes re-measure `0`×7 + `4`×1: `--limit 0` answers 0 rows of matching
+12 at 52 B rc `0` — EMPTY not 4 — EMPTY-DB rc `4` on the door's OWN no-row words), money **0 pairing defects**
+(counts 19/19/19 wearing none), and **the pinned v0.14.0 pair AGAIN 28/28 BYTE-IDENTICAL + 13/13 md5-equal**
+(9981 vs the worktree @ TAGGED `c065815`: the item doors `item 25/40 --cached` 4 341 / 4 076 B and the search
+doors 185/182 B measured unchanged across the name-click era on BOTH binaries, `recipes --icons` 46 793 B = ALL
+12 of matching 12 on BOTH) — the decision above ("the AFFORDANCE moved, the VERB did not") holds on the pushed
+tree byte-wise, not just on the era's pre-tag tree. The ADR's ladder row is MEASURED now: this era's OWN chain+tag
+run reads **45265336918 SUCCESS**, 5/5 jobs green in **9 min 50 s** (run #52, attempt 1, head = the tag's target;
+the linux job CLOSED it at 21:11:08Z — the SECOND linux-closed run in the measured chain, a scheduling fact said
+so; the SHORTEST measured run so far — the era grew ZERO CI step; each job 12 end-actions = 11 success + 1 skipped
+`__dtolnay_rust-toolchain` inner action, never a workflow step; Ubuntu-libs 7 on the test/quality/linux logs, 0 on
+macos/windows; the `test` job pressed exactly **49 `cargo run --` steps**, its `recipes --icons` answer reading
+`matching 12` at 46 792 B in GitHub's own log against my mirror's 46 793 B — bytes ride the seed, tallies do not).
+Tags stay put: the remote answers **32 tags / 64 lines, ZERO moved** (`v0.16.0` → `4f3c217`, `v0.15.0` → `eaeee89`,
+`v0.14.0` → `c065815`). The pushed-tree re-measures (parse/grep ONLY, DOM/IPC NOT WITNESSED): PARSE OK, `>card</button>`
+count ZERO, the name draw EXACTLY 1, the ONE joined selector, standalone `button.pipbtn` rule blocks + hover ZERO
+(the chip furniture died, measured), SEVEN nameplates + 15 attrs PUT, the 21 id rules STILL 21, `--limit 40` PUT,
+`recipes-pager` 0; CI on the pushed tree still 49 step-lines + plant one; the user's file UNCHANGED (schema 8 ·
+19 258 · 4 602/14 656 · 1 240/1 240 · 134 · `vendor_buy`/trend 0 — `sqlite3 -readonly`, NEVER written, NEVER
+crawled). The fold's OWN push starts the NEXT run — measured in the NEXT era's record (ADR 0011's ladder),
+never chased here.

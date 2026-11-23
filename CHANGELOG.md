@@ -79,7 +79,32 @@ Changed
   v0.15.0's build, a house note kept honest). ADR 0025 gained a GROWN pointer (its "the name cell IS the click target"
   now covers BOTH tables), 0029 a CHANGED pointer (the opener's LABEL moved onto the name, its LOOK onto the recipe
   look), 0021/0027 RIDDEN pointers; tags never moved. Chain: `f78a6b0` feat(ui) · `239c2a4` feat(ui) · `fecb6c2` chore
-  · this record + tag `v0.16.0`; the fold measures the post-tag witnesses and the run this push starts, FORWARD (ADR 0011's ladder).
+  · this record + tag `v0.16.0`.
+
+**FOLDED — measured post-tag on the PUSHED tree at `4f3c217` (fresh ports 9921/9951/9981, FRESH
+processes/DBs; the tag's tree verified through the remote's OWN `^{}` line `d5fab777…` → `4f3c217`, tag
+object `d5fab777`, payload 9 559 B).** The era's OWN chain+tag run reads **45265336918 SUCCESS**, 5/5
+jobs green in **9 min 50 s** (21:01:18Z → 21:11:08Z, run **#52**, attempt 1, ONE run id, no CANCELLED
+sibling, head = this record = the tag's target) — the SHORTEST measured run in the chain so far, and the
+**linux job CLOSED it at 21:11:08Z** (the second linux-closed run, after v0.15.0's own: where jobs land
+is a scheduling fact, said so rather than smoothed; ends quality → 21:03:32Z · macos → 21:07:52Z · `test`
+→ 21:08:28Z · windows → 21:10:38Z). Each job answers **12 end-actions, 11 success + ONE skipped** — every
+skipped one the Rust-toolchain installer's OWN inner action (`__run_2` windows, `__run_3` the others), never
+a workflow step; Ubuntu-libs 7 on `test`/quality/linux logs, 0 on macos/windows. The `test` job pressed exactly
+**49 `cargo run --` steps** (ZERO CI line moved by the era — the block stayed PUT) and GitHub's OWN test-job log
+step answers read `recipes` 12 992 B / **`recipes --icons` 46 792 B, ALL 12 of matching 12** / `--offset 10` 2
+173 B — my mirror's 46 793 B: bytes ride the seed, tallies do not. Post-tag mirror **49/49 rc `0`, ZERO NONZERO**
+(9921: parse 49 step-lines committed, ZERO moved, plant one; presses UNCHANGED; **51 GETs / 17 recipe GETs ZERO
+added**; census 12/6/4/0/0). Exit map **SAME 31-door totals `0`×19 · `2`×5 · `4`×7** (9951; eight shapes AGAIN
+`0`×7 + `4`×1, `--limit 0` 0 rows 52 B rc `0` EMPTY not 4, EMPTY-DB rc `4`) with money **0 defects** (counts
+19/19/19 wearing none). **The pinned v0.14.0 pair AGAIN 28/28 BYTE-IDENTICAL + 13/13 md5-equal** (9981 vs the
+worktree @ TAGGED `c065815`: item doors 4 341/4 076 B and search doors 185/182 B identical on BOTH binaries,
+`recipes --icons` 46 793 B = ALL 12 of matching 12 on BOTH; user md5s UNCHANGED be44e700/82e349c1/5d8e2281/02b3e228/bbc17f2d/c1fe9d13).
+**Tag census 32 tags / 64 remote lines, ZERO moved** (`v0.16.0` → `4f3c217`); CI on the pushed tree: **49 step-lines
++ plant one** PUT; user file UNCHANGED (schema 8 · 19 258 · 4 602/14 656 · 1 240/1 240 · 134 · `vendor_buy`/trend 0
+— `sqlite3 -readonly`, never written, never crawled); UI witnesses re-measured PARSE OK + card-label count ZERO + ONE
+joined selector + 21 id rules STILL 21 + `--limit 40` PUT (DOM/IPC NOT WITNESSED). The fold's OWN push starts the NEXT
+run, measured in the NEXT record (ADR 0011's ladder).
 
 ## v0.15.0 — the CARD WINDOWS stop being tabs: a row click floats the card OVER the tab it came from, the two card nameplates die, and the doors answer BYTE-IDENTICAL · 2026-11-23 · tag `v0.15.0`
 
