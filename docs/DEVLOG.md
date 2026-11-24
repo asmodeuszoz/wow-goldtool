@@ -94,6 +94,72 @@ read; usage grown on the door entry), 0025 RIDDEN (the card block answered learn
 rode PUT — twins measured BYTE-EQUAL), 0032 RIDDEN (the cost fields rode PUT into this era — unasked AND
 asked cost bytes re-measured on both sides). The record rides **ADR 0033**.
 
+**FOLDED — measured post-tag on the PUSHED tree at `70d2f20` (all FRESH ports/processes/DBs: 9942/9982/9994;
+the real host untouched, the user's file read read-only through LOCAL doors, ZERO requests, ZERO crawl).**
+The tag's tree verified through the remote's OWN `^{}` line: annotated tag object `a60d592e` (payload 12 925 B)
+→ `70d2f20` (this record = the chain's head) — and the pushed tree answers the way every sentence above says,
+measured AGAIN rather than cited.
+
+* **The era's OWN chain+tag run reads 45466798572 SUCCESS**, 5/5 jobs green in **11 min 50 s** (19:07:08Z →
+  19:18:58Z, run **#56**, attempt 1, exactly ONE run id, head `70d2f20` = this record = the tag's target) — NO
+  cancellation this era, but ONE honest scheduling fact is SAID rather than smoothed: the macos job **STARTED
+  LATE** (19:12:12Z against the other four at 19:07:10-11Z) and **CLOSED the run at 19:18:57Z** — where jobs
+  land is GitHub's scheduling, never a tree fact; per-job closes as GitHub reports them: quality 19:09:23Z ·
+  linux 19:14:39Z · test 19:15:41Z · windows 19:16:43Z · macos 19:18:57Z. Ubuntu-libs `apt-get` lines executed
+  3 (quality/test/linux logs), **SKIPPED 2** (macos/windows). The `test` job pressed EXACTLY **52 `cargo run --`
+  steps** — the LANDED block with its **ONE grown line**: `cargo run -- recipes --icons --costs --learned`
+  (×1 census on the run's OWN log) — **the era's FIRST green CI line carrying the flag**: a line MOVED, NOT a
+  step NEW (the card door had ALREADY answered learned-from since v0.12.0, so a card step would have ridden
+  BYTE-EQUAL and grew NOTHING). The step's OWN log JSON answers the fixture's learned facts: `learned_type`
+  ×4 (the four learned rows) with `learned_scroll_seen` **TRUE ×1 + FALSE ×1 — the two homes ride APART on
+  GitHub's OWN builds** — and GitHub's OWN test-job log reads `cost_copper":14496` + `cost_money":"1g 44s 96c"`
+  (×2 = list row + card) beside PUT `cost_missing` rides, while my fresh mirror window reads 14 427 c / `1g 44s
+  27c`: bytes ride the run, tallies do not. The quality job's lint step answered **0 errors / 873 `warning:`
+  heads (871 arrows to src/)** on the FRESH all-targets compile — locally, warm cache, this VERY tree answers
+  **0 errors / 824 heads**: the heads ride the fresh compile (rustc re-emits per target there) while the advice
+  SET moved 822 → 824 across the era because Rust GREW (said so — ADR 0011's rule: the expected-set discipline
+  rides ONLY where a truth of ZERO holds, and the truth of ZERO HERE is the NAMED build-warning set, which stayed
+  ZERO: all FOUR build jobs printed ZERO named warnings on GitHub's own toolchains).
+
+* **Post-tag witnesses on the PUSHED tree, ALL green against the pre-tag measures:** mirror (9942, driver's OWN
+  parse of the committed block: 52 step-lines + plant one, fresh seed + fresh DB + fresh fixture process): **52/52
+  rc `0`, ZERO NONZERO** — the fixture's OWN tallies END where the crawl left them, **51 GETs / 17 recipe-file GETs,
+  ZERO ADDED**: the learned facts ask NOTHING of the wire, and that UNCHANGED tally IS the locality proof (ADR 0012)
+  — the learned tab step answers `matching 12` at **47 433 B** this window, and the cost census rode PUT (12/12 rows
+  carry `cost_missing`, money 1/12 — 467 COMPLETE at 14 427 c / `1g 44s 27c`, the partial trio + eight all-unpriceable
+  answer their COUNTS with NO money beside them). Exit map (9982, fresh seed + a SECOND EMPTY recipe table in the SAME
+  window for the refusal pair): **41 doors at the SAME totals `0`×25 · `2`×5 · `4`×11** — the base 31 kept at `0`×19
+  · `2`×5 · `4`×7 for the SIXTH era in a row + the costs five (riding PUT into this era) + the learned five: `0`×3
+  (`recipes --learned --limit 3` answers / `recipe 637 --learned` — the card PARSES the flag and IGNORES it, SAME-BYTES
+  / `search sword --learned` through-ride SAME-BYTES) + `4`×2 (`recipe 999999 --learned` = the door's OWN no-row words
+  GROWN with the flag / `recipes --learned` over the EMPTY table = the SAME no-rows refusal BEFORE any rows read — a
+  flag cannot launder a refusal into an empty success, ADR 0004). Pinned pair (9994, worktree @ TAGGED `473a63f` rebuilt,
+  BEFORE frame PUT: banner `0.17.0` · ZERO `learned_scroll_seen` in its `db.rs` · ZERO `--learned` in its `cli.rs` — the
+  card's OWN `learned_type` rode there since v0.12.0, the LIST door's NEVER): **28/28 BYTE-IDENTICAL + 13/13 md5-equal**
+  (this window's md5s `stats` 6ba913f7 · `stats --icons` 32e2dc86 · `stats --limit 3` 89194bc6 · `item 25 --cached`
+  0b02173c · `item 40` 0c2ac523 · `item 12809 --cached` 2c1d01cd · `status` 973bb9be · `watch list` dc0cb5ab + `refresh-twins`
+  ea136265 STABLE across windows · `search sword --where description` 4351388a · Blacksmithing a28062d9 · `recipe 132 --icons`
+  84463d78 · `recipe 638` d21b4486 deterministic): the FOUR learned fields add ZERO bytes unasked (unasked learned-byte census
+  ZERO), asked they ADD (`recipes --limit 3` 3 377 → 3 563 B; `recipe 467 --learned` **1 209 == 1 209** — the card ride SAME-BYTES),
+  and the PINNED binary **REFUSES all THREE `--learned` shapes rc `2**` `unknown flag --learned (run help to see the verbs)` —
+  the BEFORE witness the flag is NEW not renamed, measured on the scratch pair, NEVER on a green CI line (ADR 0011's split).
+
+* **Remote tag census: 68 lines · 34 tags, ZERO moved** — `v0.18.0^{}` → `70d2f20` (object `a60d592e`), `v0.17.0^{}` →
+  `473a63f` · `v0.16.0^{}` → `4f3c217` · `v0.15.0^{}` → `eaeee89` · `v0.14.0^{}` → `c065815` and the older anchors stay where
+  they were — tags NEVER move; their measured tables stay history. CI on the pushed tree: parse STILL **52 cargo step-lines +
+  plant one** PUT, the ONE grown `--learned` line answering ×1 in the run's OWN log. The user's file UNCHANGED (`sqlite3 -readonly`,
+  NEVER written, NEVER crawled): schema **8** · 19 258 items · tombstoned **0** · 4 602 tooltip copies / 14 656 without ·
+  1 240 rows / 1 240 DISTINCT spell ids · `learned_json` **1 240 NOTNULL / 0 NULL** · kinds 804 `schematic_item` / 413 `trainer` /
+  23 `automatic` — NONE silent · **747 of the 804** named scroll ids have an ALIVE row · fresh regex re-read of the 477 copies:
+  **0 carry a where-word** (sold|vendor|bought|reward|quest|drop|purchas|found in|obtained) — the era's honest zero RE-CONFIRMED
+  on the pushed tree · watch 134 · price twins 4 344 + 258 · `vendor_buy` / `price_trend_normal` / deleted **0/0/0** (ADR 0016's
+  no-producer grounds ride PUT). UI re-measures (parse/grep ONLY — no display in the build room, the DOM NEVER WITNESSED and the
+  rendered column NEVER CLAIMED): `node --check` PARSE OK · `col-learned` EXACTLY ×1 in html/js/css each · `learn_cell` ONE def +
+  ONE call · `--learned` argv sites EXACTLY 1 (the tab's OWN ask) · `data-tab=` attrs STILL 15 PUT.
+
+The fold commit moves ZERO Rust, ZERO CI, ZERO schema, ZERO SQL, ZERO wire lines — it carries POST-tag witnesses ONLY. What the
+fold's OWN push starts is the run measured in the NEXT era's record (ADR 0011's ladder) — never chased here.
+
 ## 2026-11-24 · v0.17.0 — the SEARCH TAB owns its list surface (icon cell moves BETWEEN id and name, icons grow 24 → 32 px under `#hits`-scoped rules) AND the two recipe doors answer the TOTAL CRAFTING COST: ONE `--costs` flag, ONE `craft_cost` behind tab column + card line, money ONLY beside a COMPLETE total
 
 ### What forced it

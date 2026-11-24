@@ -77,3 +77,26 @@ REACHED the column (ADR 0021 recorded it stored-with-no-reader). ONE flag `--lea
   ride apart), 0021 GROWN (the list door grew ONE flag + reaches the column; usage grown on the
   door entry), 0025 RIDDEN (the card block answered learned-from since v0.12.0 and rode PUT),
   0032 RIDDEN (costs rode PUT into this era - unasked and asked cost bytes both measured again).
+
+**FOLD ADDENDUM (measured post-tag on the PUSHED tree at `70d2f20`, FRESH ports 9942/9982/9994):** the era's
+OWN chain+tag run read **45466798572 SUCCESS** 5/5 in **11 min 50 s** (run #56, attempt 1, ONE run id, head =
+this record = the tag's target, verified through the remote's OWN `^{}` line: tag object `a60d592e` payload 12 925
+B → `70d2f20`); the macos job STARTED LATE (19:12:12Z) and CLOSED the run at 19:18:57Z — a SCHEDULING fact, said so.
+The `test` job pressed EXACTLY 52 `cargo run --` steps — the block's ONE GROWN `--learned` tab step (×1 on the run's
+OWN log) is the era's FIRST green line carrying the flag (MOVED, not NEW: the card answered learned-from since v0.12.0,
+which is why the era grew ZERO new CI step) — and the step's OWN JSON answers the FOUR fixture learned shapes with
+`learned_scroll_seen` TRUE ×1 + FALSE ×1: the two homes ride APART ON GITHUB'S OWN BUILDS. GitHub's OWN log reads 467
+at cost 14 496 c / `1g 44s 96c` (×2 list+card) vs my mirror window's 14 427 / `1g 44s 27c` — bytes ride the run,
+tallies do not; the quality lint answered 0 errors / 873 heads (871 arrows to src/) FRESH vs 0 / 824 warm-local at
+this tree — heads ride the all-targets compile, the advice SET moved 822 → 824 because Rust GREW (said so, gate OFF,
+ADR 0011's expected-set rule); the FOUR build jobs printed ZERO named warnings — the truth-of-ZERO stayed ZERO.
+Post-tag: mirror 52/52 rc 0 (9942, tally PUT 51 GETs / 17 recipe GETs ZERO ADDED — the locality proof again); map
+41 doors at the SAME totals `0`x25 . `2`x5 . `4`x11 (9982) with the refusals GROWN by the flag; pinned pair 28/28 BYTE-IDENTICAL
++ 13/13 md5 (9994 vs the frame @ TAGGED `473a63f`: banner `0.17.0`, ZERO `learned_scroll_seen` in its `db.rs`, ZERO `--learned`
+in its `cli.rs` — the card's OWN `learned_type` rode there since v0.12.0, the LIST door's NEVER) with REFUSALS rc `2` x3 = the
+BEFORE witness, ADD-bytes 3 377 -> 3 563 asked, card 467 ride 1 209 == 1 209 SAME-BYTES, unasked learned-byte census ZERO;
+the user's file re-read READ-ONLY CONFIRMED the era's honest zero ON THE PUSHED TREE: 0 of 477 scroll tooltip copies carry
+a where-word (sold|vendor|bought|reward|quest|drop|purchas|found in|obtained), 747/804 named ids alive, kinds 804/413/23 NONE
+silent, schema 8 . 1 240/1 240 learned NOTNULL / 0 NULL . 19 258 items . 4 602/14 656 . watch 134 . twins 4 344 + 258 . 0/0/0;
+remote tags 68 lines / 34 tags ZERO moved (`v0.18.0^{}` -> `70d2f20`, older anchors PUT); CI 52 step-lines + plant one PUT.
+The fold's OWN push starts the run measured in the NEXT era's record (ADR 0011's ladder) — never chased here.
