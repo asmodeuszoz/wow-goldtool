@@ -365,7 +365,7 @@ table.mini td.pricecell { text-align: right; color: var(--gold); }
  * second copy of those. The webview never launched in the build room, so this is a
  * parse/grep witness, not a rendered claim (the launch-audit rule, kept). */
 table.recipehits { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 0; }
-th.col-job, th.col-recipe, th.col-skill, th.col-mats, th.col-cost, th.col-cooked {
+th.col-job, th.col-recipe, th.col-learned, th.col-skill, th.col-mats, th.col-cost, th.col-cooked {
   color: var(--parch);
   border-bottom: 1px solid var(--edge);
   padding: 5px 8px;
