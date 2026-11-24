@@ -307,6 +307,33 @@ jobs:
           # these very steps): 49/49 commands rc 0, ZERO NONZERO. Step count 48 -> 49 step-lines,
           # plant line stays one.
           cargo run -- recipes --icons
+          # v0.17.0 (ADR 0032): the two recipe doors grow ONE flag --costs - the
+          # TOTAL crafting cost over the set's OWN material list, summed by ONE
+          # craft_cost BOTH doors share (ADR 0014's rule: the tab's cost COLUMN
+          # and the card's cost LINE cannot drift), over the join's OWN fields
+          # count x price_now_copper - the DB's LIVE price layer (the twin the
+          # price stage's presses above write beside the stored min, NEVER read
+          # as the stored min - the ask says live), NEVER a second fetch. This
+          # step is the tab's OWN argv (the tab now ASKS --costs because it SHOWS
+          # the column). Measured on a fresh mirror BEFORE this block landed (the
+          # driver parsed the committed block and added these very three steps):
+          # 52/52 rc 0, and the door answers ALL 12 rows of matching 12 at 47 017
+          # B (bytes ride the RUN's moving live money), 12/12 rows carry a cost_
+          # missing count while cost_copper + cost_money ride the ONE row whose
+          # EVERY material has a live price - First Aid 467 answers `1g 46s 4c`
+          # beside 14 604 exact copper (numbers ride the RUN); the partial three
+          # (202 / 637 / 3024, one of two priced, the 2589 / 5113 ids the fixture
+          # never has rows for) and the eight rows NO material of any can price
+          # answer their cost_missing counts with NO money beside them (ADR 0015's
+          # count half, ADR 0004: never an invented zero; over the real fetched
+          # set the read-only census measured the SAME rule - 1 146 complete of
+          # 1 240, the 136 materials the catalogue never listed riding as counts).
+          # ZERO requests leave the door (LOCAL, ADR 0012's rule): the replay kept
+          # the crawl's tally at its 51 GETs / 17 recipe GETs - that unchanged
+          # tally IS the locality proof. Step count 49 -> 52 step-lines across the
+          # era (one line here, the two card steps in the card block below), plant
+          # line stays one.
+          cargo run -- recipes --icons --costs
           # v0.10.1 (ADR 0022): the paging doors ride ONE composition rule, and these
           # two steps are green BECAUSE it holds - they are the measured defect class
           # (`--offset` WITHOUT `--limit`): before the fix each answered rc 4 carrying
@@ -369,6 +396,29 @@ jobs:
           cargo run -- recipe 202 --icons
           cargo run -- recipe 637 --icons
           cargo run -- recipe 638
+          # v0.17.0 (ADR 0032): the SAME flag on the card door - TWO steps, the
+          # COMPLETE card and the honest-PARTIAL one, behind the SAME craft_cost
+          # as the list step above (money rides ONLY a total EVERY material can
+          # price, so the column and the line answer identically for one spell).
+          # Measured on the SAME fresh mirror: `recipe 467 --costs` answers
+          # cost_copper 14 604 beside cost_money `1g 46s 4c` + cost_missing 0 at
+          # 1 269 B (its ONE reagent is the row the price press priced - the
+          # numbers ride the RUN's moving live price); `recipe 132 --icons --costs`
+          # at 7 345 B carries cost_missing 2 with cost_copper + cost_money ABSENT
+          # - serde's skip strips an uncompleted total's money fields EVEN when
+          # asked, so a partial money word can never reach a reader (ADR 0015),
+          # and the UI renders count + materials words from what survives. The
+          # pinned-pair audit (post-tag, fresh) measures the UNASKED cards BYTE-
+          # IDENTICAL vs the pinned v0.14.0 binary while THAT binary REFUSES
+          # `--costs` rc 2 "unknown flag" - the BEFORE witness the flag is NEW,
+          # measured on the scratch pair, NOT committed here as a green line
+          # (ADR 0011's split rule). Money beside every copper it labels rides
+          # HERE TOO - the audit over these very steps keeps 0 pairing defects
+          # grown with the new cost answers. These two lines are the era's other
+          # two of its three new step-lines (49 -> 52 step-lines overall), plant
+          # line stays one.
+          cargo run -- recipe 467 --costs
+          cargo run -- recipe 132 --icons --costs
           # money (v0.9.4, ADR 0015): this release adds NO step and NO request. Money
           # is DERIVED at answer time from the copper the doors above already carry
           # (schema stays 5, so there is nothing to refresh and nothing to migrate),
