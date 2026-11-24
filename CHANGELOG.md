@@ -6,6 +6,89 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.18.0 — the RECIPES tab grows a LEARNED-FROM column: ONE `--learned` flag makes the LIST door reach the stored `learned_json` for the FIRST time THROUGH the card door's OWN machinery, the SET's words carry the learn half + the DB's OWN rows carry the seen fact, and ZERO vendor names are INVENTED — the DB owns no vendor places (0 of 477 copied scroll tooltips name one) · 2026-11-24 · tag `v0.18.0`
+
+The user's eleventh ask (verbatim, its own typos kept): "for recipes, also show where it's learned
+from. Trainer or from items if it is an item where to get it from." The ask OUTRUNS the data, and the
+census says so before one line moves ([ADR 0033](./DECISIONS/0033-where-a-recipe-is-learned-from-rides-the-doors-own-bytes.md),
+census + SEVEN rejects): the learn half is ALREADY in the fetched set — `learned_json` has been stored
+since v0.10.0 and READ by the card door since v0.12.0 (ADR 0021 wrote that debt where it lives) — and
+the WHERE half the ask names is the set's OWN `acquisition` word (vendor 254 + drop 361 + quest 64 +
+multiple 43 + unresearched 82 = exactly the 804 schematic rows, trainer exactly the 413, automatic
+exactly the 23, over the user's own file `sqlite3 -readonly`). The scroll's OWN tooltip copies answer
+the "where to get it" question EXACTLY ZERO times: **0 of 477** copies carry a vendor/zone/"sold·bought·reward·quest·drop·obtained"
+WORD (regex census) — this DB owns NO vendor places, so naming a vendor would be ADR 0004's invented-answer
+species; the honest answer goes as far as the SET's word says, and the tab note SAYS that zero.
+
+Changed
+
+- **The `recipes` door grew ONE flag `--learned` and ANSWERS where each recipe is learned from**
+  (`feat(cli,db) 88cd52f`, TWO files `src/cli.rs` + `src/db.rs`, 81 ins / 4 del): the bytes are read
+  THROUGH the card door's OWN machinery — SAME `from_str` decode shape, SAME decode-error WORDS, SAME
+  `word_at`/`id_at` by-key helpers (ADR 0014's one-code-path restated at the learned facts: the tab
+  column and the card block CANNOT drift about one row) — and the ONE new fact this DB owns,
+  `learned_scroll_seen`, rides the SAME `live_name_price_of` reader the crafted join on this very door
+  uses (`SQL_LIVE_NAME_PRICE`, tombstone guard included: 747 of the user's 804 scroll ids have an ALIVE
+  row, 57 ride the DB-never-saw home APART, ADR 0004/0016's two-NULLs rule restated). FOUR serde-`skip`
+  fields on `RecipeRow` ONLY: unasked the door's bytes stay PUT (pair 28/28 BYTE-IDENTICAL + 13/13 md5),
+  asked they ADD (fixture window 12 993 → 13 383 B; the 8 rows the fixture never learned keep the fields
+  ABSENT EVEN WHEN asked). ZERO new verb (usage grown on the `recipes` door entry), ZERO new SQL const
+  (`SQL_RECIPE_ROWS` grew ONE selected column, the card's OWN SELECT rode PUT), ZERO new request (the
+  replay kept the fixture tally PUT at 51 GETs / 17 recipe GETs — that unchanged tally IS the locality
+  proof, ADR 0012); the flag rides parsed-and-ignored through the doors that never asked (`search sword
+  --learned` == itself 188 == 188 B), and the CARD door — which answered learned-from UNASKED since
+  v0.12.0 — rode PUT word-for-word (card twins BYTE-EQUAL: 1 507 == 1 507 / 1 433 == 1 433 / 1 211 ==
+  1 211, the flag PARSES and the card IGNORES it).
+- **The tab grew a LEARNED-FROM column between name and skill, answered by ONE `learn_cell`**
+  (`feat(ui) ac2ea55`, TWO files, 55 ins / 3 del): the honest states are the FETCHED SET's words
+  (TRAINER / AUTOMATIC / the SCROLL named BY VALUE with the set's own name + id) beside this DB's ONE
+  fact (`this DB has the scroll's row` vs `this DB never saw this id`) beside the set's OWN source
+  word (vendor / drop / quest / multiple / unresearched, BESIDE, never instead), and every gap states
+  its OWN gap (`the set states NOTHING…` / `…names NO scroll` / `the set states no source word`); the
+  column carries ZERO copper (money census over asked vs unasked windows: the SAME 25 money tokens on
+  BOTH sides, ZERO learned-field copper — ADR 0015's contract has NOTHING to say here, measured); the
+  tab ASKS `--learned` in its OWN argv (EXACTLY 1 argv site: a `cargo run -- recipes --icons --costs
+  --learned` line answers the SAME words the column shows); the tab note grew ONE clause that NAMES
+  the honest zero (no vendor places in this DB, 0 of 477 copies name one — measured, not asserted).
+- **The column's header rides the frame's ONE recipe-header rule by JOINED selector** (`feat(ui)
+  1266b38`, `ui/app.css`, 1 ins / 1 del): `th.col-learned` JOINS the six sibling `th`'s it sits among
+  — ONE rule, ZERO second copy, ZERO new class, ZERO new colour token (the cell's looks ride the
+  `mat-none` / `matname` classes the tab ALREADY draws, painted at `app.css` 382/383 PUT).
+- **The smoke block's recipes step IS the tab's OWN argv and grew `--learned`** (`chore(ci) 56934fb`,
+  ONE line MOVED, step count stays 52 + plant one PUT, ZERO new CI step — the card door already answered
+  learned-from since v0.12.0): every number in the grown block comment was MEASURED on a FRESH mirror
+  (port 9911) BEFORE the line landed (55/55 rc `0`, tally PUT 51 / 17, tab step 47 433 B asked vs 47 043
+  B unasked this window, fixture learned shapes 132 = scroll 60 seen TRUE / 637 = scroll 2589 seen FALSE
+  / 202 trainer / 334 automatic / the OTHER 8 rows keep ALL FOUR fields ABSENT); the through-rides and
+  the pinned REFUSALS live on the scratch audits, NEVER on a green line (ADR 0011's split kept).
+- **A FEATURE era moves the banner** (`chore 55b5480`, `Cargo.toml` + `Cargo.lock`, 2 ins / 2 del):
+  `0.17.0 → 0.18.0`, the lock's OWN version line follows in the SAME commit, ZERO Rust line here.
+
+Measured fresh BEFORE the tag: mirror replay of the LANDED block **52/52 rc `0** fresh 9932 (tally PUT 51
+GETs / 17 recipe GETs — the learned facts ask NOTHING of the wire); exit map **41 doors = base 31 at the
+SAME totals `0`×19 · `2`×5 · `4`×7** + the costs five (PUT into this era) + the learned five → **`0`×25
+· `2`×5 · `4`×11** fresh 9972 (the EMPTY-table + no-row refusals GROW with the flag: a flag cannot turn a
+refusal into an empty success; through-rides `search sword --learned` == `--costs` == itself SAME-BYTES,
+card `recipe 637 --learned` SAME-BYTES); pinned pair vs the v0.17.0 tree (worktree @ TAGGED `473a63f`,
+banner `0.17.0`) **28/28 BYTE-IDENTICAL + 13/13 md5-equal** unasked + the pinned binary **REFUSES all
+THREE `--learned` shapes rc `2** "unknown flag --learned" — the BEFORE witness the flag is NEW not
+renamed — asked fields ADD 3 382 → 3 568 B, unasked learned-byte census ZERO (fresh 9993); user file
+UNCHANGED (`sqlite3 -readonly`: schema 8 · 19 258 · 4 602/14 656 · 1 240/1 240 · watch 134 · 4 344 +
+258 · 0/0/0) with the learned census fresh over it (804/413/23 = 1 240 none silent · 747/804 alive · 0 of
+477 where-words); UI witnesses PARSE OK + `col-learned` ×1 in html/js/css each + ONE `learn_cell` def +
+ONE call + EXACTLY 1 `--learned` argv site (parse/grep ONLY, DOM NEVER WITNESSED); clippy **0 errors /
+824 advice — MOVED from 822 because Rust GREW** (said so, gate OFF, ADR 0011's expected-set rule), `cargo
+build` rc `0` naming ZERO at every commit. Era diff 8 files / 160 ins / 11 del. Ladder row owed and
+MEASURED: the v0.17.0 FOLD push's own run (head `041e60b`) read **45455020142 SUCCESS** 5/5 in **10 min
+49 s** (run #55, attempt 1, ONE run id, no CANCELLED sibling — 18:01:48Z → 18:12:37Z, quality 18:04:10Z
+· linux 18:07:25Z · macos 18:08:27Z · test 18:08:41Z · windows 18:12:36Z closed it; Ubuntu-libs apt
+lines 3 on quality/test/linux, skipped 2 macos/windows; the `test` job pressed exactly 52 `cargo run --`
+steps — the folded block, recipes step PUT at `--icons --costs` ×1 census — its lint answered 0 errors /
+870 `warning:` heads with 868 arrows to src/, the SAME tree locally (pinned worktree @ `473a63f`) answers
+0 errors / 822 heads, so the heads ride the fresh all-targets compile and the advice SET did not move,
+and the named build-warning set stayed ZERO in every build job); the era's OWN chain+tag run lands
+FORWARD — measured in this era's fold, never chased here (ADR 0011's ladder).
+
 ## v0.17.0 — the SEARCH TAB owns its list surface (icons move BETWEEN id and name, grow 24 → 32 px under id-scoped rules) AND the two recipe doors answer the TOTAL CRAFTING COST: ONE `--costs` flag, ONE `craft_cost` behind the tab column + card line, money ONLY beside a COMPLETE total · 2026-11-24 · tag `v0.17.0`
 
 The user's tenth ask (verbatim, its own typos kept): "Somne items to work on for the next version:in

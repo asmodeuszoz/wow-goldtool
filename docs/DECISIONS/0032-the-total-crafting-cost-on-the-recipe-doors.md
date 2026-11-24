@@ -168,3 +168,11 @@ job 12 end-actions = 11 + 1 skipped `__dtolnay_rust-toolchain` inner action; Ubu
 test/quality/linux, 0 macos/windows; the `test` job pressed exactly 52 `cargo run --` steps). Tags stay put:
 **33 tags / 66 lines, ZERO moved** (`v0.17.0` → `473a63f`, older anchors ride). The fold's OWN push starts the
 NEXT run — measured in the NEXT era's record (ADR 0011's ladder), never chased here.
+
+**RIDDEN AT v0.18.0 ([ADR 0033](./0033-where-a-recipe-is-learned-from-rides-the-doors-own-bytes.md)):** the cost fields rode PUT into this era — the CI line the era grew was the SAME step
+grown to `recipes --icons --costs --learned`, the TWO card cost steps moved ZERO lines, and the unasked cost bytes
+re-rode PUT in THIS era's pair too (28/28 BYTE-IDENTICAL + 13/13 md5-equal vs the pinned tree @ TAGGED `473a63f`,
+asked ADD-bytes 3 382 → 3 568 belong to the LEARNED fields, cost census `cost_missing` 12/12 + money 1/12 unchanged
+on the fixture windows). ONE flag grew NEXT to the other, NEVER instead: `--learned` rides parsed-and-ignored through
+doors that never asked, exactly the `--costs`/`--icons` through-ride shape (`search sword --learned` == `--costs` ==
+itself SAME-BYTES), and money stays PUT: ZERO copper rides the learned column (measured token census).

@@ -122,3 +122,10 @@ vendors."` on exactly ONE copy (id 247786, Mote of Magic) — prose is not a pri
 book titles) and no door. NULL in THOSE TWO still means "no producer has ever written it".
 
 **RIDDEN AT v0.17.0 ([ADR 0032](./0032-the-total-crafting-cost-on-the-recipe-doors.md)):** the cost READS the live home (`price_min_now`, 4 344 values on the user's file re-read fresh) and counts live-less materials in `cost_missing` — it WRITES nothing: the reserved homes stay NULL **0/0** again on that read-only re-read, schema `8` stays PUT, and the two different NULL homes (alive-row-with-NULL-live vs id-without-any-row — 135 + 1 of 3 778 material cells in the fresh user-set census) stay SEPARATE in the per-material cells beside the cost's ONE honest count, never merged here.
+
+**RIDDEN AT v0.18.0 ([ADR 0033](./0033-where-a-recipe-is-learned-from-rides-the-doors-own-bytes.md)):** the TWO NULL homes rule rode the LEARNED seen-fact: `learned_scroll_seen` is
+read through the SAME tombstone-guarded `live_name_price_of` the crafted join rides (`SQL_LIVE_NAME_PRICE`,
+`deleted_at IS NULL`), so the SET naming a scroll (747 of the user's 804 ids) and this DB NEVER having seen
+it (57, deleted 0) answer in DIFFERENT words — `this DB has the scroll's row` vs `this DB never saw this id`
+— never folded, never an invented row (ADR 0033's census, measured `sqlite3 -readonly` on the user's own
+file; the fixture keeps the two homes APART too: 132 = seen TRUE, 637 names scroll 2 589 and answers seen FALSE).

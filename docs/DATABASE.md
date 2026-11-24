@@ -149,8 +149,10 @@ Measured on the user's own file (read-only) the day that door was written: the o
 `schematic_item` and name a SCROLL id, **413** state the `trainer` word and **23** the `automatic`
 word with NO id at all (the three sum to 1 240: the fetched shape leaves no entry silent about
 learning); of the 804 stated ids **747** have a visible item row and **477** of those carry the
-scroll's OWN tooltip copy. The list door still reads only the entry's plain `acquisition` word: the
-CARD door is what grew the `SQL_RECIPE_CARD_ROW` SELECT that reaches `learned_json`. A NULL `crafted_item_id` means "the set states no crafted
+scroll's OWN tooltip copy. The list door read ONLY the entry's plain `acquisition` word from there
+through v0.17.0 — the CARD door (v0.12.0) was what grew the `SQL_RECIPE_CARD_ROW` SELECT that reached
+`learned_json` FIRST; v0.18.0 grew the LIST door's OWN SELECT by ONE column to reach the column too
+(ADR 0033 — its paragraph sits further down). A NULL `crafted_item_id` means "the set states no crafted
 item", which is NOT the same as "the DB never saw this id" — the first is the dataset's own
 truth, the second is a join fact the door reports with `in_db`/`crafted_db_name`). A NULL
 price column in `item` still means "not fetched yet", distinct from "fetched and not on the
@@ -171,6 +173,29 @@ state a `count` (1 264 × 1 / 2 514 × >1 / **0 NULL**). NO new column, NO new t
 the `recipe` table above rides PUT and schema `8` rides PUT (a stored cost would AGGE behind the live
 twin — rejected at the ADR with that measure); unasked, the doors' bytes ride PUT (pinned pair 28/28
 BYTE-IDENTICAL + 13/13 md5-equal, fresh 9911).
+
+**v0.18.0 (ADR 0033): the LEARNED-FROM answer is a DERIVED reading of an ALREADY-STORED column — ZERO
+new stored bytes.** `learned_json` got its FIRST list-door reader: `SQL_RECIPE_ROWS` grew ONE selected
+column and the door answers `learned_type`/`learned_scroll_id`/`learned_scroll_name` — the SET's own
+words read THROUGH the card door's OWN machinery (same `from_str` decode shape, same decode-error WORDS,
+same `word_at`/`id_at` by-key accessors: a tab column and a card block cannot drift about one row, ADR
+0014) — plus the ONE fact this DB owns, `learned_scroll_seen`, read through `live_name_price_of`, the
+SAME reader the crafted join on this very door rides (tombstone guard included: **747 of the 804**
+named scroll ids have a LIVE row, the **57** never-saw ride APART — ADR 0004/0016's two homes). The
+WHERE-half the ask named IS the set's own plain word the door answered UNASKED all along: vendor 254 +
+drop 361 + quest 64 + multiple 43 + unresearched 82 = **exactly the 804** schematic rows, trainer 413,
+automatic 23 — and **0 of the 477** copied scroll tooltips carry a vendor/zone word, so this DB owns
+NO vendor places and NO door names one (a named vendor would be ADR 0004's invented-answer species;
+the tab note SAYS that zero, measured read-only). The FOUR fields ride serde's skip: unasked the door's
+bytes are PUT (pinned pair 28/28 BYTE-IDENTICAL + 13/13 md5-equal fresh 9993 vs the tree @ TAGGED
+`473a63f`, unasked learned-byte census ZERO), asked they ADD (3 382 → 3 568 B on the fixture window,
+and the 8 rows the fixture never learned keep ALL FOUR fields ABSENT EVEN WHEN asked). NO new column,
+NO new table, NO new `meta` key — schema `8` PUT (a stored where-column would have NOTHING upstream to
+refresh it from, rejected at the ADR with the census); ZERO new request (the seen fact is LOCAL, the
+replay kept the fixture tally PUT at 51 GETs / 17 recipe GETs — the locality proof); ZERO copper rides
+the column (money-token census: the SAME 25 tokens on asked and unasked windows, ZERO inside learned
+fields).
+
 On top of every stage's write sits the manual layer: `manual_overrides`
 merges LAST (ADR 0010), so a field the user stated survives the next crawl while the columns the
 crawl owns keep refreshing. The manual layer and tombstones never reach `recipe`: the manual
@@ -471,8 +496,12 @@ this argv, so a click and a cargo line are ONE code path, ADR 0014). TWO SELECTs
 them is new to this door:
 
 ```sql
--- the door's OWN row read: the LIST door's SELECT never reaches learned_json, so this
--- door reads its own const (spell_id is the table's PRIMARY KEY: at most ONE row answers)
+-- the door's OWN row read: the LIST door's SELECT NEVER reached learned_json THROUGH v0.17.0 — at
+-- v0.18.0 (ADR 0033) it GREW its OWN `learned_json` column, so the claim as it stood was the truth
+-- UNTIL then and is kept as history; THIS const itself rode PUT word-for-word (spell_id is the
+-- table's PRIMARY KEY: at most ONE row answers — and the card's OWN answers stay BYTE-EQUAL when
+-- `--learned` rides: the flag PARSES and the card IGNORES it, because it ANSWERED learned-from
+-- UNASKED since v0.12.0, ADR 0025)
 SELECT spell_id, profession, recipe_name, crafted_item_id, crafted_item_name, skill_required,
        skill_tier, trivial_low, trivial_high, reagents_json, learned_json, acquisition,
        acquisition_note, source FROM recipe WHERE spell_id = ?

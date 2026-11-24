@@ -114,3 +114,11 @@ two list doors, `search` and `stats`:
 | the icon doors over a DB **born** under the pinned v0.8.1 snapshot (fresh port 9176) | they read the pinned era's own bytes with ZERO requests | the pinned crawl (list+detail+icons) left `schema_version 4` with 3 blobs; the current build reports `3\|1\|5` after the hop, `search --icons --limit 6` returns 3 rows × 2 596 chars + `icon_at` (row 60 gone-stamped, 127555 neither) and **3/3 emissions decode EQUAL** to the DB's own 1 945-byte blobs; the fixture's 15 GETs all belong to the pinned crawl, ZERO to the doors |
 
 **GROWN AT v0.17.0 ([ADR 0031](./0031-the-search-list-owns-its-icon-position-and-size.md)/[ADR 0032](./0032-the-total-crafting-cost-on-the-recipe-doors.md)):** the ONE-code-path discipline now covers a COST too — both recipe doors fill their cost tallies THROUGH ONE `craft_cost` after their OWN joins, and the tab's cost column and the card's cost line call ONE `cost_cell` in front of both (no drift possible, measured at the call sites). The icon era moved NO door at all: the pinned v0.14.0 pair 28/28 BYTE-IDENTICAL + 13/13 md5-equal on a fresh window (port 9911) says the search/item doors answer the SAME bytes with the icon cell moved and resized in the UI. The era's flag rides PARSED-BUT-IGNORED through the doors that never asked for it — `search sword --costs` == `search sword`, **188 == 188 B** — the same through-ride shape `--icons` has ridden since v0.9.3.
+
+**GROWN AT v0.18.0 ([ADR 0033](./0033-where-a-recipe-is-learned-from-rides-the-doors-own-bytes.md)):** the ONE-code-path discipline rode the LEARNED bytes a THIRD time: the LIST door
+now reads `learned_json` THROUGH the card door's OWN machinery — same `from_str` decode shape, same
+decode-error WORDS, same `word_at`/`id_at` by-key helpers — so the tab's LEARNED-FROM column and the
+card's learned-from block CANNOT drift about one row (measured the same day: the card twins BYTE-EQUAL
+1 507 == 1 507 / 1 211 == 1 211 with the flag riding — the card PARSES `--learned` and IGNORES it, it
+answered learned-from UNASKED since v0.12.0). The ONE reader the seen fact rides is the crafted join's
+OWN `live_name_price_of` (tombstone guard included) — no second shape for the SAME row's fact.

@@ -261,3 +261,12 @@ on BOTH binaries, item doors 4 341/4 076 B, search doors 185/182 B): the doors a
 across TWO surface eras, measured, not asserted.
 
 **GROWN AT v0.17.0 ([ADR 0032](./0032-the-total-crafting-cost-on-the-recipe-doors.md)):** the two doors the era named grew ONE flag each (`--costs` on `recipes` and on `recipe SPELL_ID`, usage grown on the TWO door entries only — ZERO new verb, the same doors), and the cost multiplies by the set's OWN stated `count`: the fresh user-set census measured 3 778/3 778 material cells STATING a count (1 264 × `1` / 2 514 × `>1` / 0 NULL) — so the "NULL count reads as ONE" half of the rule is stated, not measured, over a set that never leaves one. Unasked, the doors' bytes kept riding (pinned pair 28/28 + md5 13/13, fresh 9911), and the recipe table itself stayed PUT — cost is DERIVED at answer time, never a stored column (schema `8` PUT again).
+
+**GROWN AT v0.18.0 ([ADR 0033](./0033-where-a-recipe-is-learned-from-rides-the-doors-own-bytes.md)):** the LIST door grew ONE flag `--learned` (usage grown on the `recipes` door entry
+only, ZERO new verb) and for the FIRST time reaches the `learned_json` the stage stored from v0.10.0 — the
+debt note THIS file carries ("the LIST door's SELECT never reaches learned_json") is grown BY the flag,
+not erased: `SQL_RECIPE_ROWS` grew ONE selected column, the card's OWN SELECT rode PUT. The set's words ride
+BY KEY beside the plain `acquisition` word the door already answers UNASKED (vendor 254 + drop 361 + quest 64 +
+multiple 43 + unresearched 82 = exactly the 804 schematic rows): BESIDE, never instead (ADR 0021's own side-by-side
+rule) — and the door's FOUR learned answer fields ride serde's skip so the UNASKED answer keeps its bytes PUT
+(pair-proven fresh: 28/28 BYTE-IDENTICAL + 13/13 md5-equal vs the pinned v0.17.0 tree).

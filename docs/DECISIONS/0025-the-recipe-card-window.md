@@ -237,3 +237,12 @@ the item/search doors BYTE-IDENTICAL across the move (fixture 2 124 / 7 330 / 6 
 a chip click and a `cargo run` line are ONE door (ADR 0014).
 
 **GROWN AT v0.17.0 ([ADR 0032](./0032-the-total-crafting-cost-on-the-recipe-doors.md)):** the card door grew cost FIELDS (`cost_copper`/`cost_money`/`cost_missing` under serde skip — unasked the card keeps its bytes, pinned pair md5s `recipe 132 --icons` ded6e551 + `recipe 638` d21b4486 rode PUT on a fresh window) and the card grew a cost LINE via the ONE `cost_cell` the tab's cost column also calls; the click, the split BY CLASS and the `recipe N` door itself stayed RIDDEN PUT — the era's TWO new CI card steps (`recipe 467 --costs` complete, `recipe 132 --icons --costs` honest-partial) press the SAME door the name click opens.
+
+**RIDDEN AT v0.18.0 ([ADR 0033](./0033-where-a-recipe-is-learned-from-rides-the-doors-own-bytes.md)):** the card's learned-from block — the ONE place the `learned_json` was read since
+v0.12.0 — rode PUT WORD-FOR-WORD this era: its SELECT, its parse, its cells and its argv moved ZERO lines.
+The flag `--learned` PARSES and the card IGNORES it — measured twins BYTE-EQUAL (recipe 637: 1 507 == 1 507 B /
+recipe 334: 1 433 == 1 433 B on the SAME window / recipe 467: 1 211 == 1 211 B) — because the card ANSWERED
+learned-from UNASKED since its era, while the LIST door grew the ask. The era's WHOLE point was meeting the
+card's already-stated shape, not a second one: the tab column reads THROUGH this door's OWN machinery (ADR 0014),
+so a row's learned answer CANNOT disagree between the two surfaces (reject list at ADR 0033: a second door
+`learned SPELL_ID` would be ADR 0021's door-drift species on the SAME rows).
