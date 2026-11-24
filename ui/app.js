@@ -426,16 +426,16 @@ function cost_cell(one, mats) {
     return money_cell(one.cost_money, one.cost_copper);
   }
   if (one.cost_missing === null || one.cost_missing === undefined) {
-    return chip_word("the door was not asked for the cost", "costchip");
+    return chip_word("the door was not asked for the cost", "costnote");
   }
   if (!mats || mats.length === 0) {
-    return chip_word("nothing to cost - the set states no materials", "costchip");
+    return chip_word("nothing to cost - the set states no materials", "costnote");
   }
   var missing = one.cost_missing;
   if (missing >= mats.length) {
-    return chip_word("no live prices yet - the price refresh must write them", "costchip");
+    return chip_word("no live prices yet - the price refresh must write them", "costnote");
   }
-  return chip_word("cost incomplete - " + num(missing) + " of " + num(mats.length) + " materials have no live price", "costchip");
+  return chip_word("cost incomplete - " + num(missing) + " of " + num(mats.length) + " materials have no live price", "costnote");
 }
 
 function recipe_row(one) {

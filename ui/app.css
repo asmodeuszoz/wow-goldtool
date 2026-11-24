@@ -365,7 +365,7 @@ table.mini td.pricecell { text-align: right; color: var(--gold); }
  * second copy of those. The webview never launched in the build room, so this is a
  * parse/grep witness, not a rendered claim (the launch-audit rule, kept). */
 table.recipehits { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 0; }
-th.col-job, th.col-recipe, th.col-skill, th.col-mats, th.col-cooked {
+th.col-job, th.col-recipe, th.col-skill, th.col-mats, th.col-cost, th.col-cooked {
   color: var(--parch);
   border-bottom: 1px solid var(--edge);
   padding: 5px 8px;
@@ -382,6 +382,14 @@ th.col-job, th.col-recipe, th.col-skill, th.col-mats, th.col-cooked {
 .matname { color: var(--text); font-size: 12px; }
 .mat-none { color: var(--muted); font-style: italic; font-size: 11.5px; }
 .mat-not-in-db { color: var(--muted); background: rgba(58, 44, 32, 0.55); border-radius: 5px; padding: 1px 5px; font-size: 10.5px; }
+/* v0.17.0 (ADR 0032): the cost cell's THREE WORD states (complete costs ride
+ * the frame's OWN moneycell with the exact copper on hover, never a second
+ * money cell - the rule this block's own comment above already states). The
+ * words are italic like the mat-none sibling they sit under, ZERO new colour
+ * token, ZERO background: the counts they carry ride words beside them and
+ * NEVER money beside a count (ADR 0015's other half), so they are notes, not
+ * chips. */
+.costnote { color: var(--muted); font-style: italic; font-size: 11.5px; }
 .cooked { color: var(--text); font-size: 12px; }
 .cooked-none { color: var(--muted); background: rgba(58, 44, 32, 0.55); border-radius: 5px; padding: 1px 5px; font-size: 10.5px; }
 .cooked-not-in-db { color: var(--muted); background: rgba(58, 44, 32, 0.55); border-radius: 5px; padding: 1px 5px; font-size: 10.5px; }
@@ -426,7 +434,11 @@ th.col-job, th.col-recipe, th.col-skill, th.col-mats, th.col-cooked {
 .rcardbox { display: grid; grid-template-columns: 1fr; gap: 14px; padding: 18px 20px; border: 1px solid var(--edge); border-radius: 8px; background: var(--field-2); }
 .rcardbox .rcardhead { color: var(--text); font-size: 19px; }
 .rcardname { color: var(--text); font-size: 20px; }
-.rcardlearn, .rcardmats { color: var(--muted); font-size: 17px; }
+/* v0.17.0 (ADR 0032): the card's cost LINE joins the words rule below - the
+ * card's cost and the tab's column ride ONE cost_cell on the ONE tally behind
+ * BOTH doors, so their paint rides ONE rule too (ADR 0014's rule, kept at the
+ * frame: ONE look, JOINED selector, no second copy). */
+.rcardlearn, .rcardmats, .rcardcost { color: var(--muted); font-size: 17px; }
 .rcell { display: grid; grid-template-columns: 1fr; gap: 6px; padding: 12px 14px; border: 1px solid var(--edge); border-radius: 7px; background: var(--field-1); }
 .rcellname { color: var(--text); font-size: 18px; }
 .rcopy { display: grid; grid-template-columns: 1fr; gap: 4px; padding: 9px 12px; border-left: 3px solid var(--gold); color: var(--parch); font-size: 17px; }
