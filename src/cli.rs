@@ -27,7 +27,7 @@ use std::env::set_var;
 /// What the CLI can answer. Keeping the list here means an unknown verb becomes a
 /// usage error that names what the user actually typed.
 pub fn usage_text() -> String {
-    return "usage: status | sync --stage list|detail|icons|tooltip|price|recipes [--budget N] [--ids A,B,C] [--watch] | search TEXT [--icons --where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id|price-now --limit N --offset N] | stats [--icons --limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | recipes [--profession NAME] [--limit N] [--offset N] | recipe SPELL_ID [--icons] | status [--db PATH] [--fixture URL]".to_string();
+    return "usage: status | sync --stage list|detail|icons|tooltip|price|recipes [--budget N] [--ids A,B,C] [--watch] | search TEXT [--icons --where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id|price-now --limit N --offset N] | stats [--icons --limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | recipes [--profession NAME] [--limit N] [--offset N] [--costs] | recipe SPELL_ID [--icons] [--costs] | status [--db PATH] [--fixture URL]".to_string();
 }
 
 /// The verbs of one invocation plus its flags. Unknown flags are kept rather than
@@ -60,6 +60,13 @@ pub struct Invocation {
     /// word, measured per file (`Cooking`, `First Aid`, ...). No invention here -
     /// the door only ever compares it against values the fetched rows carry.
     pub profession: Option<String>,
+    /// v0.17.0 (ADR 0032): ask the two recipe doors for the TOTAL crafting cost
+    /// over the set's own material list, summed from the DB's OWN live price
+    /// layer (`price_min_now` - the twin the price refresh writes beside the
+    /// stored min, docs/DATABASE.md). Opt-in like `--icons`: an unasked answer
+    /// stays byte-for-byte PUT (the pinned-pair discipline rides it), and the
+    /// cost is DERIVED at answer time, NEVER a stored column (schema `5` PUT).
+    pub costs: bool,
     pub bad: String,
 }
 
@@ -87,6 +94,7 @@ pub fn bare_flag(flag: String) -> bool {
     if flag == "--watch" { return true }
     if flag == "--cached" { return true }
     if flag == "--icons" { return true }
+    if flag == "--costs" { return true }
     return false;
 }
 
@@ -121,6 +129,7 @@ pub fn parse_invocation(args: Vec<String>) -> Invocation {
         cached: false,
         icons: false,
         profession: None,
+        costs: false,
         bad: "".to_string(),
     };
     let mut index: usize = 0;
@@ -132,6 +141,7 @@ pub fn parse_invocation(args: Vec<String>) -> Invocation {
                 if token == "--watch" { out.watch = true; }
                 if token == "--cached" { out.cached = true; }
                 if token == "--icons" { out.icons = true; }
+                if token == "--costs" { out.costs = true; }
                 index = index + 1;
                 continue;
             }
@@ -311,7 +321,7 @@ pub fn cmd_recipes(inv: &Invocation) -> AppResult<String> {
     if total == 0 {
         return Err(AppError::not_found("the recipe table holds no rows (for this filter): run sync --stage recipes to pull the files (ADR 0021)".to_string()));
     }
-    let rows: Vec<RecipeRow> = match recipes_rows(&conn, inv.profession.clone(), inv.icons, inv.limit, inv.offset) {
+    let rows: Vec<RecipeRow> = match recipes_rows(&conn, inv.profession.clone(), inv.icons, inv.costs, inv.limit, inv.offset) {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };
@@ -355,7 +365,7 @@ pub fn cmd_recipe(inv: &Invocation) -> AppResult<String> {
                 Err(problem) => return Err(problem),
                 Ok(value) => value,
             };
-            let found: Option<RecipeCard> = match recipe_card(&conn, number, inv.icons) {
+            let found: Option<RecipeCard> = match recipe_card(&conn, number, inv.icons, inv.costs) {
                 Err(problem) => return Err(problem),
                 Ok(value) => value,
             };

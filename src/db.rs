@@ -2471,6 +2471,23 @@ pub struct RecipeRow {
     pub crafted_icon_b64: Option<String>,
     pub crafted_icon_at: Option<i64>,
     pub reagents: Vec<RecipeReagent>,
+    /// v0.17.0 (ADR 0032): the total crafting cost tallies, DERIVED from the
+    /// joined `reagents` above by the ONE `craft_cost` helper the list door and
+    /// the card door SHARE (ADR 0014's one-code-path rule: the tab column and
+    /// the card line cannot drift, they ride the same tally). They fill ONLY
+    /// when the door was asked with `--costs`; every one rides serde's
+    /// `skip_serializing_if` so an unasked answer keeps its v0.10.0..v0.16.0
+    /// bytes EXACTLY (the pinned-pair discipline: cost fields ADD bytes only
+    /// when asked). `cost_copper` answers ONLY a COMPLETE total (money beside
+    /// every copper it labels, ADR 0015); `cost_missing` counts the materials
+    /// with no live price - a count with WORDS beside it, never money beside
+    /// it (ADR 0015's other half). Nothing is stored: schema `5` PUT.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost_copper: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost_money: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost_missing: Option<i64>,
 }
 
 /// The door's raw pass (v0.10.0): the fetched rows as stored, plus the reagent
@@ -2605,6 +2622,64 @@ pub fn join_recipe_reagent(conn: &Connection, reagent: Reagent, with_icons: bool
     return Ok(out);
 }
 
+/// The TOTAL crafting cost over ONE joined material list (v0.17.0, ADR 0032):
+/// ONE helper the recipes LIST door and the RECIPE CARD door share (ADR 0014's
+/// one-code-path rule: the tab's cost column and the card's cost line cannot
+/// drift). The sum rides the join's OWN fields - count x `price_now_copper` -
+/// the DB's live price layer (the `price_min_now` twin the price refresh
+/// writes beside the stored min, docs/DATABASE.md), NEVER the stored min
+/// (the ask says LIVE prices) and NEVER a second fetch (the local-door rule,
+/// ZERO requests). Honest states, never invented numbers (ADR 0004's rule
+/// again): a reagent whose join wrote no live copper - not in the DB at all
+/// (measured over the fetched set: 136 of 3 778 materials) or in the DB with
+/// no auction offered (ADR 0016's two different NULL homes ride apart in the
+/// per-material cells ALREADY beside this count) - rides as a COUNT in
+/// `cost_missing`. `cost_copper` answers ONLY when EVERY material is priced:
+/// money rides beside the exact total (ADR 0015), and partial or empty costs
+/// answer counts + words with ZERO money beside them - an "at least" money
+/// word invites reading an incomplete sum as the recipe's cost, rejected at
+/// the ADR with measures. The multiplier is the set's OWN stated count
+/// (measured: every classic reagent entry states a whole count >= 1); a NULL
+/// count reads as ONE, the minimum a craft's own material word cannot
+/// undercut, and nothing here claims the set stated it.
+pub struct CostTally {
+    pub cost_copper: Option<i64>,
+    pub cost_money: Option<String>,
+    pub cost_missing: Option<i64>,
+}
+
+/// The tally itself (v0.17.0, ADR 0032): called ONLY under the door's OWN
+/// `costs` flag, over the reagents that door has ALREADY joined.
+pub fn craft_cost(reagents: Vec<RecipeReagent>) -> CostTally {
+    let mut total: i64 = 0;
+    let mut missing: i64 = 0;
+    for one in reagents.clone() {
+        match one.price_now_copper {
+            None => missing = missing + 1,
+            Some(copper) => {
+                let times: i64 = match one.count {
+                    None => 1,
+                    Some(said) => if said > 1 { said } else { 1 },
+                };
+                total = total + times * copper;
+            },
+        }
+    }
+    let complete: bool = match reagents.len() {
+        0 => false,
+        _ => missing == 0,
+    };
+    let copper: Option<i64> = match complete {
+        false => None,
+        true => Some(total),
+    };
+    return CostTally {
+        cost_copper: copper.clone(),
+        cost_money: money_of(copper.clone()),
+        cost_missing: Some(missing),
+    };
+}
+
 /// Read the recipe rows of one door call: filter echo, ORDER, LIMIT/OFFSET are
 /// bound values (never interpolated), and every reagent + the crafted item are
 /// joined through the item rows AFTER the rows are collected - the door cannot
@@ -2612,7 +2687,10 @@ pub fn join_recipe_reagent(conn: &Connection, reagent: Reagent, with_icons: bool
 /// paging clause comes from the SAME `paging_clause` the search door rides - two
 /// doors composing `OFFSET` alone was one defect in two places, and one rule now
 /// answers it twice (`LIMIT -1` is SQLite's own "no bound", measured today).
-pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: bool, limit: Option<i64>, offset: Option<i64>) -> AppResult<Vec<RecipeRow>> {
+/// v0.17.0 (ADR 0032): `costs` asks the door to fill each row's cost tallies
+/// through the ONE `craft_cost` helper the card door shares; unasked the row
+/// JSON keeps the bytes it answered since v0.10.0 (serde skip on three fields).
+pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: bool, costs: bool, limit: Option<i64>, offset: Option<i64>) -> AppResult<Vec<RecipeRow>> {
     let filter_part: String = match profession {
         None => "".to_string(),
         Some(_) => "WHERE profession = ? ".to_string(),
@@ -2684,6 +2762,9 @@ pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: b
                     crafted_icon_b64: None,
                     crafted_icon_at: None,
                     reagents: [].to_vec(),
+                    cost_copper: None,
+                    cost_money: None,
+                    cost_missing: None,
                 };
                 for one in reagents.clone() {
                     let joined: RecipeReagent = match join_recipe_reagent(conn, one.clone(), with_icons) {
@@ -2691,6 +2772,15 @@ pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: b
                         Ok(value) => value,
                     };
                     row.reagents.push(joined);
+                }
+                match costs {
+                    false => {},
+                    true => {
+                        let tally: CostTally = craft_cost(row.reagents.clone());
+                        row.cost_copper = tally.cost_copper.clone();
+                        row.cost_money = tally.cost_money.clone();
+                        row.cost_missing = tally.cost_missing.clone();
+                    },
                 }
                 match raw.crafted_item_id.clone() {
                     None => {},
@@ -2997,8 +3087,13 @@ pub fn recipe_cell(conn: &Connection, id: i64, dataset_name: Option<String>, wit
 /// ids). A spell id the table does not hold answers None: the door turns that into
 /// rc 4 (ADR 0004's no-invented-answers rule, the same shape the empty recipe
 /// table answered at v0.10.0). `spell_id` is the table's PRIMARY KEY (docs/
-/// DATABASE.md), so at most one row can answer this read.
-pub fn recipe_card(conn: &Connection, spell_id: i64, with_icons: bool) -> AppResult<Option<RecipeCard>> {
+/// DATABASE.md), so at most one row can answer this read. v0.17.0 (ADR 0032):
+/// `with_costs` asks the door to fill the SAME cost tallies the list door fills
+/// (ONE `craft_cost` over the already-joined materials - the card's cost line
+/// and the tab's cost column cannot drift, ADR 0014's one-code-path rule);
+/// unasked they ride absent (serde skip), so a `recipe N` line keeps its
+/// v0.12.0..v0.16.0 bytes PUT (the pinned-pair discipline).
+pub fn recipe_card(conn: &Connection, spell_id: i64, with_icons: bool, with_costs: bool) -> AppResult<Option<RecipeCard>> {
     let mut stmt = match conn.prepare(SQL_RECIPE_CARD_ROW) {
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
         Ok(value) => value,
@@ -3063,6 +3158,9 @@ pub fn recipe_card(conn: &Connection, spell_id: i64, with_icons: bool) -> AppRes
                     scroll: None,
                     result: None,
                     materials: [].to_vec(),
+                    cost_copper: None,
+                    cost_money: None,
+                    cost_missing: None,
                 };
                 match learned {
                     None => {},
@@ -3099,6 +3197,15 @@ pub fn recipe_card(conn: &Connection, spell_id: i64, with_icons: bool) -> AppRes
                         card.scroll = Some(cell.clone());
                     },
                 }
+                match with_costs {
+                    false => {},
+                    true => {
+                        let tally: CostTally = craft_cost(card.materials.clone());
+                        card.cost_copper = tally.cost_copper.clone();
+                        card.cost_money = tally.cost_money.clone();
+                        card.cost_missing = tally.cost_missing.clone();
+                    },
+                }
                 return Ok(Some(card));
             },
         }
@@ -3130,6 +3237,17 @@ pub struct RecipeCard {
     pub scroll: Option<RecipeCell>,
     pub result: Option<RecipeCell>,
     pub materials: Vec<RecipeReagent>,
+    /// v0.17.0 (ADR 0032): the SAME three tallies the list rows carry, filled
+    /// by the SAME `craft_cost` when the door was asked `--costs` - the card
+    /// line and the tab column ride ONE answer (ADR 0014). Unasked they ride
+    /// absent (serde skip), so a `recipe N` line keeps its bytes PUT (the
+    /// pinned-pair discipline); money rides ONLY a complete total (ADR 0015).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost_copper: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost_money: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cost_missing: Option<i64>,
 }
 
 /// Stage 2 write: one detail record. `raw_json` keeps the verbatim payload so a future
