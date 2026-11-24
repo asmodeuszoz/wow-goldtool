@@ -117,9 +117,83 @@ GUI rows stay AS HISTORY at v0.7.0), ADR 0018 **GROWN** (SEVEN activities → SI
 SIX, `button.tab[data-tab]` SIX, `section[data-tab]` SEVEN, `data-tab=` 15 → 13 — the dead button and its dead section
 carried ONE each; the window machinery `open_pip`/`close_pip` stayed PUT). The record rides **ADR 0034**.
 
-**Post-tag (FORWARD, never chased here):** the fold re-measures on the PUSHED tree with FRESH ports/processes/DBs
-(mirror + map + pinned pair + the CI parse + the read-only user census + the UI re-measures) and lands as this era's
-FOLD record; the fold's OWN push starts the run measured in the NEXT era's record (ADR 0011's ladder).
+**FOLDED — measured post-tag on the PUSHED tree at `d37866d`** (all FRESH ports/processes/DBs: **9944** mirror
+· **9985** map with a DEAD port **9986** nothing binds · **9996** pinned pair · plus the fold's OWN THIRD mirror
+reading **9998**; the real host saw NOTHING, the user's file read read-only and NEVER opened by a binary):
+
+- **The era's OWN chain+tag run measured: `45509597320` SUCCESS, 5/5 jobs green in 8 min 3 s** (23:23:44Z →
+  23:31:47Z, run **#58**, attempt 1, exactly ONE run id, no CANCELLED sibling, head `d37866d` = this record =
+  the tag's target — verified through the remote's OWN `^{}` line: tag-obj `9d1baeda…` payload 8 771 B → `d37866d`).
+  Per-job closes as GitHub reports them: quality 23:25:56Z · macos 23:28:32Z · linux 23:30:43Z · windows 23:31:39Z
+  · **the `test` job CLOSED the run at 23:31:47Z** — the SECOND test-closed run in the measured chain (after the
+  v0.18.0 fold's run #57): where jobs land is a SCHEDULING fact on GitHub's side, said so, never a tree fact;
+  Ubuntu-libs `apt-get` executed 3 (quality / test / linux) · SKIPPED 2 (macos / windows); the `test` job's smoke
+  step pressed EXACTLY **52 `cargo run --` step-lines** — the era moved ZERO CI line, and the run's OWN verb census
+  says so: `sync` 15 · `recipes` 8 · `recipe` 6 · `search` 7 · `item` 3 · **`live-search` 3** · `refresh-twins` 3
+  · `stats` 2 · `add-item`/`delete-item`/`set-item`/`undelete-item`/`watch` 1 each = 52 — the THREE live-search
+  steps named `sword` / `"Worn Shortsword"` / `tooltip` (×3 census) rode PUT into the era's OWN run, so the door's
+  pacing proof rode the SAME THREE lines through the tab's death AND through this run; GitHub's OWN lint step reads
+  **0 errors / 871 `-->` arrows to `src/`** with its generated summary answering **871 warnings** (860 duplicates on
+  the test-target shape · 11 on the bin shape) on the FRESH all-targets compile while warm local on the SAME pushed
+  tree answers **0 errors / 824 advice (823 arrows→src)** — the heads ride the fresh compile, the advice SET stayed
+  **824** PUT, which IS the claim of an era that moved ZERO Rust line; the FOUR build jobs + quality's Build dev/release
+  steps printed **ZERO named warnings** — the whole run's ONLY `warning:` lines are the Lint job's own advice, the
+  set of ZERO stayed ZERO on GitHub's own toolchains.
+- **Post-tag mirror, TWO windows (9944 + the fold's own 9998): 53 commands rc `0`, ZERO NONZERO on BOTH** (52 step-lines
+  + plant one, the driver's OWN parse of the committed block, EXECs the already-built binary so NO compile is ever
+  in flight during an audit), and the fixture's OWN tallies end where the crawl left them — **51 GETs / 17 recipe-file
+  GETs, ZERO ADDED, on BOTH windows** — with the SAME category census on both: detail 18 · icons 5 · tooltip 8 ·
+  **`/search/` live-search 3** · recipe files 17 = 51. The door is ALIVE and was asked THREE times, ZERO DB written;
+  the unchanged tally on a THIRD window IS the locality proof re-confirmed (ADR 0012's local-door rule).
+- **Post-tag exit map (9985, fresh seed DB + a SECOND DB born WITHOUT the recipes stage + DEAD port 9986):
+  41 doors at rc `0`×25 · `2`×5 · `4`×11 — the SAME totals** the v0.17.0/v0.18.0 maps and this era's pre-tag map carried.
+  The door's OWN doors rode PUT again: bare `live-search` → **2** with its OWN usage words (`live-search wants text,
+  for example: live-search Worn Shortsword` at 64 B on STDERR, stdout 0 B), `live-search tooltip` → **0** at 1 290 B
+  (the NAMES-only empty-groups answer, its no-chase note riding STDERR — ADR 0009's third state), grounded
+  `live-search sword --fixture` → **0** at 1 017 B. **The card door's pair measured on BOTH halves:** `recipe 132`
+  == `recipe 132 --fixture <DEAD>` at **2 122 == 2 122 B** (md5 `21bc3ab9` on BOTH), and over the EMPTY DB the
+  dead-host ask answers the SAME no-row refusal at **108 == 108 B** — ADR 0014's pair rule kept on the rc-`0` half
+  AND on the rc-`4` half. Refusal/usage words measured whole (STDERR, stdout 0 B): `recipe` 48 B · `recipe abc` 40 B
+  · `recipe 132 --fixtures` 51 B `unknown flag --fixtures (run help to see the verbs)` · `recipe-suggest 132` 55 B
+  `unknown verb recipe-suggest (run help to see the verbs)` · rc-`4` words 111 B on `999999` · 108 B on `132` over
+  EMPTY · 103 B `the recipe table holds no rows (for this filter): run sync --stage recipes to pull the files` · 78 B
+  `item 999999 has no stored copy: fetch it with sync --stage detail --ids 999999`. Through-rides BYTE-EQUAL:
+  `search sword --costs` == `--learned` == `search sword` at **188 == 188 B**, card `recipe 637 --learned` == `recipe
+  637` at **1 507 == 1 507 B**; ZERO rc moved ANYWHERE.
+- **Post-tag pinned pair (9996, the v0.18.0 worktree @ TAGGED `70d2f20` REBUILT vs the new tree, ONE fresh fixture
+  process + ONE fresh DB): 28/28 doors BYTE-IDENTICAL, ZERO DELTAs** + **13/13 md5-equal** through BOTH binaries over
+  the user's file's doors — md5s PUT, identical to the era's pre-tag window (`stats` be44e700 · `stats --icons` 656f0f3c
+  · `stats --limit 3` ce12af50 · `item 25 --cached` 82e349c1 · `item 40` b16828b5 · `item 12809 --cached` ac1e452f ·
+  `status` b80d8abb · `watch list` 02b3e228 · `refresh-twins` 77088fd7 · `search sword --where description` 2b7ebedb
+  · Blacksmithing c1fe9d13 · `recipe 132 --icons` d41d8cd9 (rc `4`, the message rides STDERR) · `recipe 638` d41d8cd9
+  (rc `4`)). Grown argv BYTE-EQUAL vs the PINNED binary: `recipes --icons --costs --learned` **47 433 == 47 433 B** ·
+  `recipe 637 --learned` **1 507 == 1 507 B** · `recipe 467 --learned --costs` **1 274 == 1 274 B** — **NO pinned
+  refusal this era**, the flag was BORN at v0.18.0, so the pinned frame HAS it; this era's BEFORE witness is the UI
+  census (the pinned frame carries the SEVEN tab ids + 15 `data-tab` attrs + SEVEN nameplates, the new tree ZERO + 13 + SIX).
+- **The user's file UNCHANGED, read read-only** (`sqlite3 -readonly`, NEVER written, NEVER crawled, NEVER opened
+  by a binary — the ORIGINAL's size **44 023 808** + mtime-ns verified IDENTICAL before and after; BOTH binaries
+  pressed their OWN fresh identical `cp` byte-copy, said so because `refresh-twins` WRITES twins and a shared copy
+  could mutate what the second binary reads): schema `8` · 19 258 items · **0** deleted · 4 602 copies / 14 656 without
+  · 1 240 recipe rows / 1 240 DISTINCT spell ids · `learned_json` **1 240 NOTNULL / 0 NULL** · kinds `schematic_item`
+  804 / `trainer` 413 / `automatic` 23 NONE silent · 804 name a scroll id · **747** ALIVE rows · **477** carry the
+  scroll's OWN copy · **0 of 477** carry a vendor/zone word — the honest zero RE-CONFIRMED on the pushed tree, the
+  tab's death changed NOTHING about it · watch 134 · `price_min_now` 4 344 + 258 checked-price-less · `vendor_buy` 0 · trend 0.
+- **UI re-measures on the pushed tree (parse/grep ONLY — the webview NEVER renders in the build room, the DOM is
+  NEVER WITNESSED, the launch-audit rule):** `node --check` PARSE OK; the SEVEN ids (`tab-live`/`live-card`/`live-fields`/
+  `live-text`/`btn-live`/`live-hits`/`live-note`) + the TEN JS refs + `runLive` answer ZERO in BOTH UI files;
+  `data-tab=` 13; `class="tab` 7 lines = SIX nameplate buttons + the strip's own `nav class="tabs"` line; ZERO `#live`
+  CSS rules and `.live` STILL ×7; the live-PRICE family PUT (`live_cell` ×5 · `live_shown` ×8 · `live-missing` ×1 ·
+  `live-none` ×1). **CI parse on the pushed tree STILL 52 step-lines + plant one PUT**, the THREE `live-search` step-lines
+  rode PUT, ZERO `ci.yml` line moved by the era OR by the fold.
+- **Remote tag census (measured after the push): 70 tag lines · 35 tags, ZERO moved** — `v0.19.0^{}` → `d37866d` (this
+  record), `v0.19.0` → tag-obj `9d1baeda…` (payload 8 771 B, never edited), `v0.18.0^{}` → `70d2f20` PUT, `v0.17.0^{}`
+  → `473a63f` PUT, `v0.14.0^{}` → `c065815` PUT, older anchors ride where they were; `refs/heads/main` = `d37866d`.
+- **Measured defects: ZERO.** Notes (said so, NOT defects): no-argv `[]` LAUNCHES the GUI — never a CLI audit shape;
+  bare `search` answers rc `0` (the empty word is legal); an unwatched `watch drop` answers rc `0` (idempotent);
+  the refusal messages ride STDERR while stdout stays 0 B (the rc is the claim, ADR 0011's split rule).
+
+**The fold's OWN push starts the run the NEXT era measures (ADR 0011's ladder) — never chased here; ZERO Rust line,
+ZERO `tests/` line, ZERO `ci.yml` line, ZERO schema line and ZERO CSS rule moved in the fold.**
 
 ---
 ## 2026-11-24 · v0.18.0 — the RECIPES tab grows a LEARNED-FROM column: ONE `--learned` flag on the LIST door reaches the stored `learned_json` for the FIRST time THROUGH the card door's OWN machinery (same decode, same error WORDS, same by-key helpers), the ONE fact this DB owns (`learned_scroll_seen`) rides the crafted join's OWN live reader (tombstone guard included), and the honest zero is SAID not papered over: 0 of 477 copied scroll tooltips carry a vendor/zone word, this DB owns no vendor places, so "where to get it" goes exactly as far as the SET's `acquisition` word says

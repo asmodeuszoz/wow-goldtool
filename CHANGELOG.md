@@ -56,7 +56,53 @@ ONLY (`node --check` PARSE OK, the DOM NEVER WITNESSED); measured defects ZERO. 
 the v0.18.0 FOLD push's own run **45470757073 SUCCESS** 5/5 in **6 min 59 s** (run #57, attempt 1, ONE run id, head
 `026d311` = that fold commit — the `test` job CLOSED it at 19:36:30Z, the FIRST test-closed run in the measured chain;
 its own log pressed exactly 52 `cargo run --` steps INCLUDING the THREE live-search steps, the door riding PUT through
-that fold; lint 0 errors / 873 heads vs 824 warm local on this tree, build jobs ZERO named warnings).
+that fold; lint 0 errors / 873 heads vs 824 warm local on this tree, build jobs ZERO named warnings). · **FOLDED post-tag
+on the PUSHED tree at `d37866d`** (fresh 9944 / 9985 with a DEAD port 9986 / 9996 + the fold's OWN THIRD mirror reading
+9998, fresh processes/DBs, the real host saw NOTHING, the user's file read read-only and NEVER opened by a binary): the
+era's OWN chain+tag run reads **45509597320 SUCCESS** 5/5 in **8 min 3 s** (run #58, attempt 1, ONE run id, NO CANCELLED
+sibling — 23:23:44Z → 23:31:47Z, head `d37866d` = this record = the tag's target, verified through the remote's OWN `^{}`
+line: tag-obj `9d1baeda…` payload 8 771 B → `d37866d`); quality closed 23:25:56Z · macos 23:28:32Z · linux 23:30:43Z ·
+windows 23:31:39Z · **the `test` job CLOSED the run at 23:31:47Z** — the SECOND test-closed run in the measured chain, a
+scheduling fact on GitHub's side said so; Ubuntu-libs apt executed 3 quality/test/linux · SKIPPED 2 macos/windows; the
+`test` job pressed EXACTLY **52 `cargo run --` step-lines** (the era moved ZERO CI line — the run's OWN verb census:
+`sync` 15 · `recipes` 8 · `recipe` 6 · `search` 7 · `item` 3 · **`live-search` 3** · `refresh-twins` 3 · `stats` 2 ·
+`add-item`/`delete-item`/`set-item`/`undelete-item`/`watch` 1 each), the THREE live-search steps named `sword` / `"Worn
+Shortsword"` / `tooltip` (×3 census) riding PUT into the era's OWN run; GitHub's OWN lint step reads **0 errors / 871
+`-->` arrows to `src/`** with its generated summary answering **871 warnings** (860 duplicates on the test-target shape ·
+11 on the bin shape) on the FRESH all-targets compile vs **0 errors / 824 advice (823 arrows→src)** warm local on the
+pushed tree — heads ride the fresh compile, the advice SET stayed **824** PUT, which IS the ZERO-Rust claim; the FOUR
+build jobs + quality's Build dev/release steps printed **ZERO named warnings** — the run's ONLY `warning:` lines are the
+Lint job's own advice, the set of ZERO stayed ZERO on GitHub's own toolchains. Post-tag mirror **53/53 rc `0`, ZERO NONZERO
+on TWO windows** (9944 + 9998) with the fixture's OWN tallies PUT at **51 GETs / 17 recipe-file GETs, ZERO ADDED, on BOTH**
+and the SAME category census on both (detail 18 · icons 5 · tooltip 8 · **live-search `/search/` 3** · recipe files 17 = 51)
+— the door ALIVE on THREE asks, ZERO DB written, the unchanged tally on a THIRD window IS the locality proof re-confirmed.
+Exit map **SAME 41-door totals `0`×25 · `2`×5 · `4`×11** (9985): the door's OWN doors rode PUT again (bare `live-search` rc
+`2`, its usage words at 64 B on STDERR and stdout 0 B · `live-search tooltip` rc `0` at 1 290 B, the NAMES-only empty-groups
+answer with its own no-chase note on STDERR · grounded `live-search sword --fixture` rc `0` at 1 017 B), the CARD door's pair
+measured on BOTH halves (`recipe 132` == `--fixture <DEAD 9986>` at **2 122 == 2 122 B**, md5 `21bc3ab9` on both; over the
+EMPTY DB the dead-host ask answers the SAME no-row refusal at **108 == 108 B**), through-rides BYTE-EQUAL (`search sword --costs`
+== `--learned` == itself **188 == 188 B**, card `recipe 637 --learned` == `recipe 637` at **1 507 == 1 507 B**), ZERO rc moved
+ANYWHERE; usage/refusal words measured whole on STDERR (48 B `recipe wants a spell id, for example: recipe 132` · 40 B
+`recipe wants a numeric spell id, got abc` · 51 B `unknown flag --fixtures (run help to see the verbs)` · 55 B `unknown verb
+recipe-suggest (run help to see the verbs)` · rc-`4` words 111 B on `999999` · 108 B on `132` over EMPTY · 103 B `the recipe
+table holds no rows (for this filter): run sync --stage recipes to pull the files` · 78 B `item 999999 has no stored copy:
+fetch it with sync --stage detail --ids 999999`). Pinned pair **AGAIN 28/28 BYTE-IDENTICAL + 13/13 md5-equal** (9996 vs the
+v0.18.0 frame @ TAGGED `70d2f20`, md5s PUT and identical to this era's pre-tag window: stats be44e700 · stats --icons 656f0f3c
+· stats --limit 3 ce12af50 · item 25 --cached 82e349c1 · item 40 b16828b5 · item 12809 --cached ac1e452f · status b80d8abb ·
+watch list 02b3e228 · refresh-twins 77088fd7 · search sword --where description 2b7ebedb · Blacksmithing c1fe9d13 · recipe 132
+--icons d41d8cd9 (rc `4`) · recipe 638 d41d8cd9 (rc `4`)) + grown argv BYTE-EQUAL 47 433 == 47 433 / 1 507 == 1 507 / 1 274 ==
+1 274 B; **NO pinned refusal this era** (the flag was BORN at v0.18.0, the pinned frame HAS it) — the BEFORE witness stays the
+UI census (pinned SEVEN ids / 15 attrs / SEVEN nameplates vs new ZERO / 13 / SIX). **Remote tags 70 lines · 35 tags, ZERO moved**
+(`v0.19.0^{}` → `d37866d` · `v0.19.0` → tag-obj `9d1baeda…` 8 771 B PUT · `v0.18.0^{}` → `70d2f20` PUT · `v0.17.0^{}` → `473a63f`
+PUT · `v0.14.0^{}` → `c065815` PUT, older anchors ride · `refs/heads/main` = `d37866d`). CI on the pushed tree: **52 step-lines
++ plant one PUT**, the THREE live-search step-lines rode PUT, ZERO `ci.yml` line moved by the era OR the fold. User file UNCHANGED
+read-only: schema 8 · 19 258 · 0 deleted · 4 602/14 656 · 1 240/1 240 · learned 1 240/0 · kinds 804/413/23 · 804 name a scroll ·
+747 ALIVE · 477 copies · **0 of 477** where-words (the honest zero RE-CONFIRMED) · watch 134 · 4 344 + 258 · 0/0. UI re-measures
+(parse/grep ONLY, DOM NEVER WITNESSED): PARSE OK · the SEVEN ids + TEN refs + `runLive` answer ZERO in BOTH files · `data-tab=` 13
+· SIX nameplate buttons (`class="tab` 7 lines = 6 + the strip's `nav class="tabs"`) · ZERO `#live` · `.live` STILL ×7 · live family
+PUT (`live_cell` ×5 / `live_shown` ×8 / `live-missing` ×1 / `live-none` ×1). Measured defects ZERO (notes: no-argv `[]` LAUNCHES
+the GUI · bare `search` rc 0, the empty word is legal · unwatched `watch drop` rc 0, idempotent · refusals ride STDERR with stdout
+0 B). The fold's OWN push starts the run the NEXT era measures (ADR 0011's ladder) — never chased here.
 
 ## v0.18.0 — the RECIPES tab grows a LEARNED-FROM column: ONE `--learned` flag makes the LIST door reach the stored `learned_json` for the FIRST time THROUGH the card door's OWN machinery, the SET's words carry the learn half + the DB's OWN rows carry the seen fact, and ZERO vendor names are INVENTED — the DB owns no vendor places (0 of 477 copied scroll tooltips name one) · 2026-11-24 · tag `v0.18.0`
 
