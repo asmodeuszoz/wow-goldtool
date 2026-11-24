@@ -306,9 +306,11 @@ async function runRecipes() {
   // N), never in the door: ADR 0022's rule says no `--limit` means the rest, measured -
   // the door answers ALL the fixture's 12 rows and ALL 1 240 of the fetched set, and a
   // bound at or above the matching count answers the SAME bytes, so a cap only HID rows.
-  // The tab asks the door's OWN argv, so a `cargo run -- recipes --icons` line shows the
-  // same rows (ADR 0014's one-code-path rule).
-  var argv = ["recipes", "--icons"];
+  // The tab asks the door's OWN argv, so a `cargo run -- recipes --icons --costs` line
+  // shows the same rows AND the same cost column (v0.17.0, ADR 0032: `--costs` here
+  // because the tab SHOWS the cost column - ADR 0014's one-code-path rule; the CLI
+  // WITHOUT the flag keeps its bytes PUT, the cost column is this tab's ask).
+  var argv = ["recipes", "--icons", "--costs"];
   if (profession !== "") { argv.push("--profession", profession); }
   try {
     var found = await cli_ok(argv);
@@ -319,7 +321,7 @@ async function runRecipes() {
       rows = rows + recipe_row(found.recipes[i]);
     }
     document.querySelector("#recipe-hits tbody").innerHTML = rows;
-    var note = "ALL " + num(found.matching) + " recipe rows this filter answers are shown \u2014 the tab asks the door WITHOUT a bound (ADR 0028: the cap lived in the tab, the door never had one; a bound at or above this count would answer the SAME bytes, so a cap only HID rows, and growing it was rejected on that measure): the job words, skill numbers and material LISTS are the FETCHED set's own (the Sync tab\u2019s Recipes button: 8 files, MIT second source, cited here): the API has no professions door and its recipe cards never name a job or materials (measured); icons and money beside the materials are YOUR DB\u2019S OWN \u2014 an item the DB never saw says so beside its dataset name, and an enchanting craft says it has NO crafted item at all; clicking a row\u2019s recipe name opens that entry\u2019s CARD (the local door, ZERO requests); the Watch button rides EVERY row shown, so it reaches the whole set\u2019s cooked items and the Details door then fetches exactly those records";
+    var note = "ALL " + num(found.matching) + " recipe rows this filter answers are shown \u2014 the tab asks the door WITHOUT a bound (ADR 0028: the cap lived in the tab, the door never had one; a bound at or above this count would answer the SAME bytes, so a cap only HID rows, and growing it was rejected on that measure): the job words, skill numbers and material LISTS are the FETCHED set's own (the Sync tab\u2019s Recipes button: 8 files, MIT second source, cited here): the API has no professions door and its recipe cards never name a job or materials (measured); icons and money beside the materials are YOUR DB\u2019S OWN \u2014 an item the DB never saw says so beside its dataset name, and an enchanting craft says it has NO crafted item at all; the TOTAL COST column sums the set\u2019s materials \u00d7 their stated counts over YOUR DB\u2019S LIVE price layer (the twin the price refresh writes \u2014 never the stored min, NEVER a second fetch): money answers ONLY a cost every material of the set can price, and an incomplete cost names HOW MANY materials have no live price, words beside the count and NEVER money beside it (ADR 0015/0032); clicking a row\u2019s recipe name opens that entry\u2019s CARD (the local door, ZERO requests); the Watch button rides EVERY row shown, so it reaches the whole set\u2019s cooked items and the Details door then fetches exactly those records";
     if (found.matching === 0) {
       note = "no recipe rows for this filter \u2014 the set is fetched by the Sync tab\u2019s Recipes button (or the CLI stage), read here ever after";
     }
@@ -408,6 +410,34 @@ function recipe_icon(b64, at, label) {
   return '<span class="noicon" title="no bytes: never fetched (or checked as gone upstream) \u2014 the icons stage copies the DB\u2019s OWN copy">\u25c7</span>';
 }
 
+// v0.17.0 (ADR 0032): ONE cost renderer for the tab's cost COLUMN and the
+// card's cost LINE (ADR 0014's rule: a column and a line cannot drift - and
+// the Rust side sums BOTH with ONE craft_cost over the SAME joined reagents).
+// The door filled the cost fields ONLY under `--costs` (serde skip); this tab
+// and this card both ask. `cost_copper` answers ONLY when EVERY material has
+// a live price (the DB's live layer, `price_min_now` - never the stored min):
+// money_cell then gives the money words + the EXACT copper on hover (ADR
+// 0015: money beside every copper number it labels). The three incomplete
+// states are COUNTS with words beside them and ZERO money beside them (ADR
+// 0015's other half; ADR 0004: never an invented zero - the 136 of 3 778
+// materials the fetched catalogue never listed ride as counts, honest).
+function cost_cell(one, mats) {
+  if (one.cost_copper !== null && one.cost_copper !== undefined) {
+    return money_cell(one.cost_money, one.cost_copper);
+  }
+  if (one.cost_missing === null || one.cost_missing === undefined) {
+    return chip_word("the door was not asked for the cost", "costchip");
+  }
+  if (!mats || mats.length === 0) {
+    return chip_word("nothing to cost - the set states no materials", "costchip");
+  }
+  var missing = one.cost_missing;
+  if (missing >= mats.length) {
+    return chip_word("no live prices yet - the price refresh must write them", "costchip");
+  }
+  return chip_word("cost incomplete - " + num(missing) + " of " + num(mats.length) + " materials have no live price", "costchip");
+}
+
 function recipe_row(one) {
   var skill = "";
   if (one.skill_required !== null && one.skill_required !== undefined) {
@@ -424,6 +454,7 @@ function recipe_row(one) {
     + '<td class="col-recipe"><button class="openrecipe" data-spell="' + esc(String(one.spell_id)) + '" type="button">' + esc(one.recipe_name || one.spell_id) + "</button></td>"
     + '<td class="col-skill">' + skill + tier + "</td>"
     + '<td class="col-mats">' + recipe_mats(one) + "</td>"
+    + '<td class="col-cost">' + cost_cell(one, one.reagents) + "</td>"
     + '<td class="col-cooked">' + recipe_crafted(one) + "</td>"
     + "</tr>";
 }
@@ -500,7 +531,10 @@ async function runRecipeCard(from_click) {
     return;
   }
   try {
-    var found = await cli_ok(["recipe", raw, "--icons"]);
+    // v0.17.0 (ADR 0032): the card ASKS --costs so its cost line has an answer -
+    // the SAME flag the tab rides; a `cargo run -- recipe N --icons --costs` line
+    // answers the SAME bytes (ADR 0014's one-code-path rule, restated at the card).
+    var found = await cli_ok(["recipe", raw, "--icons", "--costs"]);
     live_shown = false;
     show_recipe_card(found);
     var named = 0;
@@ -544,6 +578,9 @@ function show_recipe_card(found) {
     parts.push(card_cell(found.scroll, "teaches the spell"));
   }
   parts.push('<div class="rcardmats">' + recipe_mats({ "reagents": found.materials }) + "</div>");
+  // v0.17.0 (ADR 0032): the cost line rides the SAME cost_cell the tab's cost
+  // COLUMN calls (ONE renderer, ONE craft_cost behind BOTH doors - ADR 0014).
+  parts.push('<div class="rcardcost">' + cost_cell(found, found.materials) + "</div>");
   document.getElementById("recipe-card-box").innerHTML = parts.join("");
 }
 
