@@ -27,7 +27,7 @@ use std::env::set_var;
 /// What the CLI can answer. Keeping the list here means an unknown verb becomes a
 /// usage error that names what the user actually typed.
 pub fn usage_text() -> String {
-    return "usage: status | sync --stage list|detail|icons|tooltip|price|recipes [--budget N] [--ids A,B,C] [--watch] | search TEXT [--icons --where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id|price-now --limit N --offset N] | stats [--icons --limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | recipes [--profession NAME] [--limit N] [--offset N] [--costs] | recipe SPELL_ID [--icons] [--costs] | status [--db PATH] [--fixture URL]".to_string();
+    return "usage: status | sync --stage list|detail|icons|tooltip|price|recipes [--budget N] [--ids A,B,C] [--watch] | search TEXT [--icons --where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id|price-now --limit N --offset N] | stats [--icons --limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | recipes [--profession NAME] [--learned] [--limit N] [--offset N] [--costs] | recipe SPELL_ID [--icons] [--costs] | status [--db PATH] [--fixture URL]".to_string();
 }
 
 /// The verbs of one invocation plus its flags. Unknown flags are kept rather than
@@ -67,6 +67,14 @@ pub struct Invocation {
     /// stays byte-for-byte PUT (the pinned-pair discipline rides it), and the
     /// cost is DERIVED at answer time, NEVER a stored column (schema `5` PUT).
     pub costs: bool,
+    /// v0.18.0 (ADR 0033): ask the LIST door for WHERE a recipe is learned from -
+    /// the fetched set's OWN learned-from bytes (its `type` word, the scroll id +
+    /// the set's own scroll name) plus ONE fact from the item rows this DB owns:
+    /// whether a live row for the named scroll exists (747 of the user's 804
+    /// scroll ids do). The card door has answered this since v0.12.0 (ADR 0025)
+    /// and stays PUT; the flag rides parsed-and-ignored through the doors that
+    /// never asked, like `--icons` and `--costs`. Unasked bytes stay PUT.
+    pub learned: bool,
     pub bad: String,
 }
 
@@ -95,6 +103,7 @@ pub fn bare_flag(flag: String) -> bool {
     if flag == "--cached" { return true }
     if flag == "--icons" { return true }
     if flag == "--costs" { return true }
+    if flag == "--learned" { return true }
     return false;
 }
 
@@ -130,6 +139,7 @@ pub fn parse_invocation(args: Vec<String>) -> Invocation {
         icons: false,
         profession: None,
         costs: false,
+        learned: false,
         bad: "".to_string(),
     };
     let mut index: usize = 0;
@@ -142,6 +152,7 @@ pub fn parse_invocation(args: Vec<String>) -> Invocation {
                 if token == "--cached" { out.cached = true; }
                 if token == "--icons" { out.icons = true; }
                 if token == "--costs" { out.costs = true; }
+                if token == "--learned" { out.learned = true; }
                 index = index + 1;
                 continue;
             }
@@ -321,7 +332,7 @@ pub fn cmd_recipes(inv: &Invocation) -> AppResult<String> {
     if total == 0 {
         return Err(AppError::not_found("the recipe table holds no rows (for this filter): run sync --stage recipes to pull the files (ADR 0021)".to_string()));
     }
-    let rows: Vec<RecipeRow> = match recipes_rows(&conn, inv.profession.clone(), inv.icons, inv.costs, inv.limit, inv.offset) {
+    let rows: Vec<RecipeRow> = match recipes_rows(&conn, inv.profession.clone(), inv.icons, inv.costs, inv.learned, inv.limit, inv.offset) {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };

@@ -2417,7 +2417,7 @@ pub fn write_recipe(conn: &Connection, file_profession: String, entry: RecipeEnt
 /// entry's plain `acquisition` word (ADR 0021 records this). ORDER is honest
 /// NULLS-LAST (the pair rule every list door keeps): the skill of an
 /// unstated entry stays at the end of its profession, never at the top.
-pub const SQL_RECIPE_ROWS: &str = "SELECT spell_id, profession, recipe_name, crafted_item_id, crafted_item_name, skill_required, skill_tier, trivial_low, trivial_high, reagents_json, acquisition, acquisition_note, source FROM recipe ";
+pub const SQL_RECIPE_ROWS: &str = "SELECT spell_id, profession, recipe_name, crafted_item_id, crafted_item_name, skill_required, skill_tier, trivial_low, trivial_high, reagents_json, acquisition, acquisition_note, source, learned_json FROM recipe ";
 pub const SQL_RECIPE_COUNT: &str = "SELECT COUNT(1) FROM recipe ";
 pub const SQL_RECIPE_ORDER: &str = "ORDER BY profession ASC, (skill_required IS NULL) ASC, skill_required ASC, spell_id ASC";
 pub const SQL_LIVE_NAME_PRICE: &str = "SELECT name, price_min, price_min_now, price_now_at, price_now_missing_at FROM item WHERE id = ? AND deleted_at IS NULL";
@@ -2488,6 +2488,23 @@ pub struct RecipeRow {
     pub cost_money: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub cost_missing: Option<i64>,
+    /// v0.18.0 (ADR 0033): WHERE a recipe is learned from - the fetched set's
+    /// OWN learned-from object read BY KEY (its `type` word, the scroll id and
+    /// the set's own scroll name) plus ONE fact from the item rows this DB owns:
+    /// whether a LIVE row for the named scroll exists (`learned_scroll_seen`,
+    /// read through the SAME `live_name_price_of` the crafted join rides, tombstone
+    /// guard included - 747 of the user's 804 scroll ids have a row; the seen
+    /// fact keeps "the set names a scroll" APART from "this DB never saw it",
+    /// ADR 0004/0016's two-NULLs-apart rule restated). Unasked (`--learned` off)
+    /// every field rides serde's skip so the answer keeps its bytes EXACTLY.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub learned_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub learned_scroll_id: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub learned_scroll_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub learned_scroll_seen: Option<bool>,
 }
 
 /// The door's raw pass (v0.10.0): the fetched rows as stored, plus the reagent
@@ -2509,6 +2526,11 @@ pub struct RawRecipe {
     pub acquisition: Option<String>,
     pub acquisition_note: Option<String>,
     pub source: Option<String>,
+    /// v0.18.0 (ADR 0033): the learned-from bytes ride the raw pass so the list
+    /// door can read them AFTER the row is in hand (the collect-then-join order
+    /// every join on this door follows); parsed ONLY when asked `--learned`, and
+    /// the bytes themselves never answer - the answer fields below are derived.
+    pub learned_json: Option<String>,
 }
 
 /// One live item answer beside an id the recipe rows name: None = the DB never
@@ -2690,7 +2712,7 @@ pub fn craft_cost(reagents: Vec<RecipeReagent>) -> CostTally {
 /// v0.17.0 (ADR 0032): `costs` asks the door to fill each row's cost tallies
 /// through the ONE `craft_cost` helper the card door shares; unasked the row
 /// JSON keeps the bytes it answered since v0.10.0 (serde skip on three fields).
-pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: bool, costs: bool, limit: Option<i64>, offset: Option<i64>) -> AppResult<Vec<RecipeRow>> {
+pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: bool, costs: bool, learned: bool, limit: Option<i64>, offset: Option<i64>) -> AppResult<Vec<RecipeRow>> {
     let filter_part: String = match profession {
         None => "".to_string(),
         Some(_) => "WHERE profession = ? ".to_string(),
@@ -2725,6 +2747,7 @@ pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: b
             acquisition: row.get(10)?,
             acquisition_note: row.get(11)?,
             source: row.get(12)?,
+            learned_json: row.get(13)?,
         })
     ) {
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
@@ -2765,6 +2788,10 @@ pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: b
                     cost_copper: None,
                     cost_money: None,
                     cost_missing: None,
+                    learned_type: None,
+                    learned_scroll_id: None,
+                    learned_scroll_name: None,
+                    learned_scroll_seen: None,
                 };
                 for one in reagents.clone() {
                     let joined: RecipeReagent = match join_recipe_reagent(conn, one.clone(), with_icons) {
@@ -2780,6 +2807,45 @@ pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: b
                         row.cost_copper = tally.cost_copper.clone();
                         row.cost_money = tally.cost_money.clone();
                         row.cost_missing = tally.cost_missing.clone();
+                    },
+                }
+                match learned {
+                    false => {},
+                    true => {
+                        // v0.18.0 (ADR 0033): the SAME read the card door has done
+                        // since v0.12.0 (ADR 0025) - same `from_str` decode shape, same
+                        // `word_at`/`id_at` by-key helpers, same decode error WORDS - so
+                        // the tab column and the card block cannot drift about one row
+                        // (ADR 0014's one-code-path rule, restated at the learned facts).
+                        let whole: Option<serde_json::Value> = match raw.learned_json.clone() {
+                            None => None,
+                            Some(blob) => match from_str(&blob.clone()) {
+                                Err(problem) => return Err(AppError::decode(format!("stored learned_from of recipe {} is not the object the writer described: {}", raw.spell_id, problem))),
+                                Ok(found) => Some(found),
+                            },
+                        };
+                        match whole {
+                            None => {},
+                            Some(object) => {
+                                row.learned_type = word_at(object.clone(), "type".to_string());
+                                row.learned_scroll_id = id_at(object.clone(), "item_id".to_string());
+                                row.learned_scroll_name = word_at(object.clone(), "item_name".to_string());
+                            },
+                        }
+                        match row.learned_scroll_id.clone() {
+                            None => {},
+                            Some(id) => {
+                                // ONE local read, no request, no second shape: the SAME
+                                // live reader the crafted-item join on this very door rides
+                                // (SQL_LIVE_NAME_PRICE, tombstone guard included) answers
+                                // whether a live row for the named scroll exists here.
+                                let seen: Option<LiveNamePrice> = match live_name_price_of(conn, id) {
+                                    Err(problem) => return Err(problem),
+                                    Ok(value) => value,
+                                };
+                                row.learned_scroll_seen = Some(match seen { None => false, Some(_) => true });
+                            },
+                        }
                     },
                 }
                 match raw.crafted_item_id.clone() {
