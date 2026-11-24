@@ -131,3 +131,16 @@ live-search "zzzqqqnothere"     -> 200, all six groups EMPTY, exit 0
 | GUI launch audit (the shipped page) | boot stays four verbs, nothing crawls | `status, watch, stats, status` and NO `live-search` line — the panel moves only on its own button; DB `0` items, `0` samples, empty `sync_state` |
 | GUI live probe (temporary, reverted) | the panel's ask reaches the SAME ipc door | a 5th line `gui: ipc verb live-search (1 words)`; probe then reverted and rebuilt, and the clean four-verb boot re-audited |
 | the user's own DB | never written by any of this | audited read-only; hash `7442814b…c3d3b8` and mtime `2026-11-19 21:42:54` identical before and after every audit |
+
+**RIDDEN AT v0.19.0 ([ADR 0034](./0034-the-live-look-tab-dies-and-the-live-search-door-rides-put.md)):** the
+DOOR's promise — one human ask, ONE request, upstream's own answer, ZERO DB written — rode PUT word-for-word
+while the PANEL this file's "Related" line named (`ui/index.html` + `ui/app.js`, the live-search panel) DIED:
+the tab's nameplate, its card section, `runLive` and its delegated handler died in ONE commit (the ask named
+the TAB, "we don't need that tab, lets get rid of it"). The door stays a shell contract: the verb, its usage
+entry `live-search TEXT`, `cmd_live_search`, its exit trio and the CI block's THREE door witnesses moved ZERO
+lines, re-measured in that era (fresh ports 9943/9983): the mirror's fixture tally stayed PUT at **51 GETs /
+17 recipe-file GETs** with the live-search category answering **3**, and the map kept the door's own doors
+(bare `live-search` → **2** on its OWN usage words, `live-search sword --fixture` → **0** at 1 017 B) inside
+its **41-door `0`×25 · `2`×5 · `4`×11** totals. This file's audit table stays AS HISTORY at v0.7.0 — its GUI
+rows (the four-verb boot, the reverted live probe) describe a page that existed then and answers nothing now;
+the era's own audit is ADR 0034's.

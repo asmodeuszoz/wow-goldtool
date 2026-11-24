@@ -5,6 +5,123 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-24 · v0.19.0 — the LIVE LOOK tab DIES: its button, its card, its `runLive` and its handler die in ONE commit (a HALF-dead tab is a LIE), and the live-search DOOR behind it rides PUT word-for-word — SIX activity tabs, ZERO Rust line, ZERO CSS rule, ZERO CI step, ZERO request rule
+
+**The ask (verbatim, typos kept):** "we don't need that tab, lets get rid of it"
+
+**The census BEFORE one line moved** (grep off the tree at the v0.18.0 record): the tab is FOUR halves —
+the strip's nameplate button (`<button class="tab" id="tab-live" data-tab="live">Live look</button>`,
+`index.html:38`), its card section (`live-card` h2 + `live-text` field + `btn-live` + `live-hits` table +
+`live-note`, lines 259–276 = 18 CONTIGUOUS lines), the `runLive` function WITH its OWN comment block
+(`app.js:1391–1446` = 56 lines) and its delegated handler (`app.js:1493`). Ids: SEVEN (`tab-live`/`live-card`/`live-fields`/`live-text`/`btn-live`/`live-hits`/`live-note`) ×1 each in `index.html` (304 lines), TEN JS refs (`btn-live` ×5 + `live-note` ×3 + `live-hits`/`live-text` ×1) + `runLive` ×2 in `app.js` (1 545); `data-tab=` ×15 (7 buttons + 8 sections); SEVEN nameplates (6 `class="tab"` + Overview's `tab tab-on`).
+**ZERO of those ids exists in `src/`** — Rust names the DOOR (`cmd_live_search`, `join_tail`, `search_url`) and the SEPARATE live-PRICE family (`live_*`), and the CSS answers **ZERO `#live`-id rules**: the card drew only SHARED classes (`table.mini hitstable` / `.card wide` / `.field` / `.act` / `.source`), so ZERO look-rule could die with the card.
+
+**The decision (ADR 0034, census + SEVEN rejects):** the tab dies COMPLETE in ONE commit — a HALF-dead tab
+is a lie: a nameplate to a section `show_tab`'s ONE truth (ADR 0018) can never turn on, 18 lines of dead DOM
+that show NOTHING forever, a handler over ids that no longer exist THROWS on click. SIX activity tabs answer
+the strip now (Overview / Search / Sync / Writes / Recipes / Analytics). **The door is NOT the tab and the ask
+named the tab:** `live-search TEXT` rides PUT word-for-word — verb name, usage entry, `cmd_live_search` body,
+its exit trio `0`/`2`/`3`, and the CI block's THREE door witnesses moved ZERO lines; ADR 0009's one-ask-one-request
+proof and docs/API.md's audit ride those lines (the door is the ONLY green CI line that reaches the grouped
+search endpoint, so it IS the pacing proof). The card window's `Re-check online` button (a DIFFERENT door —
+`btn-card-live`) already answers the live re-check of a record the tab showed, so nothing needed re-aiming.
+
+**The chain (ONE logical change per commit, build rc `0` naming ZERO at every one):**
+1. `feat(ui) 8cf537b` — the FOUR halves die TOGETHER (TWO UI files, 76 del: `index.html` 304 → 285 = button
+   1 + section 18, `app.js` 1 545 → 1 488 = comment 8 + `runLive` 48 + handler 1; `node --check` PARSE OK;
+   the SEVEN ids + TEN refs → ZERO each; cargo rc 0 naming ZERO)
+2. `chore ebc49ed` — banner `0.18.0 → 0.19.0` (a FEATURE era moves it; `Cargo.lock`'s OWN line SAME commit;
+   ZERO Rust line in this commit, the code landed EARLIER — ADR 0014's chain rule)
+3. this record + annotated tag `v0.19.0`
+
+**The premise of the ask, kept honest:** the live layer and the live LOOK are DIFFERENT words. ADR 0023's
+trio stays PUT and SEPARATE — census AFTER the removal: `live_cell` ×5 / `live_shown` ×8 / `live-missing` ×1 /
+`live-none` ×1 in `app.js`, `.live` ×7 and STILL ZERO `#live` id rules in `app.css`; `btn-price` ("Price: live
+refresh") and the card window's `btn-card-live` ("Re-check online") rode PUT (index.html 3 hits / app.js 9).
+A dead look tab says NOTHING about the live price layer, and ADR 0015's money contract rode PUT.
+
+**Pre-tag witnesses (fresh ports 9943 / 9983 / 9995, fresh processes/DBs, the real host saw NOTHING, the
+user's file read read-only):**
+- **mirror of the LANDED block (9943, the driver's OWN parse of the committed block — 52 step-lines + plant one,
+  EXECs the already-built binary, no compile in flight):** **53 commands rc `0`, ZERO NONZERO**, and the fixture's
+  OWN tallies end where the crawl left them — **51 GETs / 17 recipe-file GETs, ZERO ADDED** — with the category
+  census naming the door ALIVE: detail 18 · icons 5 · tooltip 8 · **`/search/` live-search 3** · recipe files 17
+  = 51. The THREE live-search steps answered, so the door's pacing proof rode PUT through the tab's death (the
+  tab was never the door).
+- **exit map (9983 — fresh seed DB + a SECOND DB whose recipe table is genuinely EMPTY (the same window without
+  the recipes stage) + a DEAD port 9984 nothing binds):** **41 doors at `0`×25 · `2`×5 · `4`×11 — the SAME totals
+  the v0.17.0 and v0.18.0 maps carried.** The driver states its OWN composition (the earlier eras' map drivers
+  were gone from `/tmp/opencode`, so the census is AUTHORED here, not remembered): BASE 31 = 19 rc-`0` (the nine
+  card doors + `recipe 132 extra` + `recipe 132 --fixture <DEAD>` + v0.14.0's seven recipes shapes + ONE grounded
+  `live-search sword --fixture` ask at 1 017 B) · FIVE rc-`2` (bare `live-search` on its OWN usage words + `recipe`
+  usage + `recipe abc` + the `--fixtures` typo + `recipe-suggest 132` unknown verb) · SEVEN rc-`4` (`recipe 999999`
+  bare/`--icons` + `recipe 132` bare/`--icons`/`--fixture <DEAD>` over the EMPTY DB + `recipes` over the EMPTY table
+  + `item 999999 --cached`) + the FIVE `--costs` (`0`×3: `recipes --costs --limit 3` 3 433 B / `recipe 467 --costs`
+  1 274 B / `search sword --costs`; `4`×2: `recipe 999999 --costs`, `recipes --costs` over the EMPTY table) + the
+  FIVE `--learned` (`0`×3: `recipes --learned --limit 3` 3 568 B / `recipe 637 --learned` 1 507 B / `search sword
+  --learned`; `4`×2 same shapes) — through-rides BYTE-EQUAL `search sword --costs` == `--learned` == itself **188
+  == 188 B** and card `recipe 637 --learned` == `recipe 637` **1 507 == 1 507 B**; ZERO rc moved ANYWHERE (the
+  refusal messages ride STDERR, the rc is the claim).
+- **pinned pair (9995, the v0.18.0 worktree @ TAGGED `70d2f20` REBUILT vs the new tree, ONE fresh fixture process
+  + ONE fresh DB):** **28/28 doors BYTE-IDENTICAL, ZERO DELTAs** (the nine card doors, the recipes doors in BOTH
+  shapes, `status`/`stats`×3, `item 25/40/12809 --cached`, the search doors, `watch list`) — the doors answered
+  identical bytes across a death of ZERO Rust line. Plus **13/13 md5-equal** through BOTH binaries over the user's
+  own file's DOORS: `stats` `be44e700` · `stats --icons` `656f0f3c` · `stats --limit 3` `ce12af50` · `item 25 --cached`
+  `82e349c1` · `item 40` `b16828b5` · `item 12809 --cached` `ac1e452f` · `status` `b80d8abb` · `watch list` `02b3e228`
+  · `refresh-twins` `77088fd7` · `search sword --where description` `2b7ebedb` · Blacksmithing `c1fe9d13` · `recipe 132
+  --icons` `d41d8cd9` (rc `4`, the message rides STDERR) · `recipe 638` `d41d8cd9` (rc `4`). Mechanism said honestly:
+  **this era never opened the ORIGINAL with a binary** — BOTH binaries pressed a `cp` byte-copy in its OWN fresh
+  directory (`refresh-twins` writes twins, so a shared copy could mutate what the SECOND binary reads), and the
+  original's size **44 023 808** + mtime-ns verified IDENTICAL before and after. Grown argv THROUGH-RIDES vs the PINNED
+  binary: `recipes --icons --costs --learned` **47 433 == 47 433 B** / `recipe 637 --learned` **1 507 == 1 507 B** /
+  `recipe 467 --learned --costs` **1 274 == 1 274 B** — **NO pinned refusal THIS era**: `--learned` was BORN at v0.18.0,
+  so the pinned binary HAS it; this era's BEFORE witness is the UI census instead (the pinned frame carries the SEVEN
+  tab ids + 15 `data-tab` attrs + SEVEN nameplates, the new tree ZERO + 13 + SIX).
+- **UI launch witnesses (parse/grep ONLY — the webview NEVER renders in the build room, the DOM is NEVER WITNESSED):**
+  `node --check` PARSE OK; the SEVEN ids + TEN refs + `runLive` answer ZERO in BOTH files; `data-tab=` 13 (6 buttons +
+  7 sections); SIX nameplates (5 `class="tab"` + Overview's `tab tab-on`); ZERO `#live` CSS rules and `.live` STILL ×7;
+  era diff **FOUR files / 2 ins / 78 del** with ZERO `src/` / ZERO `tests/` / ZERO `.github/workflows/` line.
+- **CI census (parse, not the naive grep):** STILL **52 `cargo run --` step-lines + plant one PUT**, the THREE
+  live-search step-lines rode PUT, ZERO `ci.yml` line moved by this era (ADR 0011: the door is alive, its witnesses stay
+  needed).
+- **gates:** `cargo build` rc `0` naming ZERO at every commit — the incremental hard-link line is the FS-artifact class
+  (this repo sits on a file system without hard links), NEVER a NAMED warning; `cargo clippy --all-targets` **0 errors /
+  824 advice PUT** (823 `-->` arrows to `src/`) — the SET did NOT move, which IS the claim of a ZERO-Rust era, the `-D
+  warnings` gate STAYS OFF (ADR 0011's expected-set rule rides only where a truth of ZERO holds — the truth of ZERO HERE
+  is the NAMED build-warning set, which stayed ZERO).
+- **user file UNCHANGED (`sqlite3 -readonly`, NEVER written, NEVER crawled):** schema `8` · 19 258 items · 0 deleted ·
+  4 602 copies / 14 656 without · 1 240 recipe rows / 1 240 DISTINCT spell ids · learned 1 240 NOTNULL / 0 NULL · kinds
+  `schematic_item` 804 / `trainer` 413 / `automatic` 23 NONE silent · 804 name a scroll id · **747** have an ALIVE row ·
+  **477** carry the scroll's OWN copy · **0 of 477** carry a vendor/zone word — the honest zero RE-CONFIRMED, the tab's
+  death changed NOTHING about it · watch 134 · `price_min_now` 4 344 + 258 checked-price-less · `vendor_buy` 0 · trend 0.
+- **measured defects: ZERO.** Notes (said so, NOT defects): no-argv `[]` LAUNCHES the GUI (never a CLI audit shape);
+  bare `search` answers rc `0` (the empty word is legal); an unwatched `watch drop` answers rc `0` (idempotent) — the
+  map rode TRUE usage/refusal doors for those slots (bare `live-search` rc `2`, `undelete-item 25` rc `4`).
+
+**Ladder row this era owes and MEASURED (ADR 0011):** the v0.18.0 FOLD push's own run (head `026d311` = that fold
+commit) reads **45470757073 SUCCESS**, 5/5 jobs green in **6 min 59 s** (19:29:32Z → 19:36:31Z, run **#57**, attempt
+1, exactly ONE run id, no CANCELLED sibling; per-job closes as GitHub reports them: quality 19:31:53Z · macos 19:32:06Z
+· linux 19:34:49Z · windows 19:35:58Z · **the `test` job CLOSED the run at 19:36:30Z — the FIRST test-job-closed run in
+the measured chain**, a scheduling fact said so, not a tree fact; Ubuntu-libs `apt-get` executed 3 quality/test/linux ·
+SKIPPED 2 macos/windows; the `test` job pressed EXACTLY **52 `cargo run --` steps** — the FOLDED v0.18.0 block, and its
+OWN log names the THREE `live-search` steps (`sword`, `'Worn Shortsword'`, `tooltip`) ×3 census = **the door rode PUT
+through that fold** — and the same log's quality diff lines show the usage line's `live-search TEXT` entry rode PUT;
+the quality lint answered **0 errors / 873 `warning:` heads (871 arrows to src/)** on the FRESH all-targets compile while
+warm local on this SAME tree answers **0 errors / 824 heads** — the heads ride the fresh compile, the advice SET stayed
+**824** PUT; the FOUR build jobs printed **ZERO named warnings**, the set of ZERO stayed ZERO on GitHub's own toolchains).
+This era's OWN chain+tag run is measured in THIS era's fold, never chased here.
+
+**Pointers:** ADR 0009 **RIDDEN** (the door's promise — one human ask, ONE request, ZERO DB written — rode PUT word-for-word
+while the PANEL its "Related" line named (`ui/index.html` + `ui/app.js`, the live-search panel) DIED; the audit table's
+GUI rows stay AS HISTORY at v0.7.0), ADR 0018 **GROWN** (SEVEN activities → SIX through its ONE truth: SEVEN nameplates →
+SIX, `button.tab[data-tab]` SIX, `section[data-tab]` SEVEN, `data-tab=` 15 → 13 — the dead button and its dead section
+carried ONE each; the window machinery `open_pip`/`close_pip` stayed PUT). The record rides **ADR 0034**.
+
+**Post-tag (FORWARD, never chased here):** the fold re-measures on the PUSHED tree with FRESH ports/processes/DBs
+(mirror + map + pinned pair + the CI parse + the read-only user census + the UI re-measures) and lands as this era's
+FOLD record; the fold's OWN push starts the run measured in the NEXT era's record (ADR 0011's ladder).
+
+---
 ## 2026-11-24 · v0.18.0 — the RECIPES tab grows a LEARNED-FROM column: ONE `--learned` flag on the LIST door reaches the stored `learned_json` for the FIRST time THROUGH the card door's OWN machinery (same decode, same error WORDS, same by-key helpers), the ONE fact this DB owns (`learned_scroll_seen`) rides the crafted join's OWN live reader (tombstone guard included), and the honest zero is SAID not papered over: 0 of 477 copied scroll tooltips carry a vendor/zone word, this DB owns no vendor places, so "where to get it" goes exactly as far as the SET's `acquisition` word says
 
 **The ask (verbatim, typos kept):** "for recipes, also show where it's learned from. Trainer or from

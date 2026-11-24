@@ -139,3 +139,13 @@ visibility is held by `open_pip`/`close_pip` ALONE: it floats OVER whatever tab 
 loop never hides or moves it. A window carries its OWN `Close this window` closer; the seven activities and
 their one-at-a-time rule stay PUT. ADR 0029 keeps the decision, the census (9 nameplates / 10 `data-tab`
 sections measured off the tree at `e449b60`) and the SEVEN rejected alternatives.
+
+**GROWN AT v0.19.0 ([ADR 0034](./0034-the-live-look-tab-dies-and-the-live-search-door-rides-put.md)):** the
+strip shrank SEVEN → **SIX** activities — the LIVE LOOK nameplate died WITH its card section in ONE commit
+(a HALF-dead tab is a LIE: a nameplate this ONE truth can never turn on, dead DOM that shows NOTHING forever,
+a handler over ids that no longer exist throwing on click). The ONE truth now counts SIX `button.tab[data-tab]`
+and SEVEN `section[data-tab]` (`data-tab=` attrs 15 → 13 — the dead button and its dead section carried ONE
+each), and its rule stayed TRUE of what it owns: SIX activities, one at a time, the window machinery
+(`open_pip`/`close_pip`, sections with NO `data-tab`) PUT word-for-word. The census is measured on the tree
+that landed (measured AFTER the removal: the SEVEN tab ids → ZERO, `runLive` ×2 → 0, `node --check` PARSE OK,
+the DOM NEVER WITNESSED — the launch-audit rule).

@@ -6,6 +6,58 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.19.0 — the LIVE LOOK tab DIES (button + card + `runLive` + handler, ONE commit, all FOUR halves together) while the `live-search` DOOR rides PUT word-for-word — SIX activity tabs now, ZERO Rust line, ZERO CSS rule, ZERO CI step, ZERO request rule moved · 2026-11-24 · tag `v0.19.0`
+
+The user's twelfth ask (verbatim, typos kept): "we don't need that tab, lets get rid of it". Read as a
+SURFACE fact, and the census BEFORE one line moved says what the death would MOVE: the tab's SEVEN ids
+(`tab-live` / `live-card` / `live-fields` / `live-text` / `btn-live` / `live-hits` / `live-note`) ×1 each
+in `ui/index.html`, its TEN JS refs + `runLive` ×2 in `ui/app.js`, `data-tab=` ×15 and SEVEN nameplates —
+and ZERO of those ids exists in `src/` (Rust names the DOOR and the SEPARATE live-PRICE family). The door
+behind the tab is NOT the tab: `live-search TEXT` keeps its verb, its usage entry, its exit trio and the
+CI block's THREE door witnesses (ADR 0009's one-request proof rides those lines), and ADR 0034 keeps the
+decision + SEVEN rejected alternatives with measures ([ADR 0034](./DECISIONS/0034-the-live-look-tab-dies-and-the-live-search-door-rides-put.md)).
+
+Removed
+
+- **The LIVE LOOK tab, in ONE commit** (`feat(ui) 8cf537b`, TWO UI files, 76 del): the strip's nameplate
+  button, the WHOLE `live-card` section (h2 + field + button + hits table + note, 18 contiguous lines), the
+  `runLive` function WITH its OWN comment block, and its delegated handler — ALL FOUR halves together, because
+  a HALF-dead tab is a lie (a nameplate to a section `show_tab`'s loop can never turn on / dead DOM that shows
+  nothing forever / a handler over ids that no longer exist, throwing on click). Census before/after: `index.html`
+  304 → 285 lines, `app.js` 1 545 → 1 488, the SEVEN ids and TEN refs → ZERO each, `runLive` 2 → 0, `data-tab=`
+  15 → 13, nameplates SEVEN → SIX. **ZERO CSS moved for the death** (measured BEFORE the removal: ZERO `#live`-id
+  rules exist — the card drew only SHARED classes (`table.mini hitstable` / `.card wide` / `.field` / `.act` /
+  `.source`), so ZERO look-rule died with the card); **ZERO Rust / ZERO `tests/` / ZERO `ci.yml` / ZERO schema /
+  ZERO wire / ZERO money-formatter line** (the era's diff is FOUR files / 2 ins / 78 del, the 2/2 being the banner
+  pair); the live-PRICE family stays PUT and SEPARATE — `live_cell` ×5, `live_shown` ×8, `live-missing` ×1,
+  `live-none` ×1 in `app.js` and `.live` ×7 in `app.css` (ADR 0023), plus `btn-price` "Price: live refresh" and
+  the card window's `Re-check online` button, which already answers the live re-check of a record this tab showed.
+
+Changed
+
+- **The Cargo banner rides `0.18.0 → 0.19.0`** (`chore ebc49ed`, `Cargo.toml` + `Cargo.lock`'s OWN version line,
+  SAME commit — a FEATURE era moves it; ZERO Rust line in this commit, the code landed EARLIER — ADR 0014's chain
+  rule).
+
+Measured (this era's own witnesses, fresh ports 9943 / 9983 / 9995 + fresh processes/DBs, ZERO real-host, the
+user's file read read-only): mirror of the LANDED block **53 commands rc `0`, ZERO NONZERO** with the fixture's
+own tallies PUT at **51 GETs / 17 recipe-file GETs** and the category census naming the door ALIVE (detail 18 ·
+icons 5 · tooltip 8 · **live-search `/search/` 3** · recipe files 17); exit map **41 doors at `0`×25 · `2`×5 ·
+`4`×11 — the SAME totals** the v0.17.0/v0.18.0 maps carried, the door's own two doors riding PUT (bare `live-search`
+rc `2`, `live-search sword --fixture` rc `0` at 1 017 B) and ZERO rc moved; pinned pair vs the v0.18.0 frame @ TAGGED
+`70d2f20` **28/28 BYTE-IDENTICAL + 13/13 md5-equal** with the grown argv through-rides BYTE-EQUAL (`recipes --icons
+--costs --learned` 47 433 == 47 433 B / `recipe 637 --learned` 1 507 == 1 507 B — NO pinned refusal THIS era, the flag
+was born at v0.18.0; this era's BEFORE witness is the UI census: pinned SEVEN tab ids + 15 attrs vs new ZERO + 13);
+CI parse STILL 52 step-lines + plant one PUT (the THREE live-search step-lines rode PUT); clippy **0 errors / 824
+advice PUT** (823 arrows to `src/`) — the SET not moving IS the ZERO-Rust claim; `cargo build` rc `0` naming ZERO
+every commit; user file UNCHANGED (schema `8` · 19 258 · 4 602/14 656 · 1 240/1 240 · kinds 804/413/23 · **0 of 477**
+scroll copies carry a vendor/zone word — the honest zero re-confirmed · 134 · 4 344 + 258 · 0/0); UI witnesses parse/grep
+ONLY (`node --check` PARSE OK, the DOM NEVER WITNESSED); measured defects ZERO. Ladder row this era owes and MEASURED:
+the v0.18.0 FOLD push's own run **45470757073 SUCCESS** 5/5 in **6 min 59 s** (run #57, attempt 1, ONE run id, head
+`026d311` = that fold commit — the `test` job CLOSED it at 19:36:30Z, the FIRST test-closed run in the measured chain;
+its own log pressed exactly 52 `cargo run --` steps INCLUDING the THREE live-search steps, the door riding PUT through
+that fold; lint 0 errors / 873 heads vs 824 warm local on this tree, build jobs ZERO named warnings).
+
 ## v0.18.0 — the RECIPES tab grows a LEARNED-FROM column: ONE `--learned` flag makes the LIST door reach the stored `learned_json` for the FIRST time THROUGH the card door's OWN machinery, the SET's words carry the learn half + the DB's OWN rows carry the seen fact, and ZERO vendor names are INVENTED — the DB owns no vendor places (0 of 477 copied scroll tooltips name one) · 2026-11-24 · tag `v0.18.0`
 
 The user's eleventh ask (verbatim, its own typos kept): "for recipes, also show where it's learned

@@ -364,6 +364,17 @@ upstream's own; the file's promise stays "everything the app answers offline liv
 the two doors — the local one reading these tables and the live one reading upstream — never
 share a name or a payload.
 
+**At v0.19.0 the tab that carried this door's ask inside the app DIED** (ADR 0034): the strip answers
+SIX activities, and the app asks this door from NO card any more — a shell ask is all the surface gives
+it. The paragraph above stays TRUE of the DOOR: `live-search TEXT`, its usage entry, its exit trio and
+the CI block's THREE door witnesses rode PUT word-for-word, and the tables of this file moved ZERO rows,
+ZERO columns, ZERO `meta` keys with the death (the door never opened a DB, and nothing else did either).
+What the app keeps is the SEPARATE live-PRICE layer — ADR 0023's `.live` / `live-missing` / `live-none`
+cells beside the stored min, the Sync tab's `Price: live refresh` and the card window's `Re-check online`
+(measured AFTER the removal: `live_cell` ×5 + `live_shown` ×8 + `live-missing` ×1 + `live-none` ×1 in
+`app.js`, `.live` ×7 in `app.css`): a dead LOOK tab says NOTHING about that layer, and `price_min_now`
+(4 344 set + 258 checked-price-less on the user's own file, read read-only) stayed exactly where it was.
+
 Indexed for the queries the UI actually issues (SQLite's own index syntax, `ON` not `IN`
 — the fresh `CREATE`s above; the v0.6.0 migration re-issues only `price_history__item`
 because a migrated file already has the rest):
