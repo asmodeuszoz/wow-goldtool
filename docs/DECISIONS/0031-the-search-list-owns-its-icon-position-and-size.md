@@ -102,3 +102,28 @@ cost, see ADR 0032) → `96496cb` feat(ui) (the cost column/line + note + argvs)
 (the cost's paint: JOINED selectors, ONE new `.costnote`) → `4b6c024` chore(ci) (52 step-lines) →
 `ef9da01` chore (banner `0.16.0 → 0.17.0`, lock follows in the SAME commit) → this record carries
 `v0.17.0` (annotated tag).
+
+**FOLD (measured post-tag on the PUSHED tree at `473a63f`, fresh ports 9922/9962/9993):** the tag's tree
+verified through the remote's OWN `^{}` line `1bc3a11d…` → `473a63f` (tag object `1bc3a11d`, payload 13 152
+B), and the pushed tree answers the way every sentence above says, measured AGAIN rather than cited: the
+pinned v0.14.0 pair **AGAIN 28/28 BYTE-IDENTICAL + 13/13 md5-equal** (9993 vs the worktree @ TAGGED `c065815`
+— the era grew ZERO door bytes, so the search/item doors answer IDENTICAL on BOTH binaries: this window's
+md5s `stats` 233a4da1 · `search sword --where description` e6fdef6c · `item 25 --cached` 30166ade — while
+the pinned frame stays PUT: banner `0.14.0` at `c065815`, 19 `data-tab` attrs, ZERO `cost_copper` in its
+`db.rs`), the map's `search sword --costs` through-ride **188 == 188 B BYTE-EQUAL** (9962 — even the era's
+flag cannot reach the click's door: `item ID --cached` and the whole `search` verb ride UNCHANGED), and the
+pushed-tree UI census reads EXACTLY the censuses above: the `#hits` thead's `col-icon` th between `col-id`
+and `col-name`, `hit_row`'s `iconcell` td before `namecell`, 2 `#hits` icon rules, the TWO base rules PUT
+(24 px icon / 34 px cell), mini 20 px PUT, the card's 72 px + 21 `#recipe-card` id rules STILL 21, the joined
+opener rule STILL ONE, `data-tab` attrs STILL 15 (parse/grep ONLY — the webview NEVER renders in the build
+room: the moved-and-resized column's DOM is NOT WITNESSED and NOT CLAIMED, same rule as the era's record).
+The ADR's ladder row is MEASURED now: this era's OWN chain+tag run reads **45445146139 SUCCESS**, 5/5 jobs
+green in **18 min 7 s** (17:25:10Z → 17:43:17Z, run #54, attempt 2 — attempt 1's macos job CANCELLED by
+GitHub (15 min 0 s queue→cancel, 0 steps, log not found: GitHub's scheduling fact, NOT a tree fact) with
+the OTHER 4 jobs SUCCESS — read as CANCELLED-then-green-rerun, said so; the macos RE-RUN (job 138638295644)
+started 17:35:19Z, 7 min 58 s, CLOSED the run at 17:43:17Z — the FIRST macos-closed run in the chain, a
+scheduling fact; each job 12 end-actions = 11 success + 1 skipped `__dtolnay_rust-toolchain` inner action
+(`__run_3`, `__run_2` on windows), never a workflow step; the `test` job pressed exactly 52 `cargo run --`
+steps incl the THREE `--costs` ones). Tags stay put: the remote answers **33 tags / 66 lines, ZERO moved**
+(`v0.17.0` → `473a63f`, `v0.16.0` → `4f3c217`, `v0.14.0` → `c065815`). The fold's OWN push starts the NEXT
+run — measured in the NEXT era's record (ADR 0011's ladder), never chased here.

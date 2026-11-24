@@ -137,3 +137,34 @@ split). The fixture census the CI block quotes: 12/12 rows carry `cost_missing`,
 
 Rides the era's chain above (`5c068d5` feat(cli,db) this decision's Rust · `96496cb`/`446f85d` its
 UI · `4b6c024` the CI trio · `ef9da01` banner · this record's tag `v0.17.0`).
+
+**FOLD (measured post-tag on the PUSHED tree at `473a63f`, fresh ports 9922/9962/9993):** the tag's tree
+verified through the remote's OWN `^{}` line `1bc3a11d…` → `473a63f` (tag object `1bc3a11d`, payload 13 152
+B), and the pushed tree answers the way every sentence above says, measured AGAIN rather than cited: the
+committed CI block replayed on a FRESH mirror **52/52 rc `0`, ZERO NONZERO** (9922 — driver's OWN parse:
+52 step-lines + plant one, presses UNCHANGED; the fixture tally ends where the crawl left it, **51 GETs /
+17 recipe-file GETs ZERO added** = the cost doors ASK NOTHING, the locality proof of the ONE-code-path claim;
+fixture cost census **12/12 rows carry `cost_missing`, money rides 1/12** — 467 COMPLETE at 17 493 c /
+`1g 74s 93c` THIS window, the three `--costs` steps 47 043 / 1 274 / 7 350 B; GitHub's OWN test-job log of
+the same steps reads 467 at 17 655 / `1g 76s 55c`: bytes ride the run, tallies do not). Exit map (9962):
+**36 doors = the BASE 31 at the SAME totals `0`×19 · `2`×5 · `4`×7** — kept AGAIN — + the era's FIVE: `0`×3
+(`search sword --costs` BYTE-EQUAL through-ride **188 == 188 B**, the flag PARSES and doors that never asked
+IGNORE it) + `4`×2 (`recipe 999999 --costs` = the no-row words grown with the flag, `recipes --costs` over
+the EMPTY table = the SAME no-rows refusal BEFORE any rows read — the flag cannot launder a refusal into an
+empty success, ADR 0004). **The pinned v0.14.0 pair AGAIN 28/28 BYTE-IDENTICAL + 13/13 md5-equal** (9993 vs
+the worktree @ TAGGED `c065815`: cost fields add ZERO bytes UNASKED — `recipe 132 --icons` 958a7ffc +
+`recipe 638` d21b4486 rode the window identical; asked they ADD: `recipes --limit 3` 3 377 → 3 428 B,
+`recipe 467` 1 209 → 1 272 B), and the PINNED binary REFUSES all THREE `--costs` shapes rc `2` `unknown
+flag --costs (run help to see the verbs)` — the BEFORE witness the flag is NEW, measured on the scratch pair,
+NEVER a green CI line (ADR 0011's split rule). Pinned frame PUT (banner `0.14.0`, ZERO `cost_copper` in its
+`db.rs`) vs pushed tree: banner `0.17.0`, 52 CI step-lines + plant one PUT, user file UNCHANGED (`sqlite3
+-readonly`, NEVER written/crawled — schema `8`, the cost NEVER stored, exactly as the decision claims: 19
+258 items · 1 240/1 240 DISTINCT `spell_id` · 4 344 + 258 live homes · `vendor_buy`/trend/deleted 0/0/0).
+The ADR's ladder row is MEASURED now: this era's OWN chain+tag run reads **45445146139 SUCCESS**, 5/5 jobs
+green in **18 min 7 s** (run #54, attempt 2, head = the tag's target; TWO attempts said so — attempt 1's macos
+job CANCELLED by GitHub (0 steps, empty log — a scheduling fact), the OTHER 4 SUCCESS; attempt 2's macos RE-RUN
+138638295644 started 17:35:19Z and CLOSED the run at 17:43:17Z — the first macos-closed run in the chain; each
+job 12 end-actions = 11 + 1 skipped `__dtolnay_rust-toolchain` inner action; Ubuntu-libs apt lines 3 on
+test/quality/linux, 0 macos/windows; the `test` job pressed exactly 52 `cargo run --` steps). Tags stay put:
+**33 tags / 66 lines, ZERO moved** (`v0.17.0` → `473a63f`, older anchors ride). The fold's OWN push starts the
+NEXT run — measured in the NEXT era's record (ADR 0011's ladder), never chased here.

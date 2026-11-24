@@ -130,6 +130,59 @@ rename in the SAME commit) · `4b6c024` chore(ci) (49 → 52 step-lines, plant o
 MEASURED pre-landing) · `ef9da01` chore (banner 0.16.0 → 0.17.0 + lock in the SAME commit) · this record
 carries `v0.17.0` (annotated tag). Pointers: ADR 0014/0015/0021/0025/0027 GROWN, 0016/0023/0030 RIDDEN.
 
+**FOLDED — measured post-tag on the PUSHED tree at `473a63f` (all FRESH ports/processes/DBs: 9922/9962/9993;
+the real host untouched, the user's file read read-only through LOCAL doors, ZERO requests, ZERO crawl).**
+The tag's tree verified through the remote's OWN `^{}` line `1bc3a11d…` → `473a63f` (tag object `1bc3a11d`,
+payload 13 152 B) — and the pushed tree answers the way every sentence above says, measured AGAIN rather than
+cited.
+
+* **The era's OWN chain+tag run reads 45445146139 SUCCESS**, 5/5 jobs green in **18 min 7 s** (17:25:10Z →
+  17:43:17Z, run **#54**, attempt 2, exactly ONE run id, head `473a63f` = this record = the tag's target) —
+  TWO attempts of ONE run id, said so rather than smoothed: attempt 1's **macos job CANCELLED by GitHub** (job
+  138626737972, 15 min 0 s queue→cancel, 0 steps, log not found, `ended_at` null: "The job was not acquired
+  by Runner of type hosted even after multiple attempts" + FOUR capacity-constraint annotations — GitHub's
+  SCHEDULING fact, NOT a tree fact), the OTHER 4 jobs SUCCESS (test 8m4s over the 52-step block); attempt 2
+  via `gh run rerun --failed`: the macos RE-RUN job 138638295644 created 17:25:15Z, started 17:35:19Z after
+  the capacity wait, 7 min 58 s, and **CLOSED the run at 17:43:17Z — the FIRST macos-closed run in the measured
+  chain** (where jobs land stays a scheduling fact, said so); per-job durations as GitHub reports them: test
+  8m4s · linux 6m34s · windows 7m7s · quality 2m46s · macos 7m58s. Each job answers **12 end-actions, 11
+  success + ONE skipped** — every skipped one the Rust-toolchain installer's OWN inner action (`__dtolnay_rust-toolchain.__run_3`,
+  `__run_2` on windows), never a workflow step; Ubuntu-libs `apt-get` lines 3 each on test/quality/linux logs,
+  **0** on macos/windows (measured fresh; the line count rides GitHub's OWN log content). The `test` job pressed
+  exactly **52 `cargo run --` steps** incl the era's THREE `--costs` ones — the block stayed PUT — and GitHub's
+  OWN test-job log reads `recipe 467 --costs` answering `cost_copper":17655` + `cost_money":"1g 76s 55c"` (×2 =
+  the list row + the card) and `cost_missing` census 0×2 · 1×7 · 2×5, while my fresh mirror's window reads 17
+  493 c / `1g 74s 93c`: bytes ride the run, tallies do not.
+* **Post-tag witnesses on the PUSHED tree, ALL green against the era's pre-tag measures:** mirror **52/52 rc
+  `0`, ZERO NONZERO** (9922 — driver's OWN parse: 52 committed step-lines + plant one, presses UNCHANGED; tallies
+  ending where the crawl left them — **51 GETs, 17 recipe-file GETs, ZERO added** — the locality proof; fixture
+  cost census **12/12 rows carry `cost_missing`, money rides 1/12**: 467 COMPLETE at 17 493 c / `1g 74s 93c`, the
+  partial three and the eight all-unpriceable answering their COUNTS with no money beside them; the three `--costs`
+  steps 47 043 / 1 274 / 7 350 B this window). Exit map (9962, fresh seed + EMPTY DB + DEAD port): **36 doors = the
+  BASE 31 at the SAME totals `0`×19 · `2`×5 · `4`×7** — kept AGAIN, the fifth era running — + the era's FIVE `--costs`
+  shapes `0`×3 + `4`×2: `search sword --costs` through-ride BYTE-EQUAL **188 == 188 B** (the flag PARSES, doors that
+  never asked IGNORE it), `recipe 999999 --costs` = the door's OWN no-row words grown with the flag rc `4`, `recipes
+  --costs` over the EMPTY recipe table = the SAME no-rows refusal rc `4` BEFORE any rows read — the flag cannot
+  launder a refusal into an empty success. **The pinned v0.14.0 pair AGAIN 28/28 BYTE-IDENTICAL + 13/13 md5-equal**
+  (9993 vs the worktree @ TAGGED `c065815`: this window's md5s `stats` 233a4da1 · `stats --icons` e386e0f8 · `stats
+  --limit 3` 15bcb553 · `item 25 --cached` 30166ade · `item 40` 27a39fef · `item 12809` 1960e408 · `status` f34671f0
+  · `watch list` dc0cb5ab + refresh-twins ea136265 STABLE across windows · `search sword --where description` e6fdef6c
+  · Blacksmithing e4cf14ef · `recipe 132 --icons` 958a7ffc · `recipe 638` d21b4486 deterministic) — the cost fields
+  add ZERO bytes unasked; asked they ADD (`recipes --limit 3` 3 377 → 3 428, `recipe 467` 1 209 → 1 272 B); the PINNED
+  binary REFUSES all THREE `--costs` shapes rc `2` `unknown flag --costs (run help to see the verbs)` — the BEFORE
+  witness the flag is NEW, measured on the scratch pair, NEVER a green CI line (ADR 0011's split); pinned frame PUT
+  (banner `0.14.0` at `c065815`, 19 `data-tab` attrs = the nine-nameplate BEFORE frame, ZERO `cost_copper` in its
+  `db.rs` = the cost did not exist there).
+* **Tag census on the remote: 66 lines · 33 tags, ZERO moved** — `v0.17.0^{}` → `473a63f` (object `1bc3a11d`), `v0.16.0`
+  → `4f3c217`, `v0.15.0` → `eaeee89`, `v0.14.0` → `c065815` and the older anchors stay where they were. CI on the pushed
+  tree: parse still **52 cargo step-lines + plant one** PUT. User's file UNCHANGED (`sqlite3 -readonly`, NEVER written,
+  NEVER crawled): schema **8** · 19 258 · 4 602/14 656 · 1 240/1 240 · 134 · 4 231 · 4 344 + 258 · `vendor_buy` **0** ·
+  trend **0** · deleted **0**. The pushed tree re-measures the UI witnesses again (same rule: the webview NEVER renders
+  in the build room, DOM/IPC of the moved icon column and the cost column NOT WITNESSED): PARSE OK, 2 `#hits` icon rules,
+  `col-cost` ×1 each html/js/css, `.costnote` ×1, `data-tab` attrs STILL 15, the joined opener rule `button.openrecipe,
+  #hits tr td button.pipbtn` STILL ONE, 7 nameplates PUT.
+* The fold's OWN push starts the NEXT run — measured in the NEXT era's record (ADR 0011's ladder), never chased here.
+
 ## 2026-11-23 · v0.16.0 — the SEARCH ROWS open their windows BY NAME: the name cell becomes the opener button, the separate `card` chip label dies, and the look rides the recipe name's ONE rule by JOINED selector
 
 ### What forced it

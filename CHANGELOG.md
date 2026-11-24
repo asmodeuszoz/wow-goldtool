@@ -150,6 +150,51 @@ each; pointers: 0014/0015/0021/0025/0027 GROWN, 0016/0023/0030 RIDDEN. Tags neve
 feat(ui) · `fe1b278` feat(ui) · `5c068d5` feat(cli,db) · `96496cb` feat(ui) · `446f85d` feat(ui) ·
 `4b6c024` chore(ci) · `ef9da01` chore · this record + tag `v0.17.0`.
 
+**FOLDED — measured post-tag on the PUSHED tree at `473a63f` (FRESH ports 9922/9962/9993, FRESH
+processes/DBs; the tag's tree verified through the remote's OWN `^{}` line `1bc3a11d…` → `473a63f`, tag
+object `1bc3a11d`, payload 13 152 B).** The era's OWN chain+tag run reads **45445146139 SUCCESS**, 5/5
+jobs green in **18 min 7 s** (17:25:10Z → 17:43:17Z, run **#54**, attempt 2 — the era's OWN run took
+TWO attempts of ONE run id, read and reported as CANCELLED-then-green-rerun, not smoothed: attempt 1's
+**macos job CANCELLED by GitHub** (job 138626737972, 15 min 0 s queue→cancel, 0 steps, log not found,
+`ended_at` null — "The job was not acquired by Runner of type hosted even after multiple attempts" +
+FOUR capacity annotations, GitHub's scheduling fact NOT a tree fact) with the OTHER 4 jobs SUCCESS, the
+`test` job 8m4s green over the 52-step block; attempt 2 via `gh run rerun --failed` = SUCCESS 5/5, the
+macos RE-RUN job 138638295644 created 17:25:15Z, started 17:35:19Z after the capacity wait, 7 min 58 s,
+and **CLOSED the run at 17:43:17Z — the first macos-closed run in the measured chain**, a scheduling fact
+said so; per-job durations as GitHub reports them: test 8m4s · linux 6m34s · windows 7m7s · quality 2m46s
+· macos 7m58s). Each job answers **12 end-actions, 11 success + ONE skipped** — every skipped one the Rust
+-toolchain installer's OWN inner action (`__dtolnay_rust-toolchain.__run_3`, `__run_2` on windows), never
+a workflow step; Ubuntu-libs `apt-get` lines 3 each on the test/quality/linux logs, **0** on macos/windows
+(measured this window; the line count rides GitHub's OWN log content). The `test` job pressed exactly
+**52 `cargo run --` steps** incl the era's THREE `--costs` ones, and GitHub's OWN test-job log reads
+`recipe 467 --costs` answers `cost_copper":17655` + `cost_money":"1g 76s 55c"` (×2 = the list row + the
+card) and `cost_missing` 0×2 · 1×7 · 2×5 — my fresh mirror's window reads 17 493 c / `1g 74s 93c` for the
+same recipe: bytes ride the run, tallies do not. Post-tag mirror **52/52 rc `0`, ZERO NONZERO** (9922:
+driver's OWN parse 52 step-lines committed + plant one, presses UNCHANGED; tally PUT **51 GETs / 17
+recipe GETs ZERO added** = the locality proof; cost census **12/12 rows carry `cost_missing`, money
+1/12** — 467 COMPLETE at 17 493 c / `1g 74s 93c`, the three `--costs` steps 47 043 / 1 274 / 7 350 B this
+window). Exit map **36 doors = the BASE 31 at the SAME totals `0`×19 · `2`×5 · `4`×7** (9962) + the era's
+FIVE `--costs` shapes `0`×3 + `4`×2 (`search sword --costs` through-ride BYTE-EQUAL **188 == 188 B**;
+`recipe 999999 --costs` = the door's OWN no-row words grown with the flag; `recipes --costs` over the EMPTY
+recipe table = the SAME no-rows refusal BEFORE any rows read — the flag cannot launder a refusal into an
+empty success). **The pinned v0.14.0 pair 28/28 BYTE-IDENTICAL + 13/13 md5-equal** (9993 vs the worktree
+@ TAGGED `c065815`: this window's md5s `stats` 233a4da1 · `stats --icons` e386e0f8 · `stats --limit 3`
+15bcb553 · `item 25 --cached` 30166ade · `item 40` 27a39fef · `item 12809` 1960e408 · `status` f34671f0
+· `watch list` dc0cb5ab + refresh-twins ea136265 STABLE across windows · `search sword --where description`
+e6fdef6c · Blacksmithing e4cf14ef · `recipe 132 --icons` 958a7ffc · `recipe 638` d21b4486 deterministic);
+the PINNED binary REFUSES all THREE `--costs` shapes rc `2` `unknown flag --costs (run help to see the
+verbs)` — the BEFORE witness the flag is NEW not renamed, measured on the scratch pair, NEVER a green CI
+line (ADR 0011's split); asked bytes ADD (`recipes --limit 3` 3 377 → 3 428, `recipe 467` 1 209 → 1 272 B);
+pinned frame PUT (banner `0.14.0` at `c065815`, 19 `data-tab` attrs, ZERO `cost_copper` in its `db.rs`).
+**Tag census 33 tags / 66 remote lines, ZERO moved** (`v0.17.0^{}` → `473a63f`, `v0.16.0` → `4f3c217`,
+`v0.15.0` → `eaeee89`, `v0.14.0` → `c065815` ride PUT). CI on the pushed tree: **52 step-lines + plant one
+PUT**; user file UNCHANGED (`sqlite3 -readonly`, NEVER written, NEVER crawled): schema 8 · 19 258 · 4 602/14
+656 · 1 240/1 240 · 134 · 4 231 · 4 344 + 258 · `vendor_buy`/trend/deleted 0/0/0; UI witnesses re-measured
+(parse/grep ONLY — the webview NEVER renders in the build room, DOM/IPC of the moved column and the cost
+line NOT WITNESSED, NOT CLAIMED): PARSE OK · 2 `#hits` icon rules · `col-cost` ×1 · `.costnote` ×1 · `data-tab`
+15 PUT · joined opener rule STILL ONE. The fold's OWN push starts the NEXT run — measured in the NEXT era's
+record (ADR 0011's ladder), NEVER chased here.
+
 ## v0.16.0 — the SEARCH ROWS open their windows BY NAME: the name cell becomes the opener button, the separate `card` chip label dies, and the look rides the recipe name's ONE rule by JOINED selector · 2026-11-23 · tag `v0.16.0`
 
 The user's ninth ask: "make it so in the search results I can click the item name just like it is
