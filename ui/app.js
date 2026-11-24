@@ -310,7 +310,10 @@ async function runRecipes() {
   // shows the same rows AND the same cost column (v0.17.0, ADR 0032: `--costs` here
   // because the tab SHOWS the cost column - ADR 0014's one-code-path rule; the CLI
   // WITHOUT the flag keeps its bytes PUT, the cost column is this tab's ask).
-  var argv = ["recipes", "--icons", "--costs"];
+  // v0.18.0 (ADR 0033): `--learned` joins because the tab SHOWS the learned column -
+  // the SAME one-code-path rule as `--costs` (a `cargo run -- recipes --learned` line
+  // answers the same words the column shows; unasked, the door keeps its bytes PUT).
+  var argv = ["recipes", "--icons", "--costs", "--learned"];
   if (profession !== "") { argv.push("--profession", profession); }
   try {
     var found = await cli_ok(argv);
@@ -321,7 +324,7 @@ async function runRecipes() {
       rows = rows + recipe_row(found.recipes[i]);
     }
     document.querySelector("#recipe-hits tbody").innerHTML = rows;
-    var note = "ALL " + num(found.matching) + " recipe rows this filter answers are shown \u2014 the tab asks the door WITHOUT a bound (ADR 0028: the cap lived in the tab, the door never had one; a bound at or above this count would answer the SAME bytes, so a cap only HID rows, and growing it was rejected on that measure): the job words, skill numbers and material LISTS are the FETCHED set's own (the Sync tab\u2019s Recipes button: 8 files, MIT second source, cited here): the API has no professions door and its recipe cards never name a job or materials (measured); icons and money beside the materials are YOUR DB\u2019S OWN \u2014 an item the DB never saw says so beside its dataset name, and an enchanting craft says it has NO crafted item at all; the TOTAL COST column sums the set\u2019s materials \u00d7 their stated counts over YOUR DB\u2019S LIVE price layer (the twin the price refresh writes \u2014 never the stored min, NEVER a second fetch): money answers ONLY a cost every material of the set can price, and an incomplete cost names HOW MANY materials have no live price, words beside the count and NEVER money beside it (ADR 0015/0032); clicking a row\u2019s recipe name opens that entry\u2019s CARD (the local door, ZERO requests); the Watch button rides EVERY row shown, so it reaches the whole set\u2019s cooked items and the Details door then fetches exactly those records";
+    var note = "ALL " + num(found.matching) + " recipe rows this filter answers are shown \u2014 the tab asks the door WITHOUT a bound (ADR 0028: the cap lived in the tab, the door never had one; a bound at or above this count would answer the SAME bytes, so a cap only HID rows, and growing it was rejected on that measure): the job words, skill numbers and material LISTS are the FETCHED set's own (the Sync tab\u2019s Recipes button: 8 files, MIT second source, cited here): the API has no professions door and its recipe cards never name a job or materials (measured); icons and money beside the materials are YOUR DB\u2019S OWN \u2014 an item the DB never saw says so beside its dataset name, and an enchanting craft says it has NO crafted item at all; the TOTAL COST column sums the set\u2019s materials \u00d7 their stated counts over YOUR DB\u2019S LIVE price layer (the twin the price refresh writes \u2014 never the stored min, NEVER a second fetch): money answers ONLY a cost every material of the set can price, and an incomplete cost names HOW MANY materials have no live price, words beside the count and NEVER money beside it (ADR 0015/0032); the LEARNED column reads the set\u2019s OWN learned-from bytes \u2014 a TRAINER, an AUTOMATIC learn, or the SCROLL item that teaches the recipe (named BY VALUE: the set\u2019s own name + id) beside what YOUR DB saw of that scroll\u2019s row and the set\u2019s OWN source word (vendor / drop / quest / multiple / unresearched) beside \u2014 and ZERO copper rides this column: this DB owns NO vendor places, and 0 of the 477 copied scroll tooltips name one either (measured read-only), so \u201cwhere to get it\u201d goes exactly as far as the set says (ADR 0033); clicking a row\u2019s recipe name opens that entry\u2019s CARD (the local door, ZERO requests); the Watch button rides EVERY row shown, so it reaches the whole set\u2019s cooked items and the Details door then fetches exactly those records";
     if (found.matching === 0) {
       note = "no recipe rows for this filter \u2014 the set is fetched by the Sync tab\u2019s Recipes button (or the CLI stage), read here ever after";
     }
@@ -438,6 +441,54 @@ function cost_cell(one, mats) {
   return chip_word("cost incomplete - " + num(missing) + " of " + num(mats.length) + " materials have no live price", "costnote");
 }
 
+// v0.18.0 (ADR 0033): the ONE answer for WHERE a recipe is learned from. The card
+// door has read the SAME learned-from bytes since v0.12.0 (ADR 0025); this tab
+// column rides the SAME answer fields the door now answers when asked `--learned`
+// - no second parse, no second fetch, no new request (ADR 0014's one-code-path
+// rule restated at the LEARNED facts, the same shape `cost_cell` keeps for the
+// cost). The words are the FETCHED SET's own (its `type` word, the scroll name)
+// plus ONE fact this DB owns (whether a LIVE row for the named scroll exists, read
+// through the SAME tombstone-guarded reader the crafted join rides). Money NEVER
+// rides this column: these are words and ids, no copper anywhere (ADR 0015 has
+// nothing to say here - measured: ZERO copper emitted by this cell, in every state).
+// The state words, honest (ADR 0004: a gap states its OWN gap, never an invented
+// source): the set states NOTHING / a type with no scroll / a scroll this DB never
+// saw / this DB has its row - and the set's OWN source word (vendor, drop, quest,
+// multiple, unresearched) rides BESIDE, never instead.
+function learn_cell(one) {
+  if (one.learned_type === null || one.learned_type === undefined) {
+    return chip_word("the set states NOTHING about how this recipe is learned", "mat-none");
+  }
+  if (one.learned_type === "trainer") {
+    return chip_word("from a TRAINER - no item to get anywhere", "mat-none");
+  }
+  if (one.learned_type === "automatic") {
+    return chip_word("learned AUTOMATICALLY - the character gets it, no item to find", "mat-none");
+  }
+  if (one.learned_scroll_id === null || one.learned_scroll_id === undefined) {
+    return chip_word("the set states the word " + esc(one.learned_type) + " but names NO scroll", "mat-none");
+  }
+  var name;
+  if (one.learned_scroll_name !== null && one.learned_scroll_name !== undefined) {
+    name = '<span class="matname">' + esc(one.learned_scroll_name) + "</span> ";
+  } else {
+    name = chip_word("the set names the scroll id WITHOUT a name", "mat-none") + " ";
+  }
+  var seen;
+  if (one.learned_scroll_seen === true) {
+    seen = chip_word("this DB has the scroll's row", "mat-none");
+  } else {
+    seen = chip_word("this DB never saw this id - a search may show it, this DB owns no vendor places to name", "mat-none");
+  }
+  var where;
+  if (one.acquisition !== null && one.acquisition !== undefined) {
+    where = chip_word("the set calls the source: " + one.acquisition, "mat-none");
+  } else {
+    where = chip_word("the set states no source word", "mat-none");
+  }
+  return name + chip_word("id " + num(one.learned_scroll_id), "mat-none") + " " + seen + " " + where;
+}
+
 function recipe_row(one) {
   var skill = "";
   if (one.skill_required !== null && one.skill_required !== undefined) {
@@ -452,6 +503,7 @@ function recipe_row(one) {
   return "<tr>"
     + '<td class="col-job">' + chip_word(one.profession, "jobchip") + "</td>"
     + '<td class="col-recipe"><button class="openrecipe" data-spell="' + esc(String(one.spell_id)) + '" type="button">' + esc(one.recipe_name || one.spell_id) + "</button></td>"
+    + '<td class="col-learned">' + learn_cell(one) + "</td>"
     + '<td class="col-skill">' + skill + tier + "</td>"
     + '<td class="col-mats">' + recipe_mats(one) + "</td>"
     + '<td class="col-cost">' + cost_cell(one, one.reagents) + "</td>"
