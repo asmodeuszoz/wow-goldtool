@@ -333,7 +333,27 @@ jobs:
           # tally IS the locality proof. Step count 49 -> 52 step-lines across the
           # era (one line here, the two card steps in the card block below), plant
           # line stays one.
-          cargo run -- recipes --icons --costs
+          # v0.18.0 (ADR 0033): THIS very step is the TAB'S OWN argv and it GREW --learned
+          # (ONE line MOVED, step count stays 52, plant one) - the tab SHOWS the learned
+          # column, so a `cargo run --` line must answer the same words (ADR 0014 kept at
+          # the learned facts). Measured on a FRESH mirror (port 9911) BEFORE this line
+          # landed (the driver parsed the committed 52 and pressed THESE candidates):
+          # 55/55 rc `0`, GET tally PUT at 51 GETs / 17 recipe GETs - the learned facts
+          # ask NOTHING of the wire (the seen-fact is a LOCAL read through the SAME
+          # reader the crafted join rides). The step answers ALL 12 of matching 12 at
+          # 47 433 B asked vs 47 043 B UNASKED this window (bytes ride the RUN). The
+          # fixture's learned shapes: 132 = the set states `schematic_item` naming scroll
+          # 60 BY VALUE and this DB HAS its row (seen true - even 60's icon-missing row
+          # is a row), 637 names scroll 2589 and this DB NEVER saw it (seen FALSE - the
+          # set-named and the DB-never-saw homes ride APART, ADR 0004/0016 restated),
+          # 202 = the TRAINER word, 334 = the AUTOMATIC word, and the OTHER 8 rows keep
+          # ALL FOUR learned fields ABSENT even WHEN asked (serde's skip measured on the
+          # fixture). The two card candidates `recipe 637 --learned` and `recipe 334
+          # --learned` answered rc `0` BYTE-EQUAL to their unasked twins - the flag PARSES
+          # and the card door IGNORES it, because the card has answered learned-from UNASKED
+          # since v0.12.0 (ADR 0025) and rode PUT word-for-word this era; that is why the
+          # era grew ZERO new CI step.
+          cargo run -- recipes --icons --costs --learned
           # v0.10.1 (ADR 0022): the paging doors ride ONE composition rule, and these
           # two steps are green BECAUSE it holds - they are the measured defect class
           # (`--offset` WITHOUT `--limit`): before the fix each answered rc 4 carrying
