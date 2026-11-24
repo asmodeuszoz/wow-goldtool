@@ -250,6 +250,21 @@ td.iconcell { width: 34px; padding: 3px 6px; text-align: center; }
 .listicon { width: 24px; height: 24px; object-fit: contain; image-rendering: pixelated; vertical-align: middle; }
 .noicon { color: var(--muted); font-size: 13px; }
 
+/* v0.17.0 (ADR 0031): the Search tab's row icons grow 24 -> 32 px ("a little
+ * larger" - one notch, the card's 72 px are the next jump and the user asked
+ * for a list-row nudge), and the cell widens 34 -> 44 px so the padding still
+ * wraps the bigger box (44 - the 6+6 px padding = the 32 px content exactly).
+ * The pair is id-scoped, NOT the bare class (the ADR 0027 id-scoping lesson:
+ * a bare `.listicon` edit would move EVERY list icon on the page): plain
+ * `.listicon` stays 24 px for the Recipe rows' material and cooked cells,
+ * `table.mini .listicon` stays 20 px, the recipe card's 72 px ride PUT -
+ * Search's table owns its list surface. The pixel-crisp rule and every colour
+ * ride the base rules above, ZERO new class, ZERO new token. Witness: grep
+ * finds the TWO `#hits` icon rules below (parse/grep only - the webview never
+ * renders in the build room, the launch-audit rule kept). */
+#hits td.iconcell { width: 44px; }
+#hits .listicon { width: 32px; height: 32px; }
+
 /* quality chips: these colors are the GAME's quality facts - not restyled to
  * the frame, a fact stays a fact (v0.5.2's hues ride unchanged) */
 .chip {
