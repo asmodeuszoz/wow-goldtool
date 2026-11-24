@@ -5,6 +5,131 @@ WoW Goldtool. The changelog records *what* shipped; this file records *why*.
 
 ---
 
+## 2026-11-24 · v0.17.0 — the SEARCH TAB owns its list surface (icon cell moves BETWEEN id and name, icons grow 24 → 32 px under `#hits`-scoped rules) AND the two recipe doors answer the TOTAL CRAFTING COST: ONE `--costs` flag, ONE `craft_cost` behind tab column + card line, money ONLY beside a COMPLETE total
+
+### What forced it
+
+The user's tenth ask, verbatim (its typos kept as the ask's own record): "Somne items to work on for
+the next version:in tahe search tab show the icons between ID and name instead. Also make those icons
+a little larger. In the recipes tab and detail cards add a column with the total crafting cost based
+on live prcices."
+
+Two fact families, ONE banner. The icon family: the SEARCH tab's census (`fecb6c2`→`5c068d5` tree,
+read BEFORE one line moved) put the thead at `index.html:107` as `id | name | icon | quality | price`
+and `hit_row` drawing the SAME order — the ask names BOTH neighbours ("between ID and name": an
+absolute placement, not a swap hint), so thead-th and row-td move in ONE commit: table layout lays
+header labels ABOVE cells POSITIONALLY, so a row-only move would make the header LIE (the ADR's seventh
+reject, with the layout measure). The header's ONE rule at `app.css:227` is class-keyed and JOINED
+(measured: it never mentions position) — the MOVE needs ZERO CSS. The SIZE: `.listicon` is SHARED by
+four surfaces (24 px hits rows + Recipe material/cooked cells, 20 px mini, 72 px card) — the ask
+names ONE of them; ADR 0027's id-scoping is the frame's OWN mechanism (the `table.mini` and `#recipe-card`
+rules ARE the precedent), so TWO new `#hits`-scoped rules carry 32 px + the cell's 44 px (44 − 12 px
+padding = 32 content exactly; "a little larger" = ONE notch over 24, the card's 72 is the next jump —
+rejected, with the 56 px `.iconimg` alternative named too).
+
+The cost family: "total crafting cost based on LIVE prices" — and the live layer is a NAMED column
+(this DB owns it: `price_min_now`, written by the price refresh beside the stored min; ADR 0023 measured
+the two DIFFERING on the SAME row, which is EXACTLY why the stored min never feeds the cost). The join
+ALREADY carries everything the sum needs (`join_recipe_reagent` fields: `count` + `price_now_copper` +
+the two stamp homes): ZERO new SQL, ZERO new query, ZERO request. The two surfaces (tab column + card
+line) MUST ride ONE answer or they drift — so ONE Rust helper behind BOTH doors AND ONE renderer in
+front of BOTH (ADR 0014 kept TWICE). Bytes discipline: an unasked answer keeps its bytes EXACTLY since
+v0.10.0 (pair audits) — so the THREE new cost fields ride serde `skip_serializing_if`, and a PARTIAL
+total answers a COUNT only (money beside an "at least" word would invite reading an incomplete sum as
+the recipe's cost — ADR 0028's hidden-rows refusal is the same species, with the fixture measure: 11
+partial money words over 11 recipes that CANNOT be crafted from what the fixture prices).
+
+### The decision (ADR 0031 — the Search list owns its icon position/size · ADR 0032 — the cost on the recipe doors)
+
+- MOVE: thead's `col-icon` th + `hit_row`'s `iconcell` td move BEFORE the name halves, ONE commit,
+  ZERO CSS, ZERO handler/door/button line (ADR 0030's opener, split BY CLASS and the `item ID --cached`
+  door ride PUT — the pair says so: search doors BYTE-IDENTICAL).
+- SIZE: `#hits .listicon {32 px}` + `#hits td.iconcell {width: 44px}` — plain `.listicon` STAYS 24 px
+  (Recipe rows' materials + cooked cells), mini STAYS 20, card 72 + its 21 id rules PUT; ZERO new
+  class/token, no `transform` anywhere (the ADR 0027 scale-reject is STILL not in the frame).
+- FLAG: `--costs` on the EXISTING doors (`recipes`, `recipe SPELL_ID`) — usage grown on the TWO door
+  entries; ZERO new verb (a second door the SAME rows could disagree through was rejected). Through-ride:
+  the flag PARSES and doors that never asked IGNORE it — `search sword --costs` == `search sword`, 188
+  == 188 B, the SAME shape `--icons` has ridden since v0.9.3.
+- SUM: ONE `craft_cost(reagents) -> CostTally` called by BOTH doors AFTER their OWN joins, over the
+  joins' OWN fields: Σ (count>1 ? count : 1) × `price_now_copper`. Money = the frame's OWN `money_of`
+  beside the EXACT copper, ONLY when EVERY material is priced AND the set HAS materials. `cost_missing`
+  counts live-less materials — the TWO NULL homes (alive-row-NULL-live vs id-without-row) ALREADY ride
+  apart in the per-material cells (ADR 0023/0016) and never merge into this count; the reserved homes
+  (`vendor_buy`, `price_trend_normal`) stay NULL 0/0 (ADR 0016 PUT).
+- UI: ONE `cost_cell` answers the tab's `col-cost` td AND the card's `rcardcost` div — FOUR states
+  honest: money (complete, `money_cell` + exact-copper hover) / "cost incomplete - N of M materials
+  have no live price" / "no live prices yet" / "nothing to cost" — COUNTS with words, ZERO money beside
+  a count. The tabs ASK `--costs` (EXACTLY 2 argv sites) so `cargo run --` lines answer the SAME bytes.
+- PAINT: `th.col-cost` + `.rcardcost` JOIN the frame's ONE rules (joined selector, ZERO second copy);
+  ONE new class `.costnote` (italic like the mat-none sibling, ZERO new colour token) for the WORD
+  states.
+- COST NEVER STORED: schema `8` PUT (re-read fresh says `8`), cost DERIVED at answer time (the stored
+  cost would AGGE behind the live twin — the ADR carries that measure + the schema-hop `8 → 9` refusal).
+
+### Measured (the era's OWN witnesses — fresh 9931/9941/9951/9961/9995/9911, FRESH processes/DBs, ZERO real-host)
+
+- **Pre-landing mirror (9931): the driver PARSED the committed 49 step-lines and pressed THESE THREE
+  extra `--costs` shapes on a FRESH port BEFORE the CI block landed: 52/52 rc `0`, fixture tally 51 GETs
+  / 17 recipe GETs** — the CI comment's numbers come from THIS measure (bytes 47 017 / 1 269 / 7 345,
+  cost `14 604 / 1g 46s 4c` that window); the replay on the LANDED block (9961) re-measured **52/52
+  rc 0** with tally PUT (cost there `19 340 / 1g 93s 40c`, bytes 47 027 / 1 272 / 7 347 — the fixture's
+  price stage seeds MOVE per process: bytes ride the run, tallies do not, and the record says so).
+- **Fixture cost census over the door's OWN 12 rows: 12/12 carry `cost_missing`; money rides 1/12** —
+  COMPLETE: First Aid 467 (its ONE reagent IS a row the price presses above priced); PARTIAL 3 (202/637/
+  3024 — 1 of 2, the 2589/5113 ids have NO rows); all-unpriceable 8. 0 pairing defects grown with the new
+  answers; serde's skip MEASURED on the fixture card 132: asked, `cost_missing 2`, money FIELDS ABSENT.
+- **Exit map fresh 9995: 36 doors = base 31 at the SAME totals `0`×19 · `2`×5 · `4`×7** (kept AGAIN —
+  the same totals the v0.14.0/v0.15.0/v0.16.0 records carry) + the era's FIVE: `0`×3 (`recipes --costs
+  --limit 3`, `recipe 467 --costs`, `search sword --costs` through-ride) + `4`×2 (`recipe 999999 --costs`
+  the no-row words grown with the flag; `recipes --costs` over the EMPTY table = the SAME no-rows refusal
+  BEFORE any rows read — the flag cannot launder a refusal into an empty success).
+- **Pinned v0.14.0 pair fresh 9911 (worktree @ TAGGED `c065815`, rebuilt): 28/28 BYTE-IDENTICAL + 13/13
+  md5-equal** (md5s in the CHANGELOG) — cost fields add ZERO bytes unasked; asked ADD bytes (`recipes
+  --limit 3` 3 377 → 3 428, `recipe 467` 1 209 → 1 272); the PINNED binary REFUSES `--costs` rc `2` ×3
+  `unknown flag --costs (run help to see the verbs)` — BEFORE witness on the scratch pair, NEVER a green
+  line (ADR 0011's split rule kept).
+- **User file UNCHANGED (`sqlite3 -readonly`, NEVER written/crawled)**: schema `8` · 19 258 · 4 602/14
+  656 · 1 240 recipes with 1 240 DISTINCT `spell_id` · watch 134 · `vendor_sell` 4 231 · `price_min_now`
+  4 344 + 258 checked-empty · `vendor_buy` 0 · trend 0 · deleted 0. Cost census over the read-only set:
+  3 778 material cells → 3 642 live / **136 WITHOUT live = 135 alive rows with NULL-live + 1 id with NO
+  row at all** (honest note: an earlier dump read mis-split this as 136/0 — the fresh re-read splits
+  135/1, and the ADR + this record carry the FRESH split); rows 1 146 complete / 94 partial / 0 none;
+  counts 1 264 × 1 / 2 514 × >1 / 0 NULL (the multiplier always stated — "NULL reads as ONE" is a STATED
+  rule over a set that never leaves one).
+- **UI witnesses parse/grep ONLY** (the webview NEVER renders in the build room — DOM/IPC cost NOT
+  WITNESSED, NOT CLAIMED): PARSE OK; thead `col-icon` between `col-id`/`col-name`; `hit_row` `iconcell`
+  before `namecell`; TWO `#hits` icon rules; base 24/34 px PUT, mini 20 px PUT, card 72 px + 21 id rules
+  STILL 21; `col-cost` ×1 each html/js/css; `--costs` argv sites EXACTLY 2; `data-tab` STILL 15; joined
+  opener rule STILL ONE; nameplates STILL 7.
+- **Builds**: `cargo build` rc `0` named ZERO every commit; clippy **0 errors / 822 advice — MOVED from
+  811 because Rust GREW this era** (said so; `-D warnings` gate OFF, ADR 0011).
+- **Ladder row owed by the v0.16.0 FOLD (run #53 = 45268096674, head = the fold commit `2b18a7e`)**:
+  attempt 1 — macos job CANCELLED by GitHub (0 steps, empty log, `ended_at` null: GitHub's cancellation,
+  a SCHEDULING fact not a tree fact), the OTHER 4 jobs SUCCESS with the `test` job pressing 49 cargo
+  steps green; attempt 2 (`gh run rerun --failed`) — **SUCCESS 5/5**, run started 2026-11-24T15:02:39Z,
+  macos job (id 138539803263, attempt 2) created 15:02:44Z / started 15:12:48Z, run closed **15:19:55Z**;
+  the re-run's macos log carries **12 end-actions, 11 success + 1 skipped** (the Ubuntu-libs installer —
+  macos never builds it), apt line 0. TWO attempts of ONE run id, read as a CANCELLED job then a green
+  rerun — said so, not smoothed.
+- **Measured defects: ZERO.** Notes (said so, NOT defects): no-argv `[]` LAUNCHES THE GUI (hangs — NEVER
+  a CLI audit shape); bare `search` answers rc `0` (empty-word legal); an unwatched `watch drop` answers
+  rc `0` idempotent — the map rode TRUE usage/refusal doors for those slots (`live-search` bare rc 2,
+  `undelete-item 25` rc 4).
+
+### Chain
+
+`f064e2c` feat(ui) (the icon cell rides BETWEEN id and name — thead th + row td, ONE commit, the
+pair's BYTE-IDENTICAL search doors say the door never moved) · `fe1b278` feat(ui) (the Search icons
+24 → 32 px + cell 34 → 44 px under TWO `#hits` id-scoped rules; the 24/20/72 siblings grep-PUT) ·
+`5c068d5` feat(cli,db) (`--costs` through `Invocation`/parse/usage-TWO-entries + `CostTally`/`craft_cost`
++ THREE serde-skipped fields + the two door fills — the era's ONLY Rust step) · `96496cb` feat(ui)
+(the `col-cost` column + card cost line through ONE `cost_cell`, tab/card argv grow, note grows ONE
+clause) · `446f85d` feat(ui) (the paint: `th.col-cost`/`.rcardcost` JOINED, ONE `.costnote`, class-string
+rename in the SAME commit) · `4b6c024` chore(ci) (49 → 52 step-lines, plant one; every quoted number
+MEASURED pre-landing) · `ef9da01` chore (banner 0.16.0 → 0.17.0 + lock in the SAME commit) · this record
+carries `v0.17.0` (annotated tag). Pointers: ADR 0014/0015/0021/0025/0027 GROWN, 0016/0023/0030 RIDDEN.
+
 ## 2026-11-23 · v0.16.0 — the SEARCH ROWS open their windows BY NAME: the name cell becomes the opener button, the separate `card` chip label dies, and the look rides the recipe name's ONE rule by JOINED selector
 
 ### What forced it

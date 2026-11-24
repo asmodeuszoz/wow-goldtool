@@ -114,3 +114,5 @@ refreshed yet` (never the price-less word); `vendor_buy` / `price_trend_normal` 
 0016's grounds hold); 6 read-only doors BYTE-IDENTICAL vs the pinned binary (md5-equal,
 1 098 B … 37 648 B); the real `recipes` answers are struct-equal-after-strip on real 1 240-row
 data.
+
+**RIDDEN AT v0.17.0 ([ADR 0032](./0032-the-total-crafting-cost-on-the-recipe-doors.md)):** the live trio and its TWO different NULL homes rode UNCHANGED into the cost — the per-material cells still answer `not in your DB` / `no auction right now` / `not refreshed yet` beside the cost column's ONE honest `cost_missing` count (fresh user-set census: 136 of 3 778 material cells without live = 135 alive rows with NULL live + 1 id with NO row at all — the homes stayed APART, never merged), and the cost reads ONLY the live twin: the stored min NEVER feeds it (the ask says live; ADR 0023's measured difference on the SAME row is exactly why).

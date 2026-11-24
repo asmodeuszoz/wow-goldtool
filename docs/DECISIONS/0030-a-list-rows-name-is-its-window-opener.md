@@ -157,3 +157,5 @@ count ZERO, the name draw EXACTLY 1, the ONE joined selector, standalone `button
 19 258 · 4 602/14 656 · 1 240/1 240 · 134 · `vendor_buy`/trend 0 — `sqlite3 -readonly`, NEVER written, NEVER
 crawled). The fold's OWN push starts the NEXT run — measured in the NEXT era's record (ADR 0011's ladder),
 never chased here.
+
+**RIDDEN AT v0.17.0 ([ADR 0031](./0031-the-search-list-owns-its-icon-position-and-size.md)):** the name-cell opener rode PUT word-for-word through the icon COLUMN move - the button still lives in its OWN `namecell` wherever that cell sits in the row (the thead's `col-icon` th and `hit_row`'s `iconcell` td moved BEFORE it in ONE commit), the joined selector `button.openrecipe, #hits tr td button.pipbtn` stayed ONE rule, the delegated split BY CLASS / `runCard_from_row` / the `item ID --cached` door stayed PUT, and the map's `search sword --costs` through-ride (188 == 188 B, fresh 9995 window) says even the era's flag could not reach the click's door.

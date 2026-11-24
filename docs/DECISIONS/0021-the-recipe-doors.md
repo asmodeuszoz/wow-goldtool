@@ -259,3 +259,5 @@ doors UNTOUCHED), and the pinned pair against the TAGGED `c065815` tree measured
 + 13/13 md5-equal** a second era running (unbounded `recipes --icons` 46 793 B = ALL 12 of matching 12
 on BOTH binaries, item doors 4 341/4 076 B, search doors 185/182 B): the doors answered identical bytes
 across TWO surface eras, measured, not asserted.
+
+**GROWN AT v0.17.0 ([ADR 0032](./0032-the-total-crafting-cost-on-the-recipe-doors.md)):** the two doors the era named grew ONE flag each (`--costs` on `recipes` and on `recipe SPELL_ID`, usage grown on the TWO door entries only — ZERO new verb, the same doors), and the cost multiplies by the set's OWN stated `count`: the fresh user-set census measured 3 778/3 778 material cells STATING a count (1 264 × `1` / 2 514 × `>1` / 0 NULL) — so the "NULL count reads as ONE" half of the rule is stated, not measured, over a set that never leaves one. Unasked, the doors' bytes kept riding (pinned pair 28/28 + md5 13/13, fresh 9911), and the recipe table itself stayed PUT — cost is DERIVED at answer time, never a stored column (schema `8` PUT again).

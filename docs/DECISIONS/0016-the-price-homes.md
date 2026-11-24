@@ -120,3 +120,5 @@ and the only upstream "can be bought" signal is its own flavor prose `"Available
 vendors."` on exactly ONE copy (id 247786, Mote of Magic) — prose is not a price;
 `price_trend_normal` keeps ZERO trend words in 19 258 rows (all 20 "volume" hits are `Volume I/II/III`
 book titles) and no door. NULL in THOSE TWO still means "no producer has ever written it".
+
+**RIDDEN AT v0.17.0 ([ADR 0032](./0032-the-total-crafting-cost-on-the-recipe-doors.md)):** the cost READS the live home (`price_min_now`, 4 344 values on the user's file re-read fresh) and counts live-less materials in `cost_missing` — it WRITES nothing: the reserved homes stay NULL **0/0** again on that read-only re-read, schema `8` stays PUT, and the two different NULL homes (alive-row-with-NULL-live vs id-without-any-row — 135 + 1 of 3 778 material cells in the fresh user-set census) stay SEPARATE in the per-material cells beside the cost's ONE honest count, never merged here.

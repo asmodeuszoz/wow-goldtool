@@ -133,3 +133,5 @@ why the move was free: a window wears what the id paints. ADR 0029 keeps the ove
 - and the era drew NO new look anywhere: the search name rides openrecipe's ONE rule by JOINED selector
 (zero new rules, zero new tokens), so nothing grew near the card's sizes either. ADR 0027's lesson - a
 SIZE (and a LOOK) is a surface fact - is what let the era move a click shape without touching a truth.
+
+**GROWN AT v0.17.0 ([ADR 0031](./0031-the-search-list-owns-its-icon-position-and-size.md)):** the id-scoped mechanism carried a NEW surface's size this era - the Search table's list icons grew 24 -> 32 px under TWO `#hits`-scoped rules (icon cell 34 -> 44 px beside them) - while plain `.listicon` stayed PUT at 24 px for the Recipe rows' material and cooked cells, `table.mini .listicon` stayed PUT at 20 px, and the card's 72 px + its 21 id rules rode PUT (grep census after the move: 2 `#hits` rules, 2 base rules PUT, 21 card rules). The era drew NO `transform` anywhere - the scale paint ADR 0027 refused for the card is still not in the frame.

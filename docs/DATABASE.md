@@ -157,6 +157,20 @@ price column in `item` still means "not fetched yet", distinct from "fetched and
 AH" — the difference is visible in the UI and in `cargo run -- stats`, and the recipes door
 keeps the SAME split: an unpriced reagent answers "no price", never 0c (ADR 0015/0016's
 rules, restated in ADR 0021).
+
+**v0.17.0 (ADR 0032): the TOTAL CRAFTING COST rides as a DERIVED reading — ZERO stored bytes.** The
+`cost_copper`/`cost_money`/`cost_missing` the two recipe doors answer are computed by ONE `craft_cost`
+over the materials THAT door has ALREADY joined — Σ (stated count) × `price_min_now`, the LIVE layer the
+REFRESH stage above writes (the STORED `price_min` NEVER feeds the cost: it ages, and ADR 0023 measured
+live and stored differing ON THE SAME row); money comes from the frame's OWN `money_of` and rides ONLY
+beside a COMPLETE total, while live-less materials ride the COUNT `cost_missing` — the fresh user-file
+census read 3 778 material cells → **3 642 live, 136 WITHOUT live = 135 alive rows with NULL-live + 1
+id with NO row at all** (ADR 0016's TWO different NULL homes ride APART in the per-material cells, never
+folded into this count), rows **1 146 complete / 94 partial / 0 all-unpriceable**, and 3 778/3 778 cells
+state a `count` (1 264 × 1 / 2 514 × >1 / **0 NULL**). NO new column, NO new table, NO new `meta` key:
+the `recipe` table above rides PUT and schema `8` rides PUT (a stored cost would AGGE behind the live
+twin — rejected at the ADR with that measure); unasked, the doors' bytes ride PUT (pinned pair 28/28
+BYTE-IDENTICAL + 13/13 md5-equal, fresh 9911).
 On top of every stage's write sits the manual layer: `manual_overrides`
 merges LAST (ADR 0010), so a field the user stated survives the next crawl while the columns the
 crawl owns keep refreshing. The manual layer and tombstones never reach `recipe`: the manual

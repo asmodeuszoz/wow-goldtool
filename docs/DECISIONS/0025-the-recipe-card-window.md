@@ -235,3 +235,5 @@ path, the ONE local door, the composition, the honest gaps. The pinned pair meas
 the item/search doors BYTE-IDENTICAL across the move (fixture 2 124 / 7 330 / 6 673 / 4 107 / 643 / 1 209
 / 1 155 / 6 740 / 4 033 B; `item 25/40 --cached` 4 341 / 4 076 B; `search sword` 185/182 B) - a name click,
 a chip click and a `cargo run` line are ONE door (ADR 0014).
+
+**GROWN AT v0.17.0 ([ADR 0032](./0032-the-total-crafting-cost-on-the-recipe-doors.md)):** the card door grew cost FIELDS (`cost_copper`/`cost_money`/`cost_missing` under serde skip — unasked the card keeps its bytes, pinned pair md5s `recipe 132 --icons` ded6e551 + `recipe 638` d21b4486 rode PUT on a fresh window) and the card grew a cost LINE via the ONE `cost_cell` the tab's cost column also calls; the click, the split BY CLASS and the `recipe N` door itself stayed RIDDEN PUT — the era's TWO new CI card steps (`recipe 467 --costs` complete, `recipe 132 --icons --costs` honest-partial) press the SAME door the name click opens.
