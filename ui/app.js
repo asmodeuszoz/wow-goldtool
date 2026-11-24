@@ -277,10 +277,17 @@ function hit_row(hit) {
   // code path). The name is never blank where a name is clickable: the recipe
   // cell's `|| spell_id` fallback shape rides here as `|| hit.id` too.
   var name_btn = '<button class="pipbtn" data-id="' + esc(String(hit.id)) + '" type="button">' + esc(hit.name || hit.id) + "</button>";
+  // v0.17.0 (ADR 0031): the icon cell now rides BETWEEN the id and the name -
+  // the thead's `col-icon` moved beside it in the SAME commit, the cells and
+  // their classes ride PUT word-for-word (the frame's th/td looks are class-
+  // keyed, never positional - the census that read 227's header rule before
+  // one line moved). The click verb, its button and the `item ID --cached`
+  // door underneath ride PUT (ADR 0014's ONE code path: the affordance sits
+  // in the SAME namecell, only the columns around it changed order).
   return "<tr>"
     + '<td class="col-id">' + esc(String(hit.id)) + "</td>"
-    + '<td class="namecell">' + name_btn + " " + link + " " + toggle + "</td>"
     + '<td class="iconcell">' + icon_cell(hit) + "</td>"
+    + '<td class="namecell">' + name_btn + " " + link + " " + toggle + "</td>"
     + '<td class="qualitycell"><span class="chip c-' + esc(quality) + '">' + esc(quality) + "</span></td>"
     + '<td class="pricecell">' + price_cell + "</td>"
     + "</tr>";
