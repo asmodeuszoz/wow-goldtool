@@ -35,7 +35,6 @@
       <button class="tab" id="tab-search" data-tab="search" type="button">Search</button>
       <button class="tab" id="tab-sync" data-tab="sync" type="button">Sync</button>
       <button class="tab" id="tab-writes" data-tab="writes" type="button">Writes</button>
-      <button class="tab" id="tab-live" data-tab="live" type="button">Live look</button>
       <button class="tab" id="tab-stats" data-tab="analytics" type="button">Analytics</button>
       <!-- v0.10.0 (ADR 0021): the EIGHTH nameplate tab. Its rows are NOT the API's
            - the words/bands/skill numbers ride the fetched classic recipe set (MIT
@@ -254,24 +253,6 @@
         the corrected span rule, gives a copy whose twin was never born (a DB that copied at v0.8.x) its twin at
         birth, and re-running it answers 0 rewritten and changes nothing. The card's words row and the description
         search both read what it wrote.</div>
-    </section>
-
-    <section class="card wide tab-off" id="live-card" data-tab="live">
-      <h2>Live search: ask the API once</h2>
-      <div class="fields" id="live-fields">
-        <input class="field" id="live-text" type="text" placeholder="one human ask, for example Worn Shortsword" />
-        <button class="act" id="btn-live" type="button">Ask once</button>
-      </div>
-      <table class="mini hitstable" id="live-hits">
-        <thead><tr><th>group</th><th class="col-id">id</th><th class="col-name">name</th></tr></thead>
-        <tbody></tbody>
-      </table>
-      <div class="note" id="live-note">a look, not a sync: ONE request per ask, and the answer is upstream's own JSON printed as it
-        came - the DB is not touched, and an empty answer is still success because
-        this search matches NAMES only: a tooltip word finds nothing (docs/API.md
-        measures it), and a group can say has_more - this build stops at one ask.
-        Every hit row carries its own upstream page link, so attribution reaches
-        the answer, not only the footer</div>
     </section>
 
     <section class="card wide tab-off" id="stats-card" data-tab="analytics">
