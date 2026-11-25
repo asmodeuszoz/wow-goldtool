@@ -349,6 +349,36 @@ revalidation state per page under a key convention:
 | `list-page-<n>-more` | `1`/`0` — the page's `has_more` | a `304` has no body, so the crawl needs the hint to know whether to walk on |
 | `list-page-<n>-count` | the page's `count` | the crawl keeps `total` honest across `304`s |
 | `recipe_etag_<file>` | last ETag of that recipe FILE | v0.10.0 (ADR 0021): the SECOND source's conditional GETs, one key per file (`alchemy_recipes.json` .. `tailoring_recipes.json`); a re-pull sends it back as `If-None-Match`, pays a real `304` and writes NOTHING |
+| `pin_recipe_<spell_id>` | the added-at stamp (an epoch SECOND, like `watch`'s `added_at`) | v0.20.0 (ADR 0035): the PIN — a user keeps a recipe. ONE key per pinned recipe, the key NAMES the row it pins (built by `pin_key` from the ONE `PIN_PREFIX` const, the id tail starting at `substr(key, 12)` = the prefix's 11 chars + 1); `pin add` writes it through `SQL_SET_META`'s upsert PUT — the SAME door the ETag and cursor writers already use — so re-pinning REFRESHES the stamp instead of doubling a key (`meta`'s PRIMARY KEY keeps doubling out of reach, measured: 35 B rc `0`, ONE row for that id, its value the NEW stamp). ZERO schema line, ZERO new table, ZERO new column: a per-record stamp on ONE key is ALREADY this table's vocabulary (the row above, `schema_version` beside it) |
+
+The PINNED draw reads that key set LOCALLY (ZERO requests, ZERO crawl): `pin list` answers the ids the
+keys NAME, in the DB's OWN NUMERIC order — `SQL_PINS_OF` asks an EXACT prefix test `substr(key, 1, 11) = ?`
+and NEVER a LIKE, because LIKE's `_` is a single-char WILDCARD and LIKE is CASE-INSENSITIVE (measured on a
+scratch DB speaking this DB's OWN schema lines, SQLite 3.54.1: a `key LIKE 'pin_recipe_%'` read ALSO answered
+the planted `pinXrecipeY7` and `PIN_recipe_7`, which would hand back keys the DB never pinned and CALL them
+pinned), and it orders `CAST(substr(key, 12) AS INTEGER) ASC` because TEXT order would answer `1 723` before
+`202` — a lie about the set (measured: `pin add 1723 132` then `pin list` answered `[132,1723]`). The recipes
+LIST door answers the narrowed half of its own rows under ONE bare flag `--pinned` (`SQL_WHERE_PINNED` = an
+`EXISTS` key-EQUALITY join over this table's OWN PRIMARY KEY, so ONE indexed lookup per recipe row — the door's
+EXPLAIN census answered `SeekGE`/`IdxGT` — and the SQL stays a CONSTANT size no matter how many pins a user
+carries; params bind the prefix FIRST, the caller appends the paging values LAST), and `matching` answers the
+NARROWED count beside the rows (measured: `matching 2` over two pins, `matching 2` while `--limit 1` shows ONE
+of them — ADR 0009's rule kept for the new filter). The PIN does NOT ride the `watch` table below and this trio
+is NOT a mirror of `watch`: `watch`'s table feeds `sync --watch` a CRAWL of ITEM ids, and a SPELL id is NOT an
+item id (651 of the 1 240 spell ids land on an item row, only **20** of those carry `item_type Recipe` — the
+measure this file states beside API.md's; measured the other way on a fresh app-born DB: `pin add 999999`
+answered rc `4` at 111 B and stored NOTHING while `watch add 999999` answered rc `0` and STORED, the table then
+answering 1 row). `pin add` GUARDS every asked id against the `recipe` table BEFORE any write (`SQL_RECIPE_ROW_OF`
+/`has_recipe_row`, the `SQL_ROW_OF_ID`/`has_row_of_id` guard `mark_missing_at` names in db.rs's OWN words "see
+`has_row_of_id`, which callers must consult first"), in the CARD door's OWN refusal words, and the whole batch is
+ALL-OR-NOTHING — measured: `pin add 1723 999999` rc `4` at 111 B naming 999999 with `pin list` answering the SAME
+11 B md5 `9cf8ae5f` before and after (ZERO stored, ZERO lost). `pin drop` removes the key and keeps `SQL_WATCH_DROP`'s
+idempotent truth (an un-pinned id removes ZERO rows, answers rc `0` at 9 B and claims NOTHING). Today the PIN set is
+EMPTY on the user's OWN file: `meta` answers **588** rows, ZERO of them carrying the `pin_recipe_` prefix (read-only,
+never written, never crawled) — so the app's Pinned tab, which EXISTS only while that set answers ids, shows NOTHING
+today, and asking the door for it answers the door's OWN filter-empty refusal at rc `4` (103 B, its words already saying
+"(for this filter)" — a filter never launders a set and never launders a REFUSAL). The 1 240 recipe rows carry 1 240
+DISTINCT spell ids, so a pin ALWAYS names a real row and the guard can refuse nothing the tab shows.
 
 Targeted detail runs (v0.5.0) keep the same rules and add two readers: `item ID --cached`
 answers the card from `raw_json` with **no request at all** (`not-found` when the row has no

@@ -144,3 +144,12 @@ lines, re-measured in that era (fresh ports 9943/9983): the mirror's fixture tal
 its **41-door `0`×25 · `2`×5 · `4`×11** totals. This file's audit table stays AS HISTORY at v0.7.0 — its GUI
 rows (the four-verb boot, the reverted live probe) describe a page that existed then and answers nothing now;
 the era's own audit is ADR 0034's.
+
+**RIDDEN AT v0.20.0 ([ADR 0035](./0035-a-pin-rides-the-dbs-own-meta-keys-and-the-pinned-tab-is-the-conditional-eighth-nameplate.md)):** the door itself moved ZERO line in the PIN era — its verb, its usage entry, `cmd_live_search`,
+its exit trio `0`/`2`/`3` and the CI block's THREE steps rode PUT into that era's OWN run (57 step-lines, THREE of them
+`live-search`), and the mirror's category census still answers live-search 3 of the fixture's 51 GETs. What the era
+RODE from this ADR is the COUNT half of its rule — a set's answer names its OWN total beside the rows it shows: the
+v0.20.0 `--pinned` filter answers `matching 2` over two pins and `matching 2` while `--limit 1` shows ONE of them (measured),
+the narrowed count never the page. The door's ZERO-DB fact also stays the contrast the PIN doors ride beside: `live-search`
+opens NO DB, the pin doors open ONLY `meta` and `recipe`, LOCALLY, ZERO requests (the fixture's tallies stayed PUT at 51
+GETs / 17 recipe-file GETs with ZERO ADDED across the FIVE pin steps — ADR 0012's locality proof).

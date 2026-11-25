@@ -176,3 +176,13 @@ asked ADD-bytes 3 382 → 3 568 belong to the LEARNED fields, cost census `cost_
 on the fixture windows). ONE flag grew NEXT to the other, NEVER instead: `--learned` rides parsed-and-ignored through
 doors that never asked, exactly the `--costs`/`--icons` through-ride shape (`search sword --learned` == `--costs` ==
 itself SAME-BYTES), and money stays PUT: ZERO copper rides the learned column (measured token census).
+
+**RIDDEN AT v0.20.0 ([ADR 0035](./0035-a-pin-rides-the-dbs-own-meta-keys-and-the-pinned-tab-is-the-conditional-eighth-nameplate.md)):** the rule this ADR measured for `--costs` rode the PIN's flag UNTOUCHED — a flag
+CANNOT launder a refusal. The v0.20.0 door's guard stayed PUT: `recipes --pinned` over ZERO pins answers the
+door's OWN filter-empty refusal at rc `4` (103 B), as do `recipes --pinned --profession Cooking` and
+`--profession First Aid`, and the words already say "(for this filter)" — measured on a mirror-seeded DB AND on
+the user's OWN file (its pinned set is EMPTY today, so the refusal is what the door answers there). A pin-specific
+refusal shape for the pin filter was measured and DROPPED, never landed: it would be one rule in two places. ADR
+0032's cost machinery (`cost_cell` / `live_cell` / the money contract) rode PUT word-for-word: the PINNED table
+rides the SAME `recipe_row` painter, and the pin era moved ZERO money line (money beside EVERY copper, NEVER beside
+a count).

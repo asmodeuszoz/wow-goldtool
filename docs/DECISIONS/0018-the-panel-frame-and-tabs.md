@@ -149,3 +149,18 @@ each), and its rule stayed TRUE of what it owns: SIX activities, one at a time, 
 (`open_pip`/`close_pip`, sections with NO `data-tab`) PUT word-for-word. The census is measured on the tree
 that landed (measured AFTER the removal: the SEVEN tab ids → ZERO, `runLive` ×2 → 0, `node --check` PARSE OK,
 the DOM NEVER WITNESSED — the launch-audit rule).
+
+**GROWN AT v0.20.0 ([ADR 0035](./0035-a-pin-rides-the-dbs-own-meta-keys-and-the-pinned-tab-is-the-conditional-eighth-nameplate.md)):** the strip answered SIX activities through this truth; SEVEN answer it NOW —
+SEVEN `button.tab[data-tab]` nameplate buttons and EIGHT `section[data-tab]` sections (`data-tab=` attrs
+13 → 15, the new button and its new section carried ONE each; `class="tab` lines 7 → 8, the strip's own
+`nav class="tabs"` line riding in both counts). ONE of the SEVEN is CONDITIONAL: the Pinned recipes nameplate
+AND its card section ride ONE class `pin-off` (app.css's `.pin-off { display: none; }` hides BOTH), written by
+app.js's `set_pin_visible()` from the DB's OWN local door `pin list` (ZERO requests) at first paint in `boot()`
+— while the pinned set answers NO spell id the panel shows SIX activities and never a seventh holding NOTHING.
+The ONE truth `show_tab` stayed PUT word-for-word: it knows only `tab-on`/`tab-off`, so `pin-off` is a class its
+own loop never reads or writes — ADR 0029's `pip`/`pip-closed` mechanism, kept for a section that IS an activity
+(measured AFTER: `pinned-card` carries `data-tab="pinned"`, so this truth DOES own its one-at-a-time rule, and
+dropping the LAST pin calls `show_tab("recipes")` so the ONE truth never leaves an invisible tab active). The
+window machinery (`open_pip`/`close_pip`, sections with NO `data-tab`) stayed PUT. The census is measured on the
+tree that landed, parse/grep ONLY, the DOM NEVER WITNESSED (the launch-audit rule); ADR 0035 keeps the decision,
+the census and the rejects with measures.

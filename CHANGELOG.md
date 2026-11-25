@@ -6,6 +6,108 @@ All notable changes to **WoW Goldtool** are documented here, following
 sections. The full narrative of *why* each change was made lives in
 [docs/DEVLOG.md](./docs/DEVLOG.md); each entry below points at the matching log entry and git tag.
 
+## v0.20.0 — a PIN rides the DB's OWN `meta` keys `pin_recipe_<spell_id>` (ZERO schema line): the `pin` trio is born, the recipes door grows ONE bare `--pinned` flag, the Recipes tab's `Watch the cooked items` affordance DIES ALL ITS HALVES in ONE commit, and the PINNED recipes tab rides as the panel's CONDITIONAL eighth nameplate
+
+The user's thirteenth ask (the half quoted verbatim, typos kept): "if there are recipes pinned this
+spawns a new tab 'pinned recipes', which holds all pinned recipes". A pin is ONE `meta` key plus ONE
+stamp (`pin_recipe_<spell_id>` → the added-at stamp), and the `meta` table ALREADY speaks that prefixed-key
+vocabulary (`schema_version`, `list-page-<n>-etag`/`-more`/`-count` via `meta_page_key`, `recipe_etag_<file>`
+via `recipe_etag_key`) — so ZERO schema line moved, ZERO new table, ZERO new column, and the pinned draw is
+ONE bare `EXISTS` over `meta`'s OWN PRIMARY KEY (schema `8` PUT, 51 GETs / 17 recipe-file GETs PUT, ZERO new
+request). A SPELL id is NOT an item id, so the PIN does NOT ride the `watch` table: that table feeds `sync --watch`
+a CRAWL of ITEM ids, and 651 of 1 240 spell ids land on an item row of which only **20** are `Recipe` rows
+(ADR 0035 keeps the decision, the census and the ELEVEN rejected alternatives with measures:
+[ADR 0035](./DECISIONS/0035-a-pin-rides-the-dbs-own-meta-keys-and-the-pinned-tab-is-the-conditional-eighth-nameplate.md)).
+
+Added
+
+- **The PIN trio** (`feat(cli,db) 8099de1`, TWO Rust files, 250 ins): `pin add SPELL_ID [SPELL_ID ...]` ·
+  `pin list` · `pin drop SPELL_ID`, riding the DB's OWN `meta` keys. `pin add` GUARDS every asked id against the
+  recipe table BEFORE any write (`has_recipe_row`, the `SQL_ROW_OF_ID`/`has_row_of_id` guard `mark_missing_at` names
+  in db.rs's OWN words), because a pin feeds a DRAW — the batch is ALL-OR-NOTHING, measured: `pin add 1723 999999`
+  answered rc `4` at 111 B naming 999999 while `pin list` answered the SAME 11 B md5 `9cf8ae5f` before and after
+  (ZERO stored, ZERO lost); the refusal reuses the CARD door's OWN words (ADR 0025's no-invented-answers rule).
+  `pin drop` keeps `SQL_WATCH_DROP`'s idempotent truth (an un-pinned id removes ZERO rows and answers rc `0`, claiming
+  NOTHING — measured at 9 B `[999999]` with the list BYTE-IDENTICAL before and after), and re-pinning an already-pinned
+  id REFRESHES the stamp through `SQL_SET_META`'s upsert PUT (measured: 35 B rc `0`, `meta` still ONE row for that id,
+  its value the NEW stamp). The set read `SQL_PINS_OF` asks an EXACT prefix test `substr(key, 1, 11) = ?` and NEVER a
+  LIKE — measured on a scratch DB speaking this DB's OWN schema lines (SQLite 3.54.1), `key LIKE 'pin_recipe_%'` ALSO
+  answered the planted `pinXrecipeY7` and `PIN_recipe_7` (LIKE's `_` is a wildcard AND LIKE is case-insensitive), and
+  the door orders the set NUMERICALLY (`CAST(substr(key, 12) AS INTEGER) ASC`, like `SQL_WATCH_LIST` orders `id ASC`):
+  `pin add 1723 132` then `pin list` answered `[132,1723]` at 11 B, where TEXT order would answer `[1723,132]` — a lie.
+  Refusals ride STDERR with stdout 0 B: bare `pin` rc `2` at 60 B, `pin add`/`pin foo` rc `2` at 35 B, `pin add abc`
+  rc `2` at 36 B naming the SPELL namespace, `pin list` rc `0` at 3 B `[]`.
+- **The recipes door's ONE bare flag `--pinned`** (`feat(cli,db) 58d7d89`, ZERO new wire field): the rows it answers
+  ARE the pinned set and `matching` answers the NARROWED count beside them (ADR 0009's rule kept for the new filter —
+  `recipes --pinned --limit 1` answers 1 row of `matching 2`). `SQL_WHERE_PINNED` is ONE clause, an `EXISTS` key-equality
+  join over `meta`'s PRIMARY KEY, so ONE indexed lookup per row and a CONSTANT SQL size no matter how many pins a user
+  carries. The WHERE half now lives in ONE helper `recipes_where(profession, pinned)` BOTH recipes doors ride — as of
+  v0.19.0 each door wrote its OWN copy of `"WHERE profession = ? "`, one rule in two places (ADR 0014's rule).
+- **The PINNED recipes tab — the panel's CONDITIONAL eighth nameplate** (`feat(ui) 1368f12`): `btn-recipes-pin` aims
+  the DB's OWN local door at the SHOWN rows' SPELL ids, the pinned card `#pinned-card` answers `btn-pinned-read`
+  (`recipes --pinned --icons --costs --learned` — the SAME argv a `cargo run --` line takes, ADR 0014's one-code-path rule)
+  and `btn-pinned-unpin` (`pin drop`), and `refresh_pin()`/`set_pin_visible()` write the tab's visibility from the DB's
+  OWN local door `pin list` (ZERO requests) at first paint in `boot()`. The nameplate button AND its card ride ONE class,
+  `pin-off`, and app.css's `.pin-off { display: none; }` hides BOTH — while the pinned set answers NO spell id the panel
+  shows SIX activities and never a seventh holding NOTHING (ADR 0034's word: a HALF-dead tab is a LIE), and `show_tab`
+  stays PUT word-for-word (it knows only `tab-on`/`tab-off`; ADR 0029's `pip`/`pip-closed` precedent, kept for a section
+  that IS an activity). `table.pinned-hits` is JOINED to the recipes table's rules, never copied, and its rows ride the
+  SAME `recipe_row` painter + the SAME `col-*` classes + the SAME row-click opener, so pinned money, learned words and
+  clicks are the Recipes tab's — ONE code path, ZERO new money line (ADR 0015/0023's contract rode PUT).
+- **FIVE smoke steps for the PINNED machinery** (`chore(ci) 7a17c08`, 52 → **57 step-lines**, plant one PUT): `pin add
+  132 202` · `pin list` · `recipes --pinned --icons --costs --learned` · `pin drop 202` · `pin list` (132 and 202 are the
+  FIXTURE's OWN recipe rows), pressed where the recipes stage already wrote its rows; all FIVE are LOCAL, so the fixture's
+  tallies stay PUT at **51 GETs / 17 recipe-file GETs with ZERO GETs added** and the unchanged tally IS ADR 0012's locality
+  proof. The rc-`4` half of the map is NOT a green step (ADR 0011's rule).
+
+Removed
+
+- **The Recipes tab's `Watch the cooked items` affordance, ALL ITS HALVES in ONE commit** (`feat(ui) 1368f12`): its
+  `btn-recipes-watch` button, its listener, its `watchRecipes()` function WITH its OWN comment block, and the census
+  sentence in `runRecipes`' note that named it — because a nameplate over an absent function is a LIE (ADR 0034's word
+  kept; the SAME death the LIVE LOOK tab rode at v0.19.0). The PIN affordance was born in the SAME commit (the ask is ONE
+  swap). The `watch` VERB, its table, the Writes tab's `btn-watch-hits` and the Details tab's `btn-detail-watch` stay PUT —
+  they name the OTHER namespace: `watch` feeds a CRAWL of ITEM ids, and a spell id is NOT an item id (measured 651 of 1 240
+  lands, only 20 `Recipe` rows). Census: `watchRecipes` 0/2/0 → ZERO, `btn-recipes-watch` 1/3/0 → 0/2/0 (the TWO survivors
+  are the comment sentences that name the dead button BY NAME as history, never a listener).
+
+Changed
+
+- **The Cargo banner rides `0.19.0 → 0.20.0`** (`chore a0f4836`, `Cargo.toml` + `Cargo.lock`'s OWN version line, SAME commit —
+  a FEATURE era moves it; ZERO Rust line in this commit, the code landed EARLIER — ADR 0014's chain rule). Measured consequence:
+  `USER_AGENT` is built from `env!("CARGO_PKG_VERSION")` (`wowdb.rs:34`), so the crawler's string moves with the banner —
+  `strings -a` over the two binaries the era owns reads `wow-goldtool 0.19.0; data source: thewowdb.com` on the trio tree and
+  `wow-goldtool 0.20.0; …` on this tree, the same one-line truth v0.6.0's DEVLOG entry recorded; ZERO requests are touched
+  by the era (the pin doors and the pinned draw are LOCAL, ZERO GETs added).
+
+Measured (this era's own witnesses — fresh ports 9945 / 9946 / 9947 / 9948 / 9951 / 9952 / 9953 / 9954 / 9987, fresh processes/DBs, ZERO real-host, the user's file read read-only and NEVER opened by a binary): mirror of the LANDED block
+**58 commands rc `0`, ZERO NONZERO** (the driver's OWN parse: 57 step-lines + plant one, EXECs the already-built binary) with
+the fixture's tallies PUT at **51 GETs / 17 recipe-file GETs, ZERO ADDED** across the FIVE pin steps (rc `0` at 39 / 10 / 13 070 /
+6 / 6 B) and the SAME category census the v0.19.0 windows carried (detail 18 · icon-file 5 · tooltip 8 · live-search 3 · recipe
+files 17); exit map GROWN to **67 doors at `0`×41 · `2`×9 · `4`×17** — the PIN family alone 26 doors at `0`×16 · `2`×4 · `4`×6, the
+v0.19.0 base riding PUT at `0`×25 · `2`×5 · `4`×11 — with the flag's through-rides BYTE-EQUAL (`item 25 --cached` 4 392 == 4 392 B
+· `search sword` 188 == 188 · `stats --limit 3` 1 533 == 1 533 · `status` 1 103 == 1 103 · `recipe 132` 2 119 == 2 119 ·
+`search sword --where description` 763 == 763); pinned pair vs the v0.19.0 frame @ TAGGED `d37866d` **28/28 BYTE-IDENTICAL +
+13/13 md5-equal** (the era's BEFORE witness on that SAME pair: the tagged frame answers rc `2` at 44 B `unknown verb pin …` and rc
+`2` at 49 B `unknown flag --pinned …`); UI witnesses parse/grep ONLY (`node --check` PARSE-OK, the DOM NEVER WITNESSED — the
+launch-audit rule): SEVEN nameplate buttons, `class="tab` 8, `data-tab=` 15, EIGHT `section[data-tab]`, `index.html` 285 → 337 /
+`app.js` 1 488 → 1 638 / `app.css` 499 → 518, `pin-off` 5/6/2; CI parse 57 step-lines + plant one (60 raw `cargo run --` mentions
+file-wide); `cargo build` rc `0` naming ZERO at every commit, `cargo clippy --all-targets` **0 errors / 843 advice (843 arrows)** —
+the SET MOVED from v0.19.0's 824, which IS the claim of an era whose Rust GREW ~370 lines; user file UNCHANGED read-only (schema
+`8` · `meta` **588** rows, **ZERO** carrying `pin_recipe_` → the user's pinned set is EMPTY today, so the conditional nameplate shows
+NOTHING today · 1 240 recipe rows / **1 240** distinct spell ids · `watch` 149 today against 134 in the v0.19.0 windows, a DB fact
+said so · size 44 023 808 B + mtime-ns verified PUT); **measured defects TWO, fixed FORWARD**: `ui/app.js:33`'s census comment claimed
+"SEVEN nameplates and EIGHT `data-tab` sections" while the pushed v0.19.0 tree answers SIX + SEVEN + 13 attrs (v0.19.0's tab death
+never grew it — the comment LIED for ONE era; on THIS tree it is TRUE again AND grew the note naming the conditional nameplate) ·
+`README.md`'s Status paragraph still opens "THE v0.16.0" while its own ladder carries `v0.20.0` (four eras rode it PUT, measured at
+`d37866d`/`70d2f20`/`473a63f`/`026d311`) — the ROW pattern held, the paragraph's growth lands FORWARD. Banner MOVED `0.19.0 → 0.20.0`
+(lock SAME commit). Ladder row owed HERE and MEASURED: the v0.19.0 FOLD push's own run **45512577961 SUCCESS** — CI **#59**, 5 jobs
+(quality 2 m 16 s · test 6 m 14 s · the three build jobs "3 completed") in **6 m 34 s**, triggered via push 2026-11-24 23:45Z by
+`asmodeuszoz`, head `7b27c1d680e483150357c2034a697f7b56ad7775` = that fold commit on `refs/heads/main`, ONE run id at that head,
+status "Success" (read off GitHub's OWN Actions page; per-job closes beyond those durations need an `actions:read` token the CLI
+does not have, said so) · **FOLDED post-tag on the PUSHED tree** (the era's OWN chain+tag run and its post-tag witnesses land in
+the fold below — ADR 0011's ladder, never chased here). The fold's OWN push starts the run the NEXT era measures.
+
 ## v0.19.0 — the LIVE LOOK tab DIES (button + card + `runLive` + handler, ONE commit, all FOUR halves together) while the `live-search` DOOR rides PUT word-for-word — SIX activity tabs now, ZERO Rust line, ZERO CSS rule, ZERO CI step, ZERO request rule moved · 2026-11-24 · tag `v0.19.0`
 
 The user's twelfth ask (verbatim, typos kept): "we don't need that tab, lets get rid of it". Read as a

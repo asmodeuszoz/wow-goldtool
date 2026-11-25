@@ -122,3 +122,15 @@ card's learned-from block CANNOT drift about one row (measured the same day: the
 1 507 == 1 507 / 1 211 == 1 211 with the flag riding — the card PARSES `--learned` and IGNORES it, it
 answered learned-from UNASKED since v0.12.0). The ONE reader the seen fact rides is the crafted join's
 OWN `live_name_price_of` (tombstone guard included) — no second shape for the SAME row's fact.
+
+**GROWN AT v0.20.0 ([ADR 0035](./0035-a-pin-rides-the-dbs-own-meta-keys-and-the-pinned-tab-is-the-conditional-eighth-nameplate.md)):** the recipes door's WHERE half was ONE rule in TWO places — as of v0.19.0 the rows
+read and the count echo each WROTE their own copy of `"WHERE profession = ? "`. ONE helper `recipes_where(profession,
+pinned)` now answers BOTH doors, and clauses ride WITH their bound values in the TEXTUAL order (SQLite numbers bare
+`?` by textual order over the whole line while `params` answer POSITIONALLY, so a clause that moved without its value
+would bind the wrong needle; the caller appends the `paging_clause` values LAST). The PIN's UI read rides the SAME
+argv the CLI answers — `btn-pinned-read` sends `recipes --pinned --icons --costs --learned`, the SAME `cargo run --`
+line CI presses — so the pinned rows' money, icons, learned words and clicks are the Recipes tab's, ONE code path;
+the PINNED table `table.pinned-hits` is JOINED to the recipes table's rules and painted by the SAME `recipe_row`, so
+its cells cannot drift about a row. The era grew the trio's OWN id pass (`collect_spell_ids`) because `collect_ids`
+names the ITEM namespace in its usage words — the two namespaces stay APART (`watch` = item ids feeding a CRAWL,
+`pin` = spell ids feeding a DRAW, measured 651 of 1 240 spell ids landing on an item row, only 20 of them `Recipe`).

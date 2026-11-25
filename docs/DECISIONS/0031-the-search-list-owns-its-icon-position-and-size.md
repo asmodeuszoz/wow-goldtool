@@ -127,3 +127,12 @@ scheduling fact; each job 12 end-actions = 11 success + 1 skipped `__dtolnay_rus
 steps incl the THREE `--costs` ones). Tags stay put: the remote answers **33 tags / 66 lines, ZERO moved**
 (`v0.17.0` → `473a63f`, `v0.16.0` → `4f3c217`, `v0.14.0` → `c065815`). The fold's OWN push starts the NEXT
 run — measured in the NEXT era's record (ADR 0011's ladder), never chased here.
+
+**RIDDEN AT v0.20.0 ([ADR 0035](./0035-a-pin-rides-the-dbs-own-meta-keys-and-the-pinned-tab-is-the-conditional-eighth-nameplate.md)):** the rule that a list row owns its look in ONE place is what the PINNED table rides:
+`table.pinned-hits` is JOINED, not copied — `table.recipehits, table.pinned-hits` share the width rule, `#recipe-hits
+tr td, #pinned-hits tr td` and the hover rule share it, and `#recipe-hits tr td button.openrecipe, #pinned-hits tr
+td button.openrecipe, #hits tr td button.pipbtn` stays ONE click shape — and its rows are drawn by the SAME `recipe_row`
+painter with the SAME `col-*` classes and the SAME delegated handler shape (`dataset.spell` → `runRecipeCard`). Only the
+busy-paint lines (`#btn-recipes-pin.running`, `#btn-pinned-read.running`) and the `.pin-off` hide are new rules; the
+money cells ride the frame's OWN `moneycell`/`listicon`/`noicon` machinery unchanged. Measured parse/grep ONLY:
+`pinned-hits` 1/3/4 across `index.html`/`app.js`/`app.css`, `node --check` PARSE-OK, the DOM NEVER WITNESSED.

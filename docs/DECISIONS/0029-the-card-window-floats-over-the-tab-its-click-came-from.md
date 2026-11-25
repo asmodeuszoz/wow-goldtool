@@ -175,3 +175,12 @@ NAME became the button - `name || hit.id` riding the recipe cell's fallback shap
 with it). The click itself, the class, the delegated split BY CLASS, `runCard_from_row` and the `item
 ID --cached` door stayed PUT word-for-word - census again: 28/28 BYTE-IDENTICAL + 13/13 md5-equal against
 the pinned TAGGED `c065815` tree.
+
+**RIDDEN AT v0.20.0 ([ADR 0035](./0035-a-pin-rides-the-dbs-own-meta-keys-and-the-pinned-tab-is-the-conditional-eighth-nameplate.md)):** the mechanism this ADR locked — a visibility class that `show_tab`'s loop never
+reads or writes — is what the v0.20.0 CONDITIONAL nameplate rides, under a name that is NOT a window: the Pinned
+recipes nameplate button AND its card section carry ONE class `pin-off` (app.css's `.pin-off { display: none; }`),
+written by `set_pin_visible()` from the DB's OWN local door `pin list` and nowhere else, while `show_tab` stayed
+PUT word-for-word knowing only `tab-on`/`tab-off`. Unlike a card WINDOW, the pinned section DOES carry `data-tab`,
+so it IS an activity this truth hides or shows — the shape kept is the CLASS mechanism, not the window. The window
+machinery itself (`open_pip`/`close_pip`, the `Close this window` closer, sections with NO `data-tab`) rode PUT: a
+PINNED row's recipe name opens the SAME recipe window as any other row's, over the tab its click came from.

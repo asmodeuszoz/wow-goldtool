@@ -203,3 +203,14 @@ read read-only and NEVER opened by a binary)
   now — SEVEN nameplates → SIX, `button.tab[data-tab]` SIX, `section[data-tab]` SEVEN, `data-tab=`
   attrs 15 → 13 (the dead button and its dead section carried ONE each). The one-at-a-time rule and
   the window machinery (`open_pip`/`close_pip`, no `data-tab`) stayed PUT.
+
+- **ADR 0034 RIDDEN at v0.20.0 ([ADR 0035](./0035-a-pin-rides-the-dbs-own-meta-keys-and-the-pinned-tab-is-the-conditional-eighth-nameplate.md)):** the word this ADR locked — a HALF-dead tab is a LIE — is the word the
+  v0.20.0 PIN era rode TWICE: the Recipes tab's `Watch the cooked items` affordance died ALL ITS HALVES in ONE
+  commit (its `btn-recipes-watch` button, its listener, its `watchRecipes()` function WITH its OWN comment block,
+  and the census sentence in `runRecipes`' note that named it — measured AFTER: `watchRecipes` ZERO across the THREE
+  UI files, `btn-recipes-watch` 0/2/0, the TWO survivors being comment sentences that name the dead button AS
+  HISTORY, never a listener), and the Pinned recipes tab was taken as CONDITIONAL rather than permanently empty for
+  the SAME reason (measured on the user's OWN file: `meta` answers 588 rows, ZERO carrying the `pin_recipe_` prefix,
+  so a PERMANENT pinned nameplate would paint a seventh activity whose door answers the refusal rc `4` at 103 B
+  inside it). ADR 0034's OWN verdict stayed PUT: the live-search DOOR moved ZERO line and the CI block's THREE
+  live-search steps rode into the v0.20.0 era's OWN run (the era grew FIVE PIN steps, 52 → 57 step-lines).

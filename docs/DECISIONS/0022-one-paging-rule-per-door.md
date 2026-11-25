@@ -113,3 +113,10 @@ cap DIED rather than grew); and `--limit -1`, this ADR's own negative-limit TOKE
 (12 of 12 / 1 240 of 1 240) but rejected FOR THE TAB on legibility — a tab that sends `-1` is claiming
 "I bound" while meaning "I did not". What this rule now forbids outright is a TAB that bounds silently;
 the frame keeps TWO bounds and the record names which is which (Recipes: none; Search: 40).
+
+**RIDDEN AT v0.20.0 ([ADR 0035](./0035-a-pin-rides-the-dbs-own-meta-keys-and-the-pinned-tab-is-the-conditional-eighth-nameplate.md)):** the ONE paging rule per door rode the PIN era UNCHANGED, and its composition fact was
+re-measured there: `paging_clause` answers `LIMIT ? OFFSET ?` and its values are appended LAST, AFTER the WHERE half's
+values, because SQLite numbers bare `?` by TEXTUAL order — the v0.20.0 door's new clause (`SQL_WHERE_PINNED`'s bound
+prefix) is pushed BEFORE the paging values in the SAME textual order the SQL states, so neither order can drift. Measured
+on a mirror-seeded DB: `recipes --pinned --limit 1` over a pinned set of 2 answers ONE row of `matching 2` at 1 249 B
+(ADR 0009's count half) while the bounded steps' bytes and rc totals stayed PUT (the mirror's 58 commands, ZERO NONZERO).
