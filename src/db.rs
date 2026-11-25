@@ -2418,6 +2418,54 @@ pub fn write_recipe(conn: &Connection, file_profession: String, entry: RecipeEnt
 /// NULLS-LAST (the pair rule every list door keeps): the skill of an
 /// unstated entry stays at the end of its profession, never at the top.
 pub const SQL_RECIPE_ROWS: &str = "SELECT spell_id, profession, recipe_name, crafted_item_id, crafted_item_name, skill_required, skill_tier, trivial_low, trivial_high, reagents_json, acquisition, acquisition_note, source, learned_json FROM recipe ";
+/// v0.20.0 (ADR 0035): a PIN is a recipe the USER keeps, and it rides the DB's OWN
+/// `meta` table (`key TEXT PRIMARY KEY, value TEXT`, docs/DATABASE.md's schema 8)
+/// under the prefixed-key vocabulary the crawler already rides there: the list pages
+/// keep `list-page-<n>-etag`/`-more`/`-count` keys (`meta_page_key` in sync.rs) and
+/// the recipe files keep `recipe_etag_<file>` keys (`recipe_etag_key`), so a per-user
+/// stamp on ONE key is ALREADY this DB's vocabulary — a pin is ONE key plus ONE
+/// stamp, which needs NO new table (a new table would be a schema hop, and the
+/// ladder's audits would then re-learn a schema the file on disk does not have) and
+/// NO new column. The key NAMES the row it pins (`pin_recipe_<spell_id>`, built by
+/// `pin_key` from the ONE `PIN_PREFIX` const below), and the value is the added-at
+/// stamp beside the key: the same shape `watch`'s table keeps (`id`, `added_at`),
+/// never a count of a list. `pin add` writes through `SQL_SET_META`'s upsert PUT —
+/// the door the ETag and cursor writers already use — so re-pinning REFRESHES the
+/// stamp, the same truth `watch add` tells about its `added_at`. The rejected
+/// shapes and their measures live in ADR 0035; the honest facts here are: riding
+/// `watch` would put a SPELL id into the table that feeds `sync --watch` a CRAWL
+/// (spell ids and item ids are two namespaces, ADR 0021/0025's measured fact), and
+/// the pinned tab's rows would then never be drawn from the table they name.
+pub const PIN_PREFIX: &str = "pin_recipe_";
+/// The pinned set, read the honest way: an exact PREFIX test, never a LIKE.
+/// Measured on a scratch DB speaking this DB's OWN schema lines: a `key LIKE
+/// 'pin_recipe_%'` read ALSO answered the planted `pinXrecipeY7` and `PIN_recipe_7`
+/// keys — LIKE's `_` is a single-char WILDCARD and LIKE's matching is CASE-
+/// INSENSITIVE — so a LIKE would hand back keys the DB never pinned and call them
+/// pinned (ADR 0035's census row keeps the measure). `substr(key, 1, 11) = ?` states
+/// the ONE thing that is true of these keys (this DB's `PIN_PREFIX` leads them), with
+/// the prefix BOUND — the DB binds values, it never interpolates them (the rule beside
+/// `recipes_rows`' paging). The door asks for the id its key NAMES as its OWN column
+/// (`substr(key, 12)`: the tail behind the 11-character prefix; `pin_key` writes the
+/// SAME prefix from the SAME const, so what the door writes is what it reads, and a
+/// drift in the two position numbers would answer a WRONG id rather than crash — the
+/// era's audits read a pin back BY ID to name that, ADR 0011's named-lies rule) and
+/// orders NUMERICALLY like `SQL_WATCH_LIST` orders `id ASC`: pinned ids ordered as
+/// TEXT would put `999` after `1 000`, a lie.
+pub const SQL_PINS_OF: &str = "SELECT key, substr(key, 12) FROM meta WHERE substr(key, 1, 11) = ? ORDER BY CAST(substr(key, 12) AS INTEGER) ASC";
+/// A pin's removal: the key goes, and an id that carries no pin removes ZERO rows
+/// (rc 0 — `SQL_WATCH_DROP`'s idempotent truth kept: `un-pinned drop` answers the
+/// ask it was given, it claims NOTHING about a row it never had).
+pub const SQL_PIN_DROP: &str = "DELETE FROM meta WHERE key = ?";
+/// Does the recipe table hold a row of this spell id? The PIN's write guard, riding
+/// db.rs's OWN guard note beside `mark_missing_at` ("see has_row_of_id, which
+/// callers must consult first"): a pin is kept so the pinned tab can DRAW its rows, so a key naming a
+/// row the recipe table never got would be a stored lie the next draw never answers
+/// — `pin add` refuses it (rc 4) BEFORE any write. Measured contrast the OTHER way
+/// at v0.20.0: `watch add 999999` answers rc 0 and stores, because a watch feeds a
+/// CRAWL whose own doors answer honestly about an id they never saw. No tombstone
+/// guard here: the recipe table owns no `deleted_at` column (schema 8 PUT).
+pub const SQL_RECIPE_ROW_OF: &str = "SELECT COUNT(1) FROM recipe WHERE spell_id = ?";
 pub const SQL_RECIPE_COUNT: &str = "SELECT COUNT(1) FROM recipe ";
 pub const SQL_RECIPE_ORDER: &str = "ORDER BY profession ASC, (skill_required IS NULL) ASC, skill_required ASC, spell_id ASC";
 pub const SQL_LIVE_NAME_PRICE: &str = "SELECT name, price_min, price_min_now, price_now_at, price_now_missing_at FROM item WHERE id = ? AND deleted_at IS NULL";
@@ -2887,6 +2935,112 @@ pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: b
         }
     }
     return Ok(out);
+}
+
+/// v0.20.0 (ADR 0035): the PIN doors, mirroring the `watch` trio's shape (ADR
+/// 0025's `add`/`list`/`drop`) over the DB's OWN `meta` keys. `pin_key` builds a
+/// key from the ONE `PIN_PREFIX` const; `pin add` writes through `meta_set`, whose
+/// `SQL_SET_META` upsert the ETag and count writers already ride, so re-pinning
+/// REFRESHES the stamp — the same truth `watch add` tells about its `added_at`, and
+/// a pin's key never doubles (the meta table's PRIMARY KEY is `key`). `pin drop`
+/// deletes the key; an id that carries no pin removes ZERO rows and answers rc 0
+/// (`SQL_WATCH_DROP`'s idempotent truth kept: the door claims NOTHING about a row
+/// it never had). `pin list` answers the pinned set as ids in the DB's OWN numeric
+/// order. `has_recipe_row` guards a pin's WRITE (the `SQL_ROW_OF_ID`/`has_row_of_id`
+/// guard `mark_missing_at` consults first, db.rs's own precedent): a pin is kept so
+/// the pinned tab can DRAW its rows, so a key naming a row the recipe table never
+/// got is a stored lie the next draw never answers — and the guard runs over EVERY
+/// asked id BEFORE any write, so a batch with one unknown id stores NOTHING (measured
+/// at v0.20.0: `pin add 132 999999` answered rc 4 naming 999999 and `pin list`
+/// stayed empty, while `watch add 999999` answered rc 0 and stored, because a watch
+/// feeds a CRAWL whose own doors answer honestly about an id they never saw).
+pub fn pin_key(spell_id: i64) -> String {
+    return format!("{}{}", PIN_PREFIX, spell_id);
+}
+
+pub fn pin_add(conn: &Connection, spell_id: i64, added_at: i64) -> AppResult<usize> {
+    return meta_set(conn, pin_key(spell_id), format!("{}", added_at));
+}
+
+pub fn pin_drop(conn: &Connection, spell_id: i64) -> AppResult<usize> {
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Text(pin_key(spell_id)));
+    return bind_sql(conn, SQL_PIN_DROP, single, 1);
+}
+
+/// The pinned set as ids, in the DB's OWN numeric order (`SQL_WATCH_LIST`'s
+/// `ORDER BY id ASC` precedent: pinned ids ordered as TEXT would put `999` after
+/// `1 000`, a lie). The door reads the key AND the id its key NAMES (`SQL_PINS_OF`
+/// hands the tail as its OWN column) and PARSES the tail — the same `parse` pass
+/// `cli.rs`'s `as_int` and `db.rs`'s schema-version read ride; a tail that is not a
+/// number is a stored byte this DB's writer never wrote, so it answers a decode
+/// error that NAMES the key (ADR 0011's rule that stored bytes get checked, the
+/// same shape `recipes_rows` answers for a `reagents_json` that is not the array the
+/// writer described). The stamp the value carries beside the key rides PUT here:
+/// `pin list` answers its OWN set of ids, and the pinned tab's rows ride the
+/// recipes door's OWN order (`SQL_RECIPE_ORDER`), never a stamp order of their own.
+#[derive(Serialize, Clone, Debug)]
+pub struct RawPin {
+    pub key: String,
+    pub id_text: Option<String>,
+}
+
+pub fn pin_list(conn: &Connection) -> AppResult<Vec<i64>> {
+    let mut stmt = match conn.prepare(SQL_PINS_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut bounds: Vec<Value> = [].to_vec();
+    bounds.push(Value::Text(PIN_PREFIX.to_string()));
+    let mapped = match stmt.query_map(params_from_iter(bounds), |row|
+        Ok(RawPin {
+            key: row.get(0)?,
+            id_text: row.get(1)?,
+        })
+    ) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut out: Vec<i64> = [].to_vec();
+    for item in mapped {
+        match item {
+            Err(problem) => return Err(AppError::db(format!("{}", problem))),
+            Ok(raw) => {
+                match raw.id_text {
+                    None => return Err(AppError::decode(format!("a pin key carries no id tail the writer described: {}", raw.key))),
+                    Some(tail) => match tail.parse() {
+                        Err(_) => return Err(AppError::decode(format!("a pin key's id tail is not a number the writer described: {}", raw.key))),
+                        Ok(number) => out.push(number),
+                    },
+                }
+            },
+        }
+    }
+    return Ok(out);
+}
+
+pub fn has_recipe_row(conn: &Connection, spell_id: i64) -> AppResult<bool> {
+    let mut stmt = match conn.prepare(SQL_RECIPE_ROW_OF) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    let mut single: Vec<Value> = [].to_vec();
+    single.push(Value::Integer(spell_id));
+    let mut rows = match stmt.query(params_from_iter(single)) {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(value) => value,
+    };
+    match rows.next() {
+        Err(problem) => return Err(AppError::db(format!("{}", problem))),
+        Ok(None) => return Ok(false),
+        Ok(Some(row)) => {
+            let count: i64 = match row.get(0) {
+                Err(problem) => return Err(AppError::db(format!("{}", problem))),
+                Ok(value) => value,
+            };
+            return Ok(count > 0);
+        },
+    }
 }
 
 /// How many recipe rows a profession filter matches: the same WHERE chain as

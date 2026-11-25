@@ -9,7 +9,7 @@ use crate::errors::AppError;
 use crate::errors::AppResult;
 use crate::errors::ErrorKind;
 
-use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, history_of, icon_at_of, icon_b64_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, money_of, next_manual_id, open_db_at, price_min, price_market, price_min_now_of, raw_json_of, recipe_card, recipes_count, recipes_rows, refresh_twins, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, tooltip_text_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, RecipeCard, RecipeRow, RefreshTally, SyncState, unix_now};
+use crate::db::{add_item_manual, apply_manual_edits_detail, clear_deleted_at, column_card, count_items, db_path, deleted_at_of, detail_etag_of, edited_at_of, editable_kind, has_row_of_id, has_recipe_row, history_of, icon_at_of, icon_b64_of, icon_missing_at_of, manual_at_of, manual_edits_of, manual_overrides_of, mark_deleted_at, mark_missing_at, money_of, next_manual_id, open_db_at, pin_add, pin_drop, pin_list, price_min, price_market, price_min_now_of, raw_json_of, recipe_card, recipes_count, recipes_rows, refresh_twins, set_item_field, synced_at_of, sync_state_get, upsert_detail, tooltip_at_of, tooltip_html_of, tooltip_missing_at_of, tooltip_text_of, watch_add, watch_drop, watch_list, DbTarget, PriceSample, RecipeCard, RecipeRow, RefreshTally, SyncState, unix_now};
 
 use crate::query::{Filter, Hit, empty_filter, search, count_matching};
 use crate::stats::{coverage, by_quality, cheapest, priciest, Coverage, QualityStat, Extreme};
@@ -27,7 +27,7 @@ use std::env::set_var;
 /// What the CLI can answer. Keeping the list here means an unknown verb becomes a
 /// usage error that names what the user actually typed.
 pub fn usage_text() -> String {
-    return "usage: status | sync --stage list|detail|icons|tooltip|price|recipes [--budget N] [--ids A,B,C] [--watch] | search TEXT [--icons --where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id|price-now --limit N --offset N] | stats [--icons --limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | recipes [--profession NAME] [--learned] [--limit N] [--offset N] [--costs] | recipe SPELL_ID [--icons] [--costs] | status [--db PATH] [--fixture URL]".to_string();
+    return "usage: status | sync --stage list|detail|icons|tooltip|price|recipes [--budget N] [--ids A,B,C] [--watch] | search TEXT [--icons --where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id|price-now --limit N --offset N] | stats [--icons --limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | pin add SPELL_ID [SPELL_ID ...] | pin list | pin drop SPELL_ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | recipes [--profession NAME] [--learned] [--limit N] [--offset N] [--costs] | recipe SPELL_ID [--icons] [--costs] | status [--db PATH] [--fixture URL]".to_string();
 }
 
 /// The verbs of one invocation plus its flags. Unknown flags are kept rather than
@@ -793,6 +793,25 @@ pub fn collect_ids(words: Vec<String>) -> AppResult<Vec<i64>> {
     return Ok(out);
 }
 
+/// The same pass for the PIN door, whose ids are SPELL ids and not item ids (ADR
+/// 0021/0025's measured fact: `spell_id` is the recipe table's own namespace, and
+/// only 20 of the 651 lands a spell id makes in the item table are recipe rows) —
+/// the usage words say so, because `watch`'s door would name the WRONG namespace
+/// for an ask the pin door is answering.
+pub fn collect_spell_ids(words: Vec<String>) -> AppResult<Vec<i64>> {
+    let mut out: Vec<i64> = [].to_vec();
+    let mut index: usize = 1;
+    while index < words.len() {
+        let token: String = words[index].clone();
+        match as_int(token.clone()) {
+            None => return Err(AppError::usage(format!("pin wants numeric spell ids, got {}", token))),
+            Some(number) => out.push(number),
+        }
+        index = index + 1;
+    }
+    return Ok(out);
+}
+
 /// The filter a search actually applied, echoed back so a script can log what it
 /// asked for and the UI can reuse the same shape.
 pub fn json_filter(filter: Filter) -> String {
@@ -1302,6 +1321,80 @@ pub fn cmd_watch(inv: &Invocation) -> AppResult<String> {
     return Err(AppError::usage(format!("watch wants add, list or drop, got {}", action)));
 }
 
+/// pin: the recipes the USER keeps (v0.20.0, ADR 0035), so the panel can open a
+/// nameplate over them. The trio mirrors `watch`'s shape (ADR 0025's `add`/`list`/
+/// `drop` verbs, the SAME `{"added":[…],"at":…}` answer and the ids-array drop echo,
+/// because the two doors answer the same KIND of ask), but it rides the DB's OWN
+/// `meta` keys, NOT the `watch` table: a pin names a SPELL id and `watch` is the
+/// table that feeds `sync --watch` a CRAWL of ITEM ids, two namespaces ADR 0021/
+/// 0025 measured apart. `pin add` guards EVERY asked id against the recipe table
+/// BEFORE any write (the `has_row_of_id`/`SQL_ROW_OF_ID` guard `mark_missing_at`
+/// consults first, and the card door's OWN refusal words at ADR 0025's no-invented-
+/// answers rule): a pin is kept so the pinned draw can answer it, so a key naming a
+/// row the table never got would be a stored lie nothing ever draws — and because
+/// the guard runs over the WHOLE batch first, an ask with one unknown id stores
+/// NOTHING (measured at v0.20.0 against `watch add 999999`, which answers rc 0 and
+/// stores because a watch feeds a crawl that answers honestly about an id it never
+/// saw). `pin drop` guards NOTHING: dropping an un-pinned id removes ZERO rows and
+/// answers rc 0, `SQL_WATCH_DROP`'s idempotent truth kept.
+pub fn cmd_pin(inv: &Invocation) -> AppResult<String> {
+    if inv.words.len() < 1 {
+        return Err(AppError::usage("pin wants add SPELL_ID [SPELL_ID ...], list or drop SPELL_ID".to_string()));
+    }
+    let conn: Connection = match open_at(inv) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    let action: String = inv.words[0].clone();
+    if action == "list" {
+        let ids: Vec<i64> = match pin_list(&conn) {
+            Err(problem) => return Err(problem),
+            Ok(value) => value,
+        };
+        return Ok(json_ids(ids));
+    }
+    let ids: Vec<i64> = match collect_spell_ids(inv.words.clone()) {
+        Err(problem) => return Err(problem),
+        Ok(value) => value,
+    };
+    if ids.is_empty() {
+        return Err(AppError::usage(format!("pin {} wants at least one spell id", action)));
+    }
+    let encoded: String = json_ids(ids.clone());
+    if action == "add" {
+        for one in ids.clone() {
+            let there: bool = match has_recipe_row(&conn, one) {
+                Err(problem) => return Err(problem),
+                Ok(value) => value,
+            };
+            if !there {
+                return Err(AppError::not_found(format!("no recipe row for spell id {}: the recipe table answers only after sync --stage recipes wrote it (ADR 0021)", one)));
+            }
+        }
+        let now: i64 = unix_now();
+        for one in ids.clone() {
+            match pin_add(&conn, one, now) {
+                Err(problem) => return Err(problem),
+                Ok(_) => {},
+            }
+        }
+        let mut parts: Vec<String> = [].to_vec();
+        parts.push(fragment("added".to_string(), encoded));
+        parts.push(fragment("at".to_string(), format!("{}", now)));
+        return Ok(object(parts));
+    }
+    if action == "drop" {
+        for one in ids {
+            match pin_drop(&conn, one) {
+                Err(problem) => return Err(problem),
+                Ok(_) => {},
+            }
+        }
+        return Ok(encoded);
+    }
+    return Err(AppError::usage(format!("pin wants add, list or drop, got {}", action)));
+}
+
 /// ids straight from the word list (collect_ids skips its first token, which is
 /// how watch's action got through; here every word is an id).
 pub fn collect_all_ids(words: Vec<String>) -> AppResult<Vec<i64>> {
@@ -1648,6 +1741,7 @@ pub fn dispatch(inv: Invocation) -> AppResult<String> {
     if inv.verb == "item" { return cmd_item(&inv); }
     if inv.verb == "live-search" { return cmd_live_search(&inv); }
     if inv.verb == "watch" { return cmd_watch(&inv); }
+    if inv.verb == "pin" { return cmd_pin(&inv); }
     if inv.verb == "set-item" { return cmd_set_item(&inv); }
     if inv.verb == "add-item" { return cmd_add_item(&inv); }
     if inv.verb == "delete-item" { return cmd_delete_item(&inv); }
