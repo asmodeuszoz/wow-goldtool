@@ -289,6 +289,50 @@ jobs:
           cargo run -- recipes --profession Alchemy --limit 3
           cargo run -- recipes --profession Enchanting --icons --limit 4
           cargo run -- recipes --profession Cooking --limit 3
+          # v0.20.0 (ADR 0035): the PINNED recipes tab's doors. `pin` rides the DB's OWN
+          # `meta` keys `pin_recipe_<spell_id>` (schema 8 PUT, ZERO schema line moved, ZERO
+          # new table: a pin is ONE key plus ONE stamp beside it, and the crawler ALREADY
+          # rides prefixed meta keys - `list-page-<n>-etag`/`-more`/`-count` via `meta_page_key`
+          # and `recipe_etag_<file>` via `recipe_etag_key`, docs/DATABASE.md's meta-key table),
+          # and `--pinned` is ONE bare FLAG on the recipes LIST door - ZERO new wire field, the
+          # rows it returns ARE the pinned set and `matching` answers the NARROWED count beside
+          # them (ADR 0009's "showing 40 of 1 250" rule kept for the new filter; the WHERE half
+          # rides ONE `recipes_where` helper BOTH doors now share, since as of v0.19.0 each door
+          # wrote its OWN copy of `WHERE profession = ? `, one rule in two places, ADR 0014's
+          # rule restated at the door's own paging clause ADR 0022). ALL FIVE steps are LOCAL
+          # (ZERO requests): the era measured the fixture's OWN tally PUT at 51 GETs / 17 of them
+          # `/data/` recipe-file GETs ACROSS these steps - the unchanged tally IS the locality
+          # proof ADR 0012 keeps. Measured on a FRESH mirror BEFORE this block landed (the driver
+          # parsed the committed 52 step-lines and pressed these very candidates): `pin add 132
+          # 202` rc 0 at 39 B `{"added":[132,202],"at":N}` (132 and 202 are the fixture's OWN
+          # recipe rows - its 12 entries carry spell ids 132 . 1 723 . 202 . 683 . 334 . 637 .
+          # 638 . 4 977 . 467 . 785 . 3 023 . 3 024; `pin add` GUARDS every asked id against the
+          # recipe table BEFORE any write, the `SQL_ROW_OF_ID`/`has_row_of_id` guard `mark_missing_at`
+          # consults first, in the CARD door's OWN refusal words at ADR 0025's no-invented-answers
+          # rule: measured pair on this same DB, `pin add 999999` rc 4 at 111 B naming the id, and
+          # `pin add 132 999999` rc 4 at 111 B naming 999999 while `pin list` answered the SAME 6
+          # B afterwards - the batch stores NOTHING or ALL, measured rather than asserted), `pin
+          # list` rc 0 at 10 B `[132,202]` (the DB's OWN NUMERIC order: the door asks for the id its
+          # key NAMES and orders it as a NUMBER - TEXT order would put `1 723` before `202`, a lie,
+          # and the measure shows it with 1 723 pinned too), `recipes --pinned --icons --costs
+          # --learned` rc 0 at 13 070 B answering 2 rows of `matching 2` - the PINNED half of the
+          # fixture's 12 through the SAME reader the steps above ride, so the cells' money, icons
+          # and learned words ride PUT and the pin era moves ZERO money line (ADR 0015/0023's
+          # contract: money beside EVERY copper, NEVER beside a count), `pin drop 202` rc 0 at 6 B
+          # `[202]` and the `pin list` right after it rc 0 at 6 B `[132]` (ONE pin left: the drop
+          # removed exactly the asked id, and dropping an id that carries no pin removes ZERO rows
+          # and answers rc 0 - `SQL_WATCH_DROP`'s idempotent truth kept). The rc-4 half of the map
+          # is NOT a green step HERE (ADR 0011's rule): a pin over an id the recipe table never got
+          # answers rc 4, `recipes --pinned --profession Cooking` answers the door's OWN filter-empty
+          # refusal at 103 B (the narrowed set, measured), and `recipes --pinned` over ZERO pins
+          # answers that SAME refusal at 103 B - the flag CANNOT launder a refusal into an empty
+          # success (ADR 0032's precedent, and the UI never asks it: the Pinned nameplate exists
+          # ONLY while `pin list` answers ids). Step count 52 -> 57 step-lines, plant line stays one.
+          cargo run -- pin add 132 202
+          cargo run -- pin list
+          cargo run -- recipes --pinned --icons --costs --learned
+          cargo run -- pin drop 202
+          cargo run -- pin list
           # v0.14.0 (ADR 0028): the RECIPES TAB asks this door WITHOUT a bound, so this
           # next step is the tab's OWN argv - `recipes --icons`, ZERO requests. The bound
           # that capped the tab's rows lived in the tab (a pager select feeding `--limit`
