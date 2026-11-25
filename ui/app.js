@@ -13,8 +13,15 @@ var sync_busy = false;
 var last_hits = [];
 var watched = [];
 // v0.10.0 (ADR 0021): the recipes tab's shown rows, the same shape last_hits is
-// for the search tab: btn-recipes-watch watches the COOKED items of THESE rows.
+// for the search tab. v0.20.0 (ADR 0035): btn-recipes-watch died; btn-recipes-pin
+// pins the SPELL ids of THESE rows (the recipe table's OWN namespace, never the
+// item ids `watch` keeps), and the Pinned tab shows the whole pinned set.
 var recipes_shown = [];
+// v0.20.0 (ADR 0035): the PINNED set as SPELL ids, read by the DB's OWN LOCAL
+// door `pin list` (ZERO requests, ZERO crawl): this array is the conditional
+// nameplate's ONE truth, and pinned_shown are the rows that tab paints.
+var pinned_ids = [];
+var pinned_shown = [];
 
 // v0.11.0 (ADR 0023): did ANY shown row carry live noise beside its stored money?
 // Drives the ONE conditional note sentence (the ADR 0020 pattern: the note says
@@ -30,7 +37,12 @@ var live_shown = false;
 // cli_ok(argv) path ADR 0014 locked (a click and a cargo line stay one code path).
 // v0.15.0 (ADR 0029): the TWO CARD WINDOWS are NOT in this truth any more - their
 // sections dropped data-tab with their nameplates, so this loop sees SEVEN
-// nameplates and EIGHT data-tab sections, never a card window. A window's
+// nameplates and EIGHT data-tab sections, never a card window. v0.20.0 (ADR 0035):
+// ONE of the SEVEN is CONDITIONAL (the Pinned nameplate and its card carry `pin-off`
+// while the pinned set answers NO ids, and app.css hides that class - show_tab's loop
+// never reads or writes it, ADR 0029's pip/pip-closed precedent kept for a tab that IS
+// an activity), so the loop counts the DOM and SIX or SEVEN are PAINTED, the pinned
+// half answering what the DB's OWN `pin list` says.
 // visibility is held by open_pip/close_pip alone (below): it floats OVER whatever
 // tab is already visible, and the tab machinery never hides or moves it.
 var active_tab = "overview";
@@ -324,7 +336,7 @@ async function runRecipes() {
       rows = rows + recipe_row(found.recipes[i]);
     }
     document.querySelector("#recipe-hits tbody").innerHTML = rows;
-    var note = "ALL " + num(found.matching) + " recipe rows this filter answers are shown \u2014 the tab asks the door WITHOUT a bound (ADR 0028: the cap lived in the tab, the door never had one; a bound at or above this count would answer the SAME bytes, so a cap only HID rows, and growing it was rejected on that measure): the job words, skill numbers and material LISTS are the FETCHED set's own (the Sync tab\u2019s Recipes button: 8 files, MIT second source, cited here): the API has no professions door and its recipe cards never name a job or materials (measured); icons and money beside the materials are YOUR DB\u2019S OWN \u2014 an item the DB never saw says so beside its dataset name, and an enchanting craft says it has NO crafted item at all; the TOTAL COST column sums the set\u2019s materials \u00d7 their stated counts over YOUR DB\u2019S LIVE price layer (the twin the price refresh writes \u2014 never the stored min, NEVER a second fetch): money answers ONLY a cost every material of the set can price, and an incomplete cost names HOW MANY materials have no live price, words beside the count and NEVER money beside it (ADR 0015/0032); the LEARNED column reads the set\u2019s OWN learned-from bytes \u2014 a TRAINER, an AUTOMATIC learn, or the SCROLL item that teaches the recipe (named BY VALUE: the set\u2019s own name + id) beside what YOUR DB saw of that scroll\u2019s row and the set\u2019s OWN source word (vendor / drop / quest / multiple / unresearched) beside \u2014 and ZERO copper rides this column: this DB owns NO vendor places, and 0 of the 477 copied scroll tooltips name one either (measured read-only), so \u201cwhere to get it\u201d goes exactly as far as the set says (ADR 0033); clicking a row\u2019s recipe name opens that entry\u2019s CARD (the local door, ZERO requests); the Watch button rides EVERY row shown, so it reaches the whole set\u2019s cooked items and the Details door then fetches exactly those records";
+    var note = "ALL " + num(found.matching) + " recipe rows this filter answers are shown \u2014 the tab asks the door WITHOUT a bound (ADR 0028: the cap lived in the tab, the door never had one; a bound at or above this count would answer the SAME bytes, so a cap only HID rows, and growing it was rejected on that measure): the job words, skill numbers and material LISTS are the FETCHED set's own (the Sync tab\u2019s Recipes button: 8 files, MIT second source, cited here): the API has no professions door and its recipe cards never name a job or materials (measured); icons and money beside the materials are YOUR DB\u2019S OWN \u2014 an item the DB never saw says so beside its dataset name, and an enchanting craft says it has NO crafted item at all; the TOTAL COST column sums the set\u2019s materials \u00d7 their stated counts over YOUR DB\u2019S LIVE price layer (the twin the price refresh writes \u2014 never the stored min, NEVER a second fetch): money answers ONLY a cost every material of the set can price, and an incomplete cost names HOW MANY materials have no live price, words beside the count and NEVER money beside it (ADR 0015/0032); the LEARNED column reads the set\u2019s OWN learned-from bytes \u2014 a TRAINER, an AUTOMATIC learn, or the SCROLL item that teaches the recipe (named BY VALUE: the set\u2019s own name + id) beside what YOUR DB saw of that scroll\u2019s row and the set\u2019s OWN source word (vendor / drop / quest / multiple / unresearched) beside \u2014 and ZERO copper rides this column: this DB owns NO vendor places, and 0 of the 477 copied scroll tooltips name one either (measured read-only), so \u201cwhere to get it\u201d goes exactly as far as the set says (ADR 0033); clicking a row\u2019s recipe name opens that entry\u2019s CARD (the local door, ZERO requests); the Pin button keeps the shown rows\u2019 OWN spell ids on the DB\u2019S OWN meta keys pin_recipe_<spell_id> (the door reads them LOCAL, ZERO requests, ZERO crawl) and the Pinned recipes tab holds ALL of them \u2014 its nameplate appears ONLY while the pinned set answers ids";
     if (found.matching === 0) {
       note = "no recipe rows for this filter \u2014 the set is fetched by the Sync tab\u2019s Recipes button (or the CLI stage), read here ever after";
     }
@@ -511,42 +523,135 @@ function recipe_row(one) {
     + "</tr>";
 }
 
-// The watch button of THIS tab is the same verb the search tab's uses, aimed at the
-// cooked items of the shown rows (one batched call, like watchHits). Two kinds of
-// row are skipped HONESTLY, never invented: an enchanting craft has no crafted item
-// at all (crafted_item_id is null), and a cooked item the DB never has a row for
-// cannot be watched - the row already says "the DB never saw this id", and the door
-// refuses to watch a row it has never seen (the watch verb's row guard).
-async function watchRecipes() {
+// v0.20.0 (ADR 0035): the PINNED set's doors, living where the dead watch-cooked
+// affordance lived. `pin add` rides the DB's OWN `meta` keys `pin_recipe_<spell_id>`
+// (schema 8 PUT, ZERO schema line, ZERO new table) and names the recipe table's OWN
+// namespace: the shown rows ARE recipe rows, so the door's row guard
+// (`has_recipe_row`, measured rc 4 at 111 B naming the ONE id the table does not
+// hold) can only fire for an id this tab never showed - the rows here come from the
+// table itself. The door's batch is ALL-OR-NOTHING (measured: the refusal stored
+// NOTHING, `pin list` answered the SAME bytes before and after), so a shown set with
+// one impossible id pins NOTHING rather than half of it.
+async function pinRecipes() {
   if (recipes_shown.length === 0) {
-    set_note(document.getElementById("recipes-note"), "read the recipes first: there are no rows to watch", true);
+    set_note(document.getElementById("recipes-note"), "read the recipes first: there are no rows to pin", true);
     return;
   }
-  var argv = ["watch", "add"];
+  var argv = ["pin", "add"];
   var targets = 0;
   for (var i = 0; i < recipes_shown.length; i = i + 1) {
-    var one = recipes_shown[i];
-    if (one.crafted_item_id === null || one.crafted_item_id === undefined) { continue; }
-    if (!one.crafted_db_name) { continue; }
-    if (watched.indexOf(Number(one.crafted_item_id)) >= 0) { continue; }
+    var spell = Number(recipes_shown[i].spell_id);
+    if (spell <= 0) { continue; }
+    if (pinned_ids.indexOf(spell) >= 0) { continue; }
     var again = false;
     for (var k = 2; k < argv.length; k = k + 1) {
-      if (argv[k] === String(one.crafted_item_id)) { again = true; }
+      if (argv[k] === String(spell)) { again = true; }
     }
     if (again) { continue; }
-    argv.push(String(one.crafted_item_id));
+    argv.push(String(spell));
     targets = targets + 1;
   }
   if (targets === 0) {
-    set_note(document.getElementById("recipes-note"), "nothing new to watch \u2014 every cooked item of the shown rows is already watched, has no row in your DB, or is an enchanting craft with no crafted item", true);
+    set_note(document.getElementById("recipes-note"), "nothing new to pin \u2014 every shown recipe row is already pinned", true);
     return;
   }
   try {
     await cli_ok(argv);
-    await refreshWatched();
-    set_note(document.getElementById("recipes-note"), "watching " + targets + " cooked items of the shown rows \u2014 the Details: watch list button fetches exactly those records, like every watch row before", false);
+    await refresh_pin();
+    set_note(document.getElementById("recipes-note"), "pinned " + targets + " of the shown recipes \u2014 the Pinned recipes tab now holds ALL of them (its nameplate appears ONLY while the pinned set answers ids), and the Pinned tab's Unpin button drops exactly these", false);
   } catch (problem) {
     set_note(document.getElementById("recipes-note"), problem.message, true);
+  }
+}
+
+// The PINNED tab's OWN truth, read by the DB's OWN local door: `pin list` answers
+// the pinned spell ids in the DB's OWN numeric order (ZERO requests, ZERO crawl -
+// the era measured the door at 3 B over an empty set and 11 B over two pins). The
+// conditional nameplate AND its card carry ONE class, `pin-off`, written HERE and
+// nowhere else: while the pinned set is EMPTY the tab shows NOTHING, so an empty
+// pinned tab is never painted (ADR 0034's word: a HALF-dead tab is a LIE). show_tab
+// stays PUT: it knows only tab-off/tab-on, so the pin truth is a class its own loop
+// never writes (ADR 0029's pip/pip-closed precedent).
+function set_pin_visible(there) {
+  var plate = document.getElementById("tab-pinned");
+  var card = document.getElementById("pinned-card");
+  if (there) {
+    plate.classList.remove("pin-off");
+    card.classList.remove("pin-off");
+  } else {
+    plate.classList.add("pin-off");
+    card.classList.add("pin-off");
+    if (active_tab === "pinned") { show_tab("recipes"); }
+  }
+}
+
+async function refresh_pin() {
+  try {
+    pinned_ids = await cli_ok(["pin", "list"]);
+  } catch (problem) {
+    pinned_ids = [];
+  }
+  set_pin_visible(pinned_ids.length > 0);
+}
+
+// The pinned rows ride the SAME door the Recipes tab rides, narrowed by that door's
+// OWN bare flag (ADR 0014's one-code-path rule: a click and a `cargo run -- recipes
+// --pinned --icons --costs --learned` line answer the SAME rows and the SAME cost
+// and learned columns), and the SAME row painter feeds them - the pinned table is
+// the recipes table's OWN narrowed set, so its cells, its money and its click are
+// ONE code path, not a copy. `matching` answers the NARROWED count beside them
+// (ADR 0009's rule; measured: matching 2 over two pins, matching 1 after one drop).
+async function runPinned() {
+  try {
+    var found = await cli_ok(["recipes", "--pinned", "--icons", "--costs", "--learned"]);
+    pinned_shown = found.recipes;
+    var rows = "";
+    for (var i = 0; i < found.recipes.length; i = i + 1) {
+      rows = rows + recipe_row(found.recipes[i]);
+    }
+    document.querySelector("#pinned-hits tbody").innerHTML = rows;
+    var note = "ALL " + num(found.matching) + " pinned recipes are shown \u2014 the set rides the DB's OWN `meta` keys `pin_recipe_<spell_id>` (schema 8 PUT, ZERO schema line, the SAME prefixed-key vocabulary the crawler rides for the recipe files' ETags), the door reads them LOCAL with ZERO requests, and `--pinned` narrows the recipe table's OWN rows by a key-equality join over the meta table's PRIMARY KEY; the rows below are the recipes door's OWN rows, so their money cells, their learned words and their clicks are the Recipes tab's, unchanged (a row's recipe name opens that entry's card window over THIS tab)";
+    if (found.matching === 0) {
+      // unreachable while the tab EXISTS (the tab is conditional on `pin list`
+      // answering ids), kept honest for the frame's sake rather than invented.
+      note = "nothing pinned \u2014 this tab only exists while the pinned set answers ids";
+    }
+    set_note(document.getElementById("pinned-note"), note, false);
+    document.getElementById("btn-pinned-read").classList.remove("running");
+  } catch (problem) {
+    set_note(document.getElementById("pinned-note"), problem.message, true);
+  }
+}
+
+// Un-pin: the shown pinned rows' OWN ids, one batched `pin drop`, like the tab's
+// read. The door's idempotent truth rides (measured: an un-pinned id removes ZERO
+// rows and answers rc 0), so asking twice cannot store a lie; the set is re-read
+// from the DB after the call, never remembered here, and when the set goes EMPTY
+// the tab hides it OWN nameplate and walks the view back to the Recipes tab.
+async function unpinShown() {
+  var argv = ["pin", "drop"];
+  var targets = 0;
+  for (var i = 0; i < pinned_shown.length; i = i + 1) {
+    var spell = Number(pinned_shown[i].spell_id);
+    if (spell <= 0) { continue; }
+    var again = false;
+    for (var k = 2; k < argv.length; k = k + 1) {
+      if (argv[k] === String(spell)) { again = true; }
+    }
+    if (again) { continue; }
+    argv.push(String(spell));
+    targets = targets + 1;
+  }
+  if (targets === 0) {
+    set_note(document.getElementById("pinned-note"), "nothing shown to un-pin \u2014 read the pinned set first", true);
+    return;
+  }
+  try {
+    await cli_ok(argv);
+    await refresh_pin();
+    set_note(document.getElementById("pinned-note"), "un-pinned " + targets + " recipes \u2014 the pinned set now answers what `pin list` says" + (pinned_ids.length === 0 ? " (the Pinned tab's nameplate is gone: the set answers NO id)" : ""), false);
+  } catch (problem) {
+    set_note(document.getElementById("pinned-note"), problem.message, true);
   }
 }
 // ---- the recipe card (v0.12.0, ADR 0025) ------------------------------------
@@ -1408,15 +1513,37 @@ document.getElementById("btn-price").addEventListener("click", function () { run
 // the second source); the recipes stage is deliberately NOT chained into runPullAll
 // - the chain's contract is "the catalogue is complete" over the API's doors, and
 // the recipe set is a fetched dataset on ANOTHER host (recorded, ADR 0021 - not
-// silently added). btn-recipes-watch watches the COOKED items of the shown rows:
-// only ids the DB has rows for (the watch verb's row guard answers honestly for the
-// rest - the door already marked them "the DB never saw this id").
+// silently added). v0.20.0 (ADR 0035): btn-recipes-watch DIED with its button, its
+// function and the census sentence that named it - all in THIS commit (ADR 0034's
+// rule: a feature dies ALL AT ONCE, a nameplate over an absent function is a LIE).
+// btn-recipes-pin aims the DB's OWN `pin add` door at the shown rows' SPELL ids.
+// The `watch` VERB and its table stay PUT: the Writes tab's btn-watch-hits still
+// rides them, and the two doors name TWO namespaces (item ids there, spell ids
+// here - ADR 0021/0025's measured 651 lands of which only 20 are Recipe rows).
 document.getElementById("btn-recipes").addEventListener("click", function () { runRecipes(); });
 document.getElementById("btn-recipes-fetch").addEventListener("click", function () { runSync("recipes"); });
-document.getElementById("btn-recipes-watch").addEventListener("click", function () { watchRecipes(); });
+document.getElementById("btn-recipes-pin").addEventListener("click", function () { pinRecipes(); });
 document.getElementById("btn-recipe-card").addEventListener("click", function () { runRecipeCard(); });
 // v0.15.0 (ADR 0029): the recipe window's OWN closer.
 document.getElementById("btn-recipe-card-close").addEventListener("click", function () { close_pip("recipe-card"); });
+// v0.20.0 (ADR 0035): the Pinned tab's listeners. btn-pinned-read rides the SAME
+// recipes door the Recipes tab rides, narrowed by its OWN bare flag (`recipes
+// --pinned --icons --costs --learned` - ZERO new wire field); btn-pinned-unpin
+// rides `pin drop` over the shown rows' ids (the door's idempotent truth: an
+// un-pinned id removes ZERO rows and answers rc 0). The pinned table's rows ride
+// the delegated handler below, so a PINNED row's name opens the SAME recipe
+// window as any other row's (ADR 0029's window over the tab its click came from).
+document.getElementById("btn-pinned-read").addEventListener("click", function () { runPinned(); });
+document.getElementById("btn-pinned-unpin").addEventListener("click", function () { unpinShown(); });
+// v0.20.0 (ADR 0035): the Pinned tab's listeners. btn-pinned-read rides the SAME
+// recipes door the Recipes tab rides, narrowed by its OWN bare flag (`recipes
+// --pinned --icons --costs --learned` - ZERO new wire field); btn-pinned-unpin
+// rides `pin drop` over the shown rows' ids (the door's idempotent truth: an
+// un-pinned id removes ZERO rows and answers rc 0). The pinned table's rows ride
+// the delegated handler below, so a PINNED row's name opens the SAME recipe
+// window as any other row's (ADR 0029's window over the tab its click came from).
+document.getElementById("btn-pinned-read").addEventListener("click", function () { runPinned(); });
+document.getElementById("btn-pinned-unpin").addEventListener("click", function () { unpinShown(); });
 
 // v0.12.0 (ADR 0025): ONE delegated handler over the recipe hits table - the row's
 // name button carries the spell id it belongs to (the same delegated pattern the
@@ -1426,6 +1553,24 @@ document.getElementById("btn-recipe-card-close").addEventListener("click", funct
 // floating OVER this very tab: no nameplate, no tab switch, the list stays
 // visible under the window. Anything else inside the table answers nothing.
 document.getElementById("recipe-hits").addEventListener("click", function (event) {
+  var node = event.target;
+  if (node.dataset.spell !== undefined) { runRecipeCard(node.dataset.spell); }
+});
+// v0.20.0 (ADR 0035): the PINNED table rides the SAME delegated handler shape with
+// the SAME class and the SAME landing (a row's recipe name carries its own spell
+// id, and the click fills the card door's id - ADR 0014's one-code-path rule): the
+// PINNED rows are the recipes door's OWN rows, so their openers are the SAME
+// opener, never a copy of it. Anything else inside the table answers nothing.
+document.getElementById("pinned-hits").addEventListener("click", function (event) {
+  var node = event.target;
+  if (node.dataset.spell !== undefined) { runRecipeCard(node.dataset.spell); }
+});
+// v0.20.0 (ADR 0035): the PINNED table rides the SAME delegated handler shape with
+// the SAME class and the SAME landing (a row's recipe name carries its own spell
+// id, and the click fills the card door's id - ADR 0014's one-code-path rule): the
+// PINNED rows are the recipes door's OWN rows, so their openers are the SAME
+// opener, never a copy of it. Anything else inside the table answers nothing.
+document.getElementById("pinned-hits").addEventListener("click", function (event) {
   var node = event.target;
   if (node.dataset.spell !== undefined) { runRecipeCard(node.dataset.spell); }
 });
@@ -1478,6 +1623,11 @@ async function boot() {
   show_tab(active_tab);
   await refreshStatus();
   await refreshWatched();
+  // v0.20.0 (ADR 0035): the CONDITIONAL Pinned nameplate's ONE truth, read by the
+  // DB's OWN local door (`pin list`: ZERO requests, ZERO crawl - the launch audit
+  // sees this ONE extra local verb beside the watch list, and the Rust side logs
+  // it). An empty pinned set therefore never paints a tab holding NOTHING.
+  await refresh_pin();
   await runStats();
   // A second status read after the analytics: it keeps the status card honest, and in
   // the launch audit it is the witness that runStats' rendering code ran to the end -

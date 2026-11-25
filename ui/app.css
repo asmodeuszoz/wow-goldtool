@@ -93,6 +93,14 @@ main::after {
  * app.js show_tab() is the ONE truth (v0.9.7, ADR 0018); the static classes
  * in index.html PAINT the default so the first paint never waits on script. */
 .tab-off { display: none; }
+/* v0.20.0 (ADR 0035): the CONDITIONAL Pinned tab's OWN hide. `pin-off` rides BOTH
+ * the nameplate and its card section, and app.js's refresh_pin()/set_pin_visible()
+ * write it from the DB's OWN local door (`pin list`, ZERO requests): an EMPTY
+ * pinned set shows NEITHER, so an empty pinned tab never exists to lie. show_tab
+ * never reads or writes this class (it knows only tab-off/tab-on), so the pin
+ * truth is a class its own loop never writes - ADR 0029's pip/pip-closed
+ * mechanism kept under a name that is not a window. */
+.pin-off { display: none; }
 nav.tabs {
   display: flex;
   gap: 4px;
@@ -364,7 +372,11 @@ table.mini td.pricecell { text-align: right; color: var(--gold); }
  * money and icon cells RIDE the frame's OWN moneycell/listicon/noicon, never a
  * second copy of those. The webview never launched in the build room, so this is a
  * parse/grep witness, not a rendered claim (the launch-audit rule, kept). */
-table.recipehits { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 0; }
+/* v0.20.0 (ADR 0035): the PINNED table rides the SAME look, JOINED not copied (the
+ * frame joins selectors the same way its own `th.col-job, th.col-recipe, ...` header
+ * rule joins): the pinned rows ARE the recipes door's narrowed rows, drawn by the
+ * SAME row painter, so a second copy of a look would be a second source of truth. */
+table.recipehits, table.pinned-hits { width: 100%; border-collapse: collapse; font-size: 12.5px; margin: 0; }
 th.col-job, th.col-recipe, th.col-learned, th.col-skill, th.col-mats, th.col-cost, th.col-cooked {
   color: var(--parch);
   border-bottom: 1px solid var(--edge);
@@ -373,8 +385,8 @@ th.col-job, th.col-recipe, th.col-learned, th.col-skill, th.col-mats, th.col-cos
   font-weight: 600;
   text-align: left;
 }
-#recipe-hits tr td { color: var(--muted); vertical-align: middle; }
-#recipe-hits tr:hover td { background: var(--field-2); }
+#recipe-hits tr td, #pinned-hits tr td { color: var(--muted); vertical-align: middle; }
+#recipe-hits tr:hover td, #pinned-hits tr:hover td { background: var(--field-2); }
 .jobchip { display: inline-block; color: var(--parch); background: rgba(94, 72, 50, 0.55); border-radius: 6px; padding: 2px 7px; font-size: 11.5px; }
 .skillchip { display: inline-block; color: var(--gold); background: rgba(58, 44, 32, 0.5); border-radius: 6px; padding: 1px 6px; font-size: 11px; }
 .tierchip { display: inline-block; color: var(--parch); background: rgba(58, 44, 32, 0.5); border-radius: 6px; padding: 1px 6px; font-size: 10.5px; }
@@ -403,6 +415,13 @@ th.col-job, th.col-recipe, th.col-learned, th.col-skill, th.col-mats, th.col-cos
 .live-none { color: var(--muted); background: rgba(58, 44, 32, 0.55); border-radius: 5px; padding: 1px 5px; font-size: 10.5px; }
 .recipes-fields select option { color: var(--text); background: var(--field-2); }
 #btn-recipes-fetch.running { color: var(--gold); }
+/* v0.20.0 (ADR 0035): the pin buttons ride the frame's OWN `button.act` look (no
+ * second copy of a button look), and the pinned table's rows ride the recipes
+ * table's rules above JOINED, never copied; the TWO busy-paint lines below are new
+ * and ride the frame's OWN `#btn-<id>.running` precedent (the Recipes tab's fetch
+ * button and the recipe card's button already ride it). */
+#btn-recipes-pin.running { color: var(--gold); }
+#btn-pinned-read.running { color: var(--gold); }
 
 /* v0.12.0 (ADR 0025): the recipe card panel + the recipe row's CLICK. The classes
  * app.js DRAWS here are named exactly: openrecipe (the row's name cell = the click
@@ -422,7 +441,7 @@ th.col-job, th.col-recipe, th.col-learned, th.col-skill, th.col-mats, th.col-cos
  * and the search name are ONE click shape, no second copy of a look anywhere.
  * The rule stays table-scoped on both halves - a row's look is scoped to the
  * table that owns it (the census above). */
-#recipe-hits tr td button.openrecipe, #hits tr td button.pipbtn {
+#recipe-hits tr td button.openrecipe, #pinned-hits tr td button.openrecipe, #hits tr td button.pipbtn {
   color: var(--gold);
   background: none;
   border: none;

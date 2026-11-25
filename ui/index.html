@@ -45,6 +45,25 @@
            says so beside its dataset name, and an enchanting craft says it has NO
            crafted item at all (measured: 133 of the set carry no crafted id). -->
       <button class="tab" id="tab-recipes" data-tab="recipes" type="button">Recipes</button>
+      <!-- v0.20.0 (ADR 0035): the CONDITIONAL eighth nameplate. It is PAINTED off
+           (`pin-off`, app.css's display:none rule) and app.js's refresh_pin() - run
+           at first paint in boot() - writes its visibility from the DB's OWN local
+           door `pin list` (ZERO requests, ZERO crawl): while the pinned set answers
+           NO spell id, this nameplate AND its card section carry `pin-off` and the
+           panel shows SIX activities, never a seventh holding NOTHING (ADR 0034's
+           word again: a HALF-dead tab is a LIE). show_tab stays PUT - it knows only
+           tab-off/tab-on, so it never fights the pin truth (ADR 0029's pip/pip-
+           closed precedent, kept for a tab that IS an activity). The tab's rows are
+           the recipes door's OWN narrowed set: `recipes --pinned --icons --costs
+           --learned` (ONE bare flag, ZERO new wire field, `matching` answering the
+           narrowed count), so pinned recipes ride the SAME money, learned words and
+           row clicks as the Recipes tab - never a second copy of any of them. A
+           PIN is the DB's OWN `meta` key `pin_recipe_<spell_id>` (schema 8 PUT, the
+           SAME prefixed-key vocabulary the crawler already rides there), NEVER the
+           `watch` table: that table feeds `sync --watch` a CRAWL of ITEM ids, and a
+           spell id is NOT an item id (measured: 651 of 1 240 spell ids land on item
+           rows, only 20 of those on Recipe rows). -->
+      <button class="tab pin-off" id="tab-pinned" data-tab="pinned" type="button">Pinned recipes</button>
       <!-- v0.12.0 (ADR 0025): the NINTH nameplate tab. Its rows are reached by
            CLICKING a recipe row's name in the tab above - the name cell is a button
            carrying that row's spell id - and by typing an id here. ONE door answers
@@ -117,10 +136,16 @@
          bound AT or ABOVE the matching count answers the SAME bytes, so a bigger cap
          would only ever HIDE rows - the reason the cap died rather than grew. The tab
          still asks the door's OWN argv (`recipes --icons --costs`, ZERO requests), so a cargo
-         line shows the same rows. The Watch button below rides EVERY row shown - with
-         the whole set that is the whole set's cooked items, and the Details door then
-         fetches exactly those (measured: 1 095 ids of 1 240 rows, the 133 Enchanting
-         crafts with NO crafted item and the 10 ids with no row skipped honestly). -->
+         line shows the same rows. The Watch button below was born at v0.10.0 and DIED at
+         v0.20.0 WITH its button, its function and this very sentence naming it (ADR
+         0034's rule: a feature dies ALL AT ONCE); the `watch` VERB, its table and the
+         Writes tab's Watch button stayed PUT. The PIN button that replaced it keeps the
+         shown rows' OWN spell ids on the DB's OWN `meta` keys `pin_recipe_<spell_id>`,
+         and the Pinned recipes nameplate above appears ONLY while the pinned set
+         answers ids - measured over the user's OWN file (read-only, NEVER written,
+         NEVER crawled): the 1 240 recipe rows answer 1 240 DISTINCT spell ids, so a
+         pin always names a real row and the door's own guard can refuse nothing this
+         tab shows. -->
     <section class="card wide tab-off" id="recipes-card" data-tab="recipes">
       <h2>Recipes — what the jobs can craft (the fetched set)</h2>
       <div class="fields" id="recipes-fields">
@@ -136,7 +161,7 @@
           <option value="Tailoring">Tailoring</option>
         </select>
         <button class="act" id="btn-recipes" type="button">Read the DB</button>
-        <button class="act" id="btn-recipes-watch" type="button">Watch the cooked items</button>
+        <button class="act" id="btn-recipes-pin" type="button">Pin these recipes</button>
       </div>
       <table class="recipehits" id="recipe-hits">
         <thead>
@@ -145,6 +170,33 @@
         <tbody></tbody>
       </table>
       <div class="note" id="recipes-note"></div>
+    </section>
+
+    <!-- v0.20.0 (ADR 0035): the Pinned recipes card, the CONDITIONAL half of the
+         nameplate above: it rides `pin-off` WITH it, so the two are never one alive
+         and one hidden. Its rows come from ONE door - `recipes --pinned` narrowed
+         over the recipe table's OWN rows - and its row painter is the Recipes
+         tab's `recipe_row`, so the table's OWN classes (col-job/col-recipe/
+         col-learned/col-skill/col-mats/col-cost/col-cooked) ride PUT and app.css
+         JOINES this table to the recipes table's rules instead of copying them
+         (ADR 0031's rule: a row owns its look in ONE place). Money here is the
+         frame's money contract unchanged (ADR 0015/0023: money beside EVERY copper,
+         NEVER beside a count) - the PIN era touches ZERO money. The Unpin button
+         rides `pin drop` over the shown rows' ids; an un-pinned id removes ZERO
+         rows and answers rc 0 (the door's own idempotent truth, measured). -->
+    <section class="card wide tab-off pin-off" id="pinned-card" data-tab="pinned">
+      <h2>Pinned recipes — the recipes you keep beside the list</h2>
+      <div class="fields" id="pinned-fields">
+        <button class="act" id="btn-pinned-read" type="button">Read the DB</button>
+        <button class="act" id="btn-pinned-unpin" type="button">Unpin these recipes</button>
+      </div>
+      <table class="pinned-hits" id="pinned-hits">
+        <thead>
+          <tr><th class="col-job">job</th><th class="col-recipe">recipe</th><th class="col-learned">learned from</th><th class="col-skill">skill</th><th class="col-mats">materials (icon · money)</th><th class="col-cost">total cost (live)</th><th class="col-cooked">cooked at</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div class="note" id="pinned-note"></div>
     </section>
 
     <section class="card tab-off" id="sync-card" data-tab="sync">
