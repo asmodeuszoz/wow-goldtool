@@ -27,7 +27,7 @@ use std::env::set_var;
 /// What the CLI can answer. Keeping the list here means an unknown verb becomes a
 /// usage error that names what the user actually typed.
 pub fn usage_text() -> String {
-    return "usage: status | sync --stage list|detail|icons|tooltip|price|recipes [--budget N] [--ids A,B,C] [--watch] | search TEXT [--icons --where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id|price-now --limit N --offset N] | stats [--icons --limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | pin add SPELL_ID [SPELL_ID ...] | pin list | pin drop SPELL_ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | recipes [--profession NAME] [--learned] [--limit N] [--offset N] [--costs] | recipe SPELL_ID [--icons] [--costs] | status [--db PATH] [--fixture URL]".to_string();
+    return "usage: status | sync --stage list|detail|icons|tooltip|price|recipes [--budget N] [--ids A,B,C] [--watch] | search TEXT [--icons --where name|description|all --quality X --type Y --max-level N --priced --sort price|name|quality|level|id|price-now --limit N --offset N] | stats [--icons --limit N] | item ID [--cached] | live-search TEXT | watch add ID [note] | watch list | watch drop ID | pin add SPELL_ID [SPELL_ID ...] | pin list | pin drop SPELL_ID | set-item ID FIELD=VALUE | add-item FIELD=VALUE [...] | delete-item ID | undelete-item ID | refresh-twins | recipes [--profession NAME] [--pinned] [--learned] [--limit N] [--offset N] [--costs] | recipe SPELL_ID [--icons] [--costs] | status [--db PATH] [--fixture URL]".to_string();
 }
 
 /// The verbs of one invocation plus its flags. Unknown flags are kept rather than
@@ -75,6 +75,15 @@ pub struct Invocation {
     /// and stays PUT; the flag rides parsed-and-ignored through the doors that
     /// never asked, like `--icons` and `--costs`. Unasked bytes stay PUT.
     pub learned: bool,
+    /// v0.20.0 (ADR 0035): ask the recipes LIST door for the PINNED half of its set -
+    /// the rows whose spell id the user pinned (a pin rides the DB's OWN `meta` keys
+    /// `pin_recipe_<spell_id>`, see `PIN_PREFIX` in db.rs). A FILTER, so the door
+    /// answers ZERO new wire fields: the rows it returns ARE the pinned set, and
+    /// `matching` answers the NARROWED count beside them (ADR 0009's rule, kept by the
+    /// SAME `recipes_where` helper both recipe doors now ride). Like `--icons`/
+    /// `--costs`/`--learned` it rides parsed-and-ignored through the doors that never
+    /// asked for it, so a through-ride stays BYTE-EQUAL.
+    pub pinned: bool,
     pub bad: String,
 }
 
@@ -104,6 +113,7 @@ pub fn bare_flag(flag: String) -> bool {
     if flag == "--icons" { return true }
     if flag == "--costs" { return true }
     if flag == "--learned" { return true }
+    if flag == "--pinned" { return true }
     return false;
 }
 
@@ -140,6 +150,7 @@ pub fn parse_invocation(args: Vec<String>) -> Invocation {
         profession: None,
         costs: false,
         learned: false,
+        pinned: false,
         bad: "".to_string(),
     };
     let mut index: usize = 0;
@@ -153,6 +164,7 @@ pub fn parse_invocation(args: Vec<String>) -> Invocation {
                 if token == "--icons" { out.icons = true; }
                 if token == "--costs" { out.costs = true; }
                 if token == "--learned" { out.learned = true; }
+                if token == "--pinned" { out.pinned = true; }
                 index = index + 1;
                 continue;
             }
@@ -325,14 +337,14 @@ pub fn cmd_recipes(inv: &Invocation) -> AppResult<String> {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };
-    let total: i64 = match recipes_count(&conn, inv.profession.clone()) {
+    let total: i64 = match recipes_count(&conn, inv.profession.clone(), inv.pinned) {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };
     if total == 0 {
         return Err(AppError::not_found("the recipe table holds no rows (for this filter): run sync --stage recipes to pull the files (ADR 0021)".to_string()));
     }
-    let rows: Vec<RecipeRow> = match recipes_rows(&conn, inv.profession.clone(), inv.icons, inv.costs, inv.learned, inv.limit, inv.offset) {
+    let rows: Vec<RecipeRow> = match recipes_rows(&conn, inv.profession.clone(), inv.pinned, inv.icons, inv.costs, inv.learned, inv.limit, inv.offset) {
         Err(problem) => return Err(problem),
         Ok(value) => value,
     };

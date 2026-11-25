@@ -2468,6 +2468,26 @@ pub const SQL_PIN_DROP: &str = "DELETE FROM meta WHERE key = ?";
 pub const SQL_RECIPE_ROW_OF: &str = "SELECT COUNT(1) FROM recipe WHERE spell_id = ?";
 pub const SQL_RECIPE_COUNT: &str = "SELECT COUNT(1) FROM recipe ";
 pub const SQL_RECIPE_ORDER: &str = "ORDER BY profession ASC, (skill_required IS NULL) ASC, skill_required ASC, spell_id ASC";
+/// v0.20.0 (ADR 0035): the PIN's WHERE half - ONE CLAUSE the recipes door joins to
+/// its own (see `recipes_where` beside it). A row is PINNED when the `meta` table
+/// holds the key that NAMES that row: an `EXISTS` over the meta table's OWN PRIMARY
+/// KEY (`key TEXT PRIMARY KEY`, docs/DATABASE.md's schema-8 CREATE line), so the
+/// join costs ONE indexed lookup per row and the SQL stays a CONSTANT size no matter
+/// how many pins a user carries (measured on a scratch DB speaking this DB's OWN
+/// schema lines: 3 pins over 5 rows answered 3 rows; the SAME clause ANDed with the
+/// profession filter and followed by `LIMIT ? OFFSET ?` answered the pinned slice,
+/// params in the order the SQL states them; and with ZERO pins the clause answers an
+/// EMPTY set and the count half answers `0`, NOT an error - narrowing a set never
+/// errors, ADR 0011's rule that a filter never launders a set). Measured REFUSALS
+/// kept honest: SQLite 3.54 refuses the bare aliased form outright (`EXISTS (meta
+/// AS pin WHERE pin.key = ?)` answered `near "meta": syntax error`), so the subquery
+/// form rides. NO LIKE is used in this join: LIKE's `_` is a single-char WILDCARD and
+/// LIKE's matching is CASE-INSENSITIVE (ADR 0035's census row keeps the measure where
+/// a LIKE over keys answered keys the DB never pinned), and `spell_id IN (SELECT
+/// CAST(substr(key, 12)` would bake the prefix's LENGTH into the door's SQL twice.
+/// Zero schema line, zero new table, zero new wire field: the flag NARROWS the rows
+/// the door ALREADY answers.
+pub const SQL_WHERE_PINNED: &str = "EXISTS (SELECT 1 FROM meta AS pin WHERE pin.key = ? || CAST(spell_id AS TEXT))";
 pub const SQL_LIVE_NAME_PRICE: &str = "SELECT name, price_min, price_min_now, price_now_at, price_now_missing_at FROM item WHERE id = ? AND deleted_at IS NULL";
 
 #[derive(Serialize, Clone)]
@@ -2750,6 +2770,45 @@ pub fn craft_cost(reagents: Vec<RecipeReagent>) -> CostTally {
     };
 }
 
+/// v0.20.0 (ADR 0035): the recipes door's WHERE half, IN ONE PLACE for BOTH of its
+/// doors (the rows read and the count echo). The door builds a WHERE CLAUSE from
+/// clauses (a bare filter half is `""` = the table's own set), and every clause rides
+/// WITH its bound values in the textual order, because SQLite numbers bare `?` by
+/// TEXTUAL order over the whole line while `params` answers POSITIONALLY: a clause
+/// that moved without its value would bind the wrong needle (the door's OWN rule,
+/// stated beside its paging since v0.10.0). `LIMIT`/`OFFSET` values come from
+/// `paging_clause` AFTER these and the caller appends them LAST.
+pub fn recipes_where(profession: Option<String>, pinned: bool) -> (String, Vec<Value>) {
+    let mut clauses: Vec<String> = [].to_vec();
+    let mut bounds: Vec<Value> = [].to_vec();
+    match profession {
+        None => {},
+        Some(word) => {
+            clauses.push("profession = ?".to_string());
+            bounds.push(Value::Text(word));
+        },
+    }
+    match pinned {
+        false => {},
+        true => {
+            clauses.push(SQL_WHERE_PINNED.to_string());
+            bounds.push(Value::Text(PIN_PREFIX.to_string()));
+        },
+    }
+    let mut joined: String = "".to_string();
+    for one in clauses.clone() {
+        if joined != "" {
+            joined = format!("{} AND ", joined);
+        }
+        joined = format!("{}{}", joined, one);
+    }
+    let part: String = match clauses.len() {
+        0 => "".to_string(),
+        _ => format!("WHERE {} ", joined),
+    };
+    return (part, bounds);
+}
+
 /// Read the recipe rows of one door call: filter echo, ORDER, LIMIT/OFFSET are
 /// bound values (never interpolated), and every reagent + the crafted item are
 /// joined through the item rows AFTER the rows are collected - the door cannot
@@ -2760,16 +2819,20 @@ pub fn craft_cost(reagents: Vec<RecipeReagent>) -> CostTally {
 /// v0.17.0 (ADR 0032): `costs` asks the door to fill each row's cost tallies
 /// through the ONE `craft_cost` helper the card door shares; unasked the row
 /// JSON keeps the bytes it answered since v0.10.0 (serde skip on three fields).
-pub fn recipes_rows(conn: &Connection, profession: Option<String>, with_icons: bool, costs: bool, learned: bool, limit: Option<i64>, offset: Option<i64>) -> AppResult<Vec<RecipeRow>> {
-    let filter_part: String = match profession {
-        None => "".to_string(),
-        Some(_) => "WHERE profession = ? ".to_string(),
-    };
+pub fn recipes_rows(conn: &Connection, profession: Option<String>, pinned: bool, with_icons: bool, costs: bool, learned: bool, limit: Option<i64>, offset: Option<i64>) -> AppResult<Vec<RecipeRow>> {
+    // v0.20.0 (ADR 0035): the WHERE half comes from the SAME helper the count door
+    // rides - as of v0.19.0 the two doors each wrote their own copy of
+    // "WHERE profession = ? ", which is one rule in two places (ADR 0014's rule,
+    // the same one the paging clause answers twice, ADR 0022); now ONE helper
+    // answers BOTH doors. Clauses and their bound values move together in the order
+    // the SQL states them, so `?` numbering and `params` cannot disagree about the
+    // pin's WHERE half.
+    let filter: (String, Vec<Value>) = recipes_where(profession.clone(), pinned);
+    let filter_part: String = filter.0;
     let mut sql: String = format!("{}{}{} ", SQL_RECIPE_ROWS, filter_part.clone(), SQL_RECIPE_ORDER);
     let mut params: Vec<Value> = [].to_vec();
-    match profession {
-        None => {},
-        Some(word) => params.push(Value::Text(word)),
+    for bound in filter.1 {
+        params.push(bound.clone());
     }
     let page: (String, Vec<i64>) = crate::query::paging_clause(limit, offset);
     sql = format!("{}{}", sql, page.0);
@@ -3046,21 +3109,15 @@ pub fn has_recipe_row(conn: &Connection, spell_id: i64) -> AppResult<bool> {
 /// How many recipe rows a profession filter matches: the same WHERE chain as
 /// the rows read, so the door and its count cannot drift (ADR 0009's "showing
 /// 40 of 1250" rule, kept for the new door too).
-pub fn recipes_count(conn: &Connection, profession: Option<String>) -> AppResult<i64> {
-    let filter_part: String = match profession {
-        None => "".to_string(),
-        Some(_) => "WHERE profession = ? ".to_string(),
-    };
-    let sql: String = format!("{}{}", SQL_RECIPE_COUNT, filter_part.clone());
-    let params: Vec<Value> = match profession {
-        None => [].to_vec(),
-        Some(word) => {
-            let mut one: Vec<Value> = [].to_vec();
-            one.push(Value::Text(word));
-            one
-        },
-    };
-    match conn.query_row(&sql.clone(), params_from_iter(params), |row| row.get(0)) {
+pub fn recipes_count(conn: &Connection, profession: Option<String>, pinned: bool) -> AppResult<i64> {
+    // v0.20.0 (ADR 0035): the WHERE half comes from the SAME `recipes_where` helper
+    // the rows read ride, so the door and its count cannot drift about the pin's
+    // filter (ADR 0009's "showing 40 of 1 250" rule, kept for the new door too; the
+    // rule `recipes_count` itself stated since v0.10.0, which as of v0.19.0 was kept
+    // by TWO doors each writing its own copy of the profession half).
+    let filter: (String, Vec<Value>) = recipes_where(profession.clone(), pinned);
+    let sql: String = format!("{}{}", SQL_RECIPE_COUNT, filter.0.clone());
+    match conn.query_row(&sql.clone(), params_from_iter(filter.1), |row| row.get(0)) {
         Err(problem) => return Err(AppError::db(format!("{}", problem))),
         Ok(total) => return Ok(total),
     }
