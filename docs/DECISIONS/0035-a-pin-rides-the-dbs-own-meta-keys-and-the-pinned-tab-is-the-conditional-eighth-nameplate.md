@@ -239,3 +239,35 @@ column, ZERO new wire field, ZERO new money line, ZERO new request.
 - **ADR 0021 / ADR 0025 RIDDEN (the namespace measure):** 651 of 1 240 spell ids land on an item row, only 20 of them
   `Recipe`-typed; the card door's OWN refusal words are what a pin refusal reuses; 1 240 recipe rows / 1 240 distinct
   spell ids on the user's file is what makes the guard unable to refuse a shown row.
+
+**FOLDED at v0.20.0 (this era's OWN fold, post-tag on the PUSHED tree at `fd5e39f`):** the era's OWN chain+tag run
+measured **`45547667045` SUCCESS — CI #60, 2026-11-25T04:34:07Z, 9 m 33 s** — ONE run id at head `fd5e39f` = this record
+= the tag's target, NO CANCELLED sibling, triggered via push by `asmodeuszoz`; verified through the remote's OWN `^{}`
+line: tag-obj `e47ddf82fe1c…` (945 B object / 789 B message payload) → `fd5e39f`, payload NEVER edited after the chain+tag
+push (per-job close times beyond the total need an `actions:read` scope the CLI token lacks — said so, never guessed).
+FRESH post-tag witnesses on the pushed tree (ports **9963** mirror / **9964** map with DEAD **9965** / **9973** pair vs a
+REBUILT worktree @ TAGGED `d37866d`, its OWN build green naming ZERO): mirror **58 commands rc `0`, ZERO NONZERO** (pin
+steps rc `0` at 39 / 10 / 13 070 / 6 / 6 B) with tallies PUT at **51 GETs / 17 recipe-file GETs, ZERO ADDED** and the PUT
+category census (detail 18 · icon-file 5 · tooltip 8 · live-search 3 · recipe files 17) — ADR 0012's locality proof
+re-confirmed; exit map at **the SAME grown totals 67 = `0`×41 · `2`×9 · `4`×17** (PIN family 26 = `0`×16 · `2`×4 · `4`×6
+over the base 41 PUT at `0`×25 · `2`×5 · `4`×11), through-rides BYTE-EQUAL at 4 394 / 188 / 1 543 / 1 106 / 2 122 / 764 B
+(this window's price seed differs from the pre-tag map's 4 392 / … / 2 119 / 763 — the SEED moves, the IDENTITY and the
+rc totals do not); pinned pair **28/28 BYTE-IDENTICAL + 13/13 md5-equal** = this era's REGRESSION proof over grown code,
+WITH the era's BEFORE witness on the SAME pair (rc `2` at 44 B `unknown verb pin (run help to see the verbs)` ×3 + rc `2`
+at 49 B `unknown flag --pinned (run help to see the verbs)` ×2) and the user-copy truth `pin list` rc `0` at 3 B `[]` /
+`recipes --pinned` rc `4` at 103 B (`--profession Cooking` the SAME 103 B — a filter launders NOTHING) — the pinned set is
+EMPTY today on the user's file, so the conditional nameplate shows NOTHING today and the door answers its OWN refusal —
+PUT md5s BOTH binaries (4 293 B `bbc17f2d` · 21 090 B `c1fe9d13`), ORIGINAL UNCHANGED (44 023 808 B + mtime-ns `1 795
+566 381 543 858 680`). User file re-census read-only PUT (schema `8` · `meta` 588 rows / ZERO `pin_recipe_` keys · 1 240
+rows / 1 240 distinct spell ids · `watch` 149 · tombstones 0). CI parse on the pushed tree **57 step-lines + plant one
+PUT** (FIVE pin step-lines, 60 raw `cargo run --` file-wide); UI grep PARSE-OK (SEVEN nameplates · `class="tab` 8 ·
+`data-tab=` 15 · EIGHT sections · 337/1 638/518 · `pin-off` 5/6/2 · `show_tab` 2/7/2 PUT word-for-word — the census
+comment TRUE again AND grown with the note naming the CONDITIONAL nameplate). Gates: `cargo build` rc `0` naming ZERO on
+the docs-only fold, clippy **0 errors / 843 advice (844 warm)** — the SET moved from v0.19.0's 824 because the era grew
+~370 Rust lines and STAYS 843 across the fold, consistent with ZERO code line here. **Remote tags 72 ls-remote lines ·
+36 tags · ZERO moved** (`v0.20.0^{}` → `fd5e39f` · `v0.19.0^{}` → `d37866d` · `v0.18.0^{}` → `70d2f20` · `v0.17.0^{}` →
+`473a63f` · `v0.14.0^{}` → `c065815` PUT · older anchors ride where they were). The fold's diff is **docs ONLY** — FIVE
+files (CHANGELOG, README, DEVLOG, DEVELOPMENT, this ADR's OWN appendix): ZERO Rust, ZERO tests/, ZERO ci.yml, ZERO CSS
+rule, ZERO schema line, ZERO SQL const; the TWO recorded defects stay recorded, ZERO new on the pushed tree. The tag
+`v0.20.0` stays PUT on `fd5e39f`; the fold's OWN push starts the run the NEXT era measures (ADR 0011's ladder), never
+chased here.

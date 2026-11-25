@@ -105,8 +105,41 @@ never grew it — the comment LIED for ONE era; on THIS tree it is TRUE again AN
 (quality 2 m 16 s · test 6 m 14 s · the three build jobs "3 completed") in **6 m 34 s**, triggered via push 2026-11-24 23:45Z by
 `asmodeuszoz`, head `7b27c1d680e483150357c2034a697f7b56ad7775` = that fold commit on `refs/heads/main`, ONE run id at that head,
 status "Success" (read off GitHub's OWN Actions page; per-job closes beyond those durations need an `actions:read` token the CLI
-does not have, said so) · **FOLDED post-tag on the PUSHED tree** (the era's OWN chain+tag run and its post-tag witnesses land in
-the fold below — ADR 0011's ladder, never chased here). The fold's OWN push starts the run the NEXT era measures.
+does not have, said so) · **FOLDED post-tag on the PUSHED tree at `fd5e39f`** (fresh **9963** mirror / **9964** exit map with DEAD port 9965
+nothing binds / **9973** pinned pair vs a REBUILT worktree @ TAGGED `d37866d` — banner `0.19.0`, its OWN build green
+naming ZERO — fresh processes/DBs, the real host saw NOTHING, the user's file read read-only and NEVER opened by a
+binary): the era's OWN chain+tag run reads **45547667045 SUCCESS** — CI **#60**, triggered via push 2026-11-25 **04:34:07Z**
+by `asmodeuszoz`, **9 m 33 s**, head `fd5e39f` = this record = the tag's target — verified through the remote's OWN `^{}`
+line: tag-obj `e47ddf82…` (945 B object / 789 B message payload) → `fd5e39f`, payload NEVER edited after the chain+tag
+push; ONE run id at that head, NO CANCELLED sibling in the page's run list (read off GitHub's OWN Actions page; per-job
+close times beyond the total need an `actions:read` scope the CLI token does not have — said so, never guessed). Post-tag
+mirror **58 commands rc `0`, ZERO NONZERO** with the FIVE pin steps rc `0` at 39 / 10 / 13 070 / 6 / 6 B and the fixture's
+tallies PUT at **51 GETs / 17 recipe-file GETs, ZERO ADDED** (category census PUT: detail 18 · icon-file 5 · tooltip 8 ·
+live-search 3 · recipe files 17) — ADR 0012's locality proof re-confirmed on the pushed tree; exit map at **the SAME
+grown totals 67 doors `0`×41 · `2`×9 · `4`×17** — the PIN family 26 at `0`×16 · `2`×4 · `4`×6 over the base 41 riding PUT
+at `0`×25 · `2`×5 · `4`×11 — through-rides BYTE-EQUAL at 4 394 / 188 / 1 543 / 1 106 / 2 122 / 764 B (bytes ride the
+window's OWN seed, the identity and the rc totals do not); pinned pair **28/28 BYTE-IDENTICAL + 13/13 md5-equal** vs the
+tagged frame = this era's REGRESSION proof over grown code, WITH the era's BEFORE witness on the SAME pair (that frame
+answers rc `2` at 44 B `unknown verb pin (run help to see the verbs)` for `pin`/`pin list`/`pin add 132` and rc `2` at 49
+B `unknown flag --pinned (run help to see the verbs)` for the `--pinned` asks), the user-copy truth `pin list` rc `0` at
+3 B `[]` (the file carries ZERO pins today → the conditional tab shows NOTHING today) and `recipes --pinned` rc `4` at
+103 B (as does `--profession Cooking`), PUT md5s on BOTH binaries (`recipes --limit 3` 4 293 B md5 `bbc17f2d` · the
+Blacksmithing step 21 090 B md5 `c1fe9d13`), the ORIGINAL verified UNCHANGED (size 44 023 808 B + mtime-ns 1 795 566 381
+543 858 680); user file UNCHANGED read-only (SQLite 3.54.1 · schema `8` · `meta` **588** rows, **ZERO** carrying the
+`pin_recipe_` prefix · 1 240 recipe rows / **1 240** distinct spell ids · `watch` 149 · tombstones 0); CI parse on the
+pushed tree STILL **57 step-lines + plant one** (FIVE pin step-lines, 60 raw `cargo run --` mentions file-wide); UI grep
+re-measure PARSE-OK — SEVEN nameplates · `class="tab` 8 · `data-tab=` 15 · EIGHT sections · 337 + 1 638 + 518 lines ·
+`pin-off` 5/6/2 · `show_tab` 2/7/2 PUT (defect (1) re-confirmed HONEST on the shipped tree); clippy local **0 errors /
+843 advice (844 warm)** — the SET moved from v0.19.0's 824 because the era grew ~370 Rust lines and STAYS 843 across this
+docs-only fold. **Remote tags 72 ls-remote lines · 36 tags · ZERO moved** (`v0.20.0^{}` → `fd5e39f` · `v0.19.0^{}` →
+`d37866d` · `v0.18.0^{}` → `70d2f20` · `v0.17.0^{}` → `473a63f` · `v0.14.0^{}` → `c065815` PUT · older anchors ride where
+they were). Measured defects on the pushed tree: the TWO stay recorded, ZERO new (defect (1) is TRUE again on THIS tree
+— SEVEN / EIGHT / 15 measured, and the comment grew the note naming the conditional nameplate · defect (2): the README
+Status paragraph still opens "THE v0.16.0" while its OWN ladder carries `v0.20.0`, its growth lands FORWARD). The fold's
+diff is **docs ONLY** — FIVE files (CHANGELOG, README, DEVLOG, DEVELOPMENT, ADR 0035's OWN appendix): ZERO Rust line,
+ZERO tests/ line, ZERO ci.yml line, ZERO CSS rule, ZERO schema line, ZERO SQL const (`cargo build` rc `0` naming ZERO —
+the hard-link incremental-cache line being the FS-artifact class, NEVER a named warning). Tag `v0.20.0` stays PUT on
+`fd5e39f`. The fold's OWN push starts the run the NEXT era measures (ADR 0011's ladder) — never chased here.
 
 ## v0.19.0 — the LIVE LOOK tab DIES (button + card + `runLive` + handler, ONE commit, all FOUR halves together) while the `live-search` DOOR rides PUT word-for-word — SIX activity tabs now, ZERO Rust line, ZERO CSS rule, ZERO CI step, ZERO request rule moved · 2026-11-24 · tag `v0.19.0`
 
